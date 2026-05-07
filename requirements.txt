@@ -1,0 +1,49 @@
+# Core
+streamlit==1.40.1
+pandas==2.2.3
+numpy==1.26.4
+pyyaml==6.0.2
+python-dotenv==1.0.1
+
+# PCAP parsing
+pyshark==0.6
+scapy==2.6.1
+
+# ML / detection
+scikit-learn==1.5.2
+torch==2.5.1
+torchvision==0.20.1
+
+# Time-series
+prophet==1.1.6
+statsmodels==0.14.4
+
+# RAG / embeddings
+faiss-cpu==1.9.0
+sentence-transformers==3.3.1
+rank-bm25==0.2.2
+
+# LLM client (talks to local Ollama)
+ollama==0.4.4
+
+# MLOps
+mlflow==2.18.0
+dvc==3.58.0
+
+# Visualisation
+plotly==5.24.1
+matplotlib==3.9.3
+
+# Backend (Phase II)
+fastapi==0.115.6
+uvicorn==0.32.1
+
+# Dev tools
+pytest==8.3.4
+pytest-cov==6.0.0
+black==24.10.0
+ruff==0.8.4
+mypy==1.13.0
+pre-commit==4.0.1
+ipykernel==6.29.5
+jupyter==1.1.1
