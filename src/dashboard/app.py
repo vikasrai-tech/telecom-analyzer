@@ -1,148 +1,256 @@
 """
-Walking skeleton dashboard for the Unified Telecom Analyzer.
+Unified Telecom Analyzer — Dashboard
+=====================================
 
-This is intentionally minimal — every component is a stub that returns
-fake data. The point is to wire up the *flow* end-to-end so that we can
-replace one stub at a time with real implementations.
+ARCHITECTURE:
+    This is the presentation layer only.
+    Business logic lives in src/parsers/, src/detection/, src/llm/
+    Dashboard just: receives input → calls services → displays output
 
-Run with: streamlit run src/dashboard/app.py
+WHY STREAMLIT:
+    Rapid prototyping for data science dashboards.
+    No HTML/CSS/JS needed — pure Python.
+    Built-in widgets: file_uploader, metrics, dataframe, expander.
+    Alternative was Flask + React — overkill for Phase I.
+    Streamlit can be replaced later without touching parser/detection code.
+
+CURRENT STATE (Phase I):
+    ✅ PCAP parser — REAL (pcap_parser_real.py)
+    🔶 Detection engine — stub (will be real in Week 6-8)
+    🔶 LLM explainer — stub (will be real in Week 11-14)
+
+WHY STUBS STILL EXIST:
+    Incremental development — one real component at a time.
+    Detection and LLM stubs let us demo the full pipeline
+    even before those components are implemented.
 """
 
 import streamlit as st
 import pandas as pd
+import tempfile
+import os
 from pathlib import Path
 import sys
 
-# Add src to path so we can import siblings
+# WHY sys.path:
+#   Streamlit runs app.py from its own working directory.
+#   Without this, 'from src.parsers...' would fail with ModuleNotFoundError.
+#   We add project root to Python's search path explicitly.
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from src.parsers.pcap_parser import parse_pcap_stub
+# ── Import real parser (NOT stub anymore) ─────────────────────────
+from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
+
+# ── Import stubs (still used for detection + LLM) ─────────────────
 from src.detection.detector import detect_anomalies_stub
 from src.llm.explainer import explain_anomaly_stub
 
-
-# ---- Page config ----
+# ── Page config ───────────────────────────────────────────────────
+# WHY WIDE LAYOUT:
+#   Procedure counter table has multiple columns.
+#   Wide layout uses full browser width — more readable.
 st.set_page_config(
     page_title="Unified Telecom Analyzer",
     page_icon="📡",
     layout="wide",
 )
 
-# ---- Header ----
+# ── Header ────────────────────────────────────────────────────────
 st.title("📡 Unified Telecom Analyzer")
 st.caption(
-    "Walking skeleton — Phase I, Week 1. "
-    "All components are stubs returning sample data."
+    "Phase I · Real PCAP parser active · "
+    "Detection and LLM: stubs (coming Week 6-14)"
 )
 
-# ---- Sidebar ----
+# ── Sidebar ───────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Upload Data")
+
     data_type = st.radio(
         "Data type",
         ["PCAP", "DU/CU Stats", "KPI Time-series"],
-        help="Choose which kind of data you are uploading.",
     )
 
-    file_ext = {"PCAP": ["pcap", "pcapng"], "DU/CU Stats": ["csv"], "KPI Time-series": ["csv", "parquet"]}
+    # File extensions per data type
+    # WHY DICT LOOKUP:
+    #   Cleaner than if/elif chain.
+    #   Easy to add new types — one line in dict.
+    ext_map = {
+        "PCAP": ["pcap", "pcapng"],
+        "DU/CU Stats": ["csv"],
+        "KPI Time-series": ["csv", "parquet"],
+    }
+
     uploaded = st.file_uploader(
         f"Upload {data_type} file",
-        type=file_ext[data_type],
+        type=ext_map[data_type],
     )
 
     st.divider()
-    st.header("Settings")
-    detector_choice = st.selectbox(
-        "Detection algorithm",
-        ["Isolation Forest (stub)", "LSTM Autoencoder (stub)"],
-    )
-    show_raw = st.checkbox("Show raw parsed data", value=False)
 
-# ---- Main panel ----
+    # Parser info
+    st.subheader("Parser Status")
+    if data_type == "PCAP":
+        st.success("✅ Real parser active")
+        st.caption("Using pcap_parser_real.py")
+    else:
+        st.warning("🔶 Stub parser (coming soon)")
+
+    st.divider()
+    show_raw = st.checkbox("Show raw parser output", value=False)
+
+# ── Main panel ────────────────────────────────────────────────────
 if uploaded is None:
     st.info("👈 Upload a file in the sidebar to begin.")
-    st.markdown(
-        """
-        ### What this dashboard does
 
-        1. **Parses** the uploaded data (PCAP / stats / KPI) into a structured form.
-        2. **Aggregates** procedure-level counters (for PCAP) — RRC Setup, NGAP,
-           NAS Registration, PDU Session pass/fail rates.
-        3. **Detects** anomalies using ML models trained on labelled telecom data.
-        4. **Explains** detected anomalies using a local small LLM (Phi-3 Mini)
-           with retrieval over 3GPP specifications.
-        5. **Captures feedback** from engineers to improve future detections.
-
-        > This is the walking skeleton. Each step currently returns demo data.
-        """
-    )
+    # Show what's real vs stub
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.success("**PCAP Parser**\n\nReal ✅\n\nNAS procedure tracking\nSuccess/failure rates\nCause code extraction")
+    with col2:
+        st.warning("**Detection Engine**\n\nStub 🔶\n\nIsolation Forest coming\nLSTM Autoencoder coming\n(Week 6-8)")
+    with col3:
+        st.warning("**LLM Explainer**\n\nStub 🔶\n\nPhi-3 Mini RAG coming\n3GPP spec retrieval coming\n(Week 11-14)")
     st.stop()
 
-# ---- File received: run the pipeline ----
-st.success(f"Received `{uploaded.name}` ({uploaded.size:,} bytes)")
+# ── File received ─────────────────────────────────────────────────
+st.success(f"✅ Received: `{uploaded.name}` ({uploaded.size:,} bytes)")
 
-with st.spinner("Step 1 of 3: Parsing data..."):
-    parsed = parse_pcap_stub(uploaded.name)
+# ── Parse ─────────────────────────────────────────────────────────
+# WHY TEMPFILE:
+#   Streamlit gives us BytesIO (in-memory file object).
+#   pyshark needs a real file PATH on disk.
+#   tempfile.NamedTemporaryFile creates a real disk file temporarily.
+#
+# WHY delete=False then manual cleanup:
+#   On Windows/WSL, NamedTemporaryFile with delete=True cannot be
+#   read by tshark while Python has it open (file locking issue).
+#   Solution: create with delete=False, manually delete after parsing.
+#
+# WHY suffix='.pcap':
+#   tshark identifies file format by extension.
+#   Without .pcap extension, tshark may misidentify format.
 
+with st.spinner("🔍 Parsing PCAP — extracting 5G procedures..."):
+    tmp_path = None
+    try:
+        # Save uploaded file to disk
+        with tempfile.NamedTemporaryFile(
+            suffix=f".{uploaded.name.split('.')[-1]}",
+            delete=False
+        ) as tmp:
+            tmp.write(uploaded.read())
+            tmp_path = tmp.name
+
+        # Call real parser
+        if data_type == "PCAP":
+            parsed = parse_pcap_real(tmp_path)
+        else:
+            # Stub for non-PCAP types (Phase I)
+            from src.parsers.pcap_parser import parse_pcap_stub
+            parsed = parse_pcap_stub(uploaded.name)
+
+    except Exception as e:
+        st.error(f"❌ Parser error: {e}")
+        st.info("Make sure the file is a valid PCAP/PCAPng capture.")
+        st.stop()
+    finally:
+        # WHY FINALLY:
+        #   Temp file must be deleted even if exception occurs.
+        #   Without this — temp files accumulate on disk.
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+# ── Summary metrics ───────────────────────────────────────────────
 st.subheader("📊 Parsed Summary")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total events", parsed["total_events"])
-col2.metric("RRC Setup attempts", parsed["procedures"]["RRC_Setup"]["attempts"])
-col3.metric("Success rate", f'{parsed["procedures"]["RRC_Setup"]["success_rate"]:.1f}%')
-col4.metric("Failure causes", len(parsed["procedures"]["RRC_Setup"]["failure_causes"]))
 
+# Top-level metrics
+col1, col2, col3 = st.columns(3)
+col1.metric(
+    "Total signalling events",
+    f"{parsed.get('total_events', 0):,}"
+)
+col2.metric(
+    "Packets processed",
+    f"{parsed.get('total_packets_processed', 0):,}"
+)
+col3.metric(
+    "Parser version",
+    parsed.get('parser_version', 'stub')
+)
+
+# ── Procedure counters ────────────────────────────────────────────
+st.subheader("📋 Procedure-Level Counters")
+
+# WHY THIS SECTION IS THE CORE VALUE:
+#   This is what NOC engineers do manually today — open Wireshark,
+#   count requests vs responses, compute success rate.
+#   We automate it. This is the primary engineering contribution.
+
+procedures = parsed.get('procedures', {})
+
+if not procedures:
+    st.warning("No 5G procedures found in this capture.")
+    st.info(
+        "For PCAP files: make sure capture contains NAS/NGAP/RRC traffic. "
+        "Try the test file: data/raw/test_nas_registration.pcap"
+    )
+else:
+    # Build procedure summary table
+    # WHY LIST OF DICTS → DATAFRAME:
+    #   Streamlit renders DataFrames as interactive tables.
+    #   List of dicts is the cleanest way to build DataFrame rows.
+    rows = []
+    for proc_name, stats in procedures.items():
+        rows.append({
+            "Procedure": proc_name,
+            "Attempts": stats["attempts"],
+            "Success": stats["success"],
+            "Failure": stats["failure"],
+            "Success Rate %": f"{stats['success_rate']:.1f}%",
+            "Top Failure Cause": (
+                max(stats["failure_causes"],
+                    key=stats["failure_causes"].get)
+                if stats["failure_causes"] else "—"
+            ),
+        })
+
+    df_procs = pd.DataFrame(rows)
+    st.dataframe(df_procs, use_container_width=True)
+
+    # Failure cause breakdown per procedure
+    st.subheader("🔍 Failure Cause Breakdown")
+    for proc_name, stats in procedures.items():
+        if stats["failure_causes"]:
+            with st.expander(f"{proc_name} — failure causes"):
+                causes_df = pd.DataFrame([
+                    {"Cause": cause, "Count": count}
+                    for cause, count in sorted(
+                        stats["failure_causes"].items(),
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
+                ])
+                st.dataframe(causes_df, use_container_width=True)
+        else:
+            with st.expander(f"{proc_name} — no failures"):
+                st.success("All procedures completed successfully.")
+
+# ── Raw output ────────────────────────────────────────────────────
 if show_raw:
-    with st.expander("Raw parsed data"):
+    with st.expander("Raw parser output (JSON)"):
         st.json(parsed)
 
-# ---- Detection ----
-with st.spinner("Step 2 of 3: Running anomaly detection..."):
-    anomalies = detect_anomalies_stub(parsed, detector=detector_choice)
-
-st.subheader("⚠️ Detected Anomalies")
-if not anomalies:
-    st.success("No anomalies detected in the uploaded data.")
-else:
-    df = pd.DataFrame(anomalies)
-    st.dataframe(df, use_container_width=True)
-
-# ---- Explanation for first anomaly ----
-if anomalies:
-    st.subheader("🤖 LLM Explanation")
-    selected = st.selectbox(
-        "Choose anomaly to explain",
-        options=range(len(anomalies)),
-        format_func=lambda i: f"#{i+1}: {anomalies[i]['type']}",
-    )
-
-    with st.spinner("Step 3 of 3: Generating explanation..."):
-        explanation = explain_anomaly_stub(anomalies[selected])
-
-    st.markdown(f"**Hypothesis:** {explanation['hypothesis']}")
-    st.markdown(f"**Severity:** `{explanation['severity']}`")
-
-    with st.expander("Cited 3GPP clauses"):
-        for c in explanation["citations"]:
-            st.markdown(f"- **{c['spec']}** §{c['section']}: {c['quote']}")
-
-    with st.expander("Suggested investigation steps"):
-        for step in explanation["investigation_hints"]:
-            st.markdown(f"- {step}")
-
-    # ---- Feedback ----
-    st.divider()
-    st.subheader("📝 Engineer Feedback")
-    fb_col1, fb_col2 = st.columns([1, 4])
-    with fb_col1:
-        fb = st.radio("Was this useful?", ["👍 Yes", "👎 No", "🤔 Partial"], horizontal=False)
-    with fb_col2:
-        notes = st.text_area("Notes (optional)", placeholder="What was right or wrong about this?")
-    if st.button("Submit feedback"):
-        st.success("Feedback recorded (stub — will be wired to MLOps loop in Phase 5).")
-
-# ---- Footer ----
+# ── Detection (stub) ──────────────────────────────────────────────
 st.divider()
-st.caption(
-    "M.Tech Project · Phase I Walking Skeleton · "
-    "Replace stubs with real implementations week by week."
+st.subheader("⚠️ Anomaly Detection")
+st.warning(
+    "🔶 Detection engine is a stub — Isolation Forest + LSTM Autoencoder "
+    "will be implemented in Week 6-8."
 )
+
+with st.spinner("Running anomaly detection (stub)..."):
+    anomalies = detect_anomalies_stub(parsed, detector="Isolation Forest (stub)")
+
+if anomalies:
+    df_anomalies = pd.DataFrame(anomalies)
