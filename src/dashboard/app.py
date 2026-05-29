@@ -24,7 +24,9 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
 from src.parsers.kpi_parser import parse_kpi_file
 from src.detection.detector import detect_anomalies_by_detector, merge_detector_results
-from src.detection.kpi_detector import detect_kpi_anomalies, kpi_summary_table
+from src.detection.kpi_detector import (
+    detect_kpi_anomalies, detect_kpi_anomalies_by_detector, kpi_summary_table
+)
 from src.llm.explainer import explain_anomaly_stub
 
 st.set_page_config(
@@ -234,11 +236,35 @@ if is_kpi and parsed_kpi:
 
     # ── KPI Anomaly Detection ─────────────────────────────────────────
     st.divider()
-    st.subheader("⚠️ KPI Anomaly Detection")
-    st.caption("Threshold violations · Peer outliers · Degrading trends")
+    st.subheader("⚠️ KPI Anomaly Detection — 6-Method Ensemble")
+    st.caption("Threshold · Peer Comparison · Trend · IQR · CUSUM · Bollinger Bands")
 
-    with st.spinner("Running KPI anomaly detection..."):
-        kpi_anomalies = detect_kpi_anomalies(parsed_kpi)
+    with st.expander("📖 Why these 6 KPI detection methods? (reviewer rationale)", expanded=False):
+        st.markdown("""
+| # | Method | Type | Why we use it |
+|---|--------|------|---------------|
+| 1 | **Threshold Violation** | Rule-based | Encodes operator SLA limits directly from 3GPP / ITU-T. Instant, interpretable, zero false positives for known thresholds. Every other method is calibrated against this baseline. |
+| 2 | **Peer Comparison (Z-score)** | Statistical / cross-cell | A KPI value might be within threshold but still 3σ worse than all peer cells. Catches underperforming cells the operator hasn't set explicit limits for. |
+| 3 | **Trend (Linear Regression)** | Statistical / temporal | Detects monotonic long-term degradation before it hits threshold. Slope > 0.5 unit/hr = actionable even if current value is still "green". |
+| 4 | **IQR (Tukey Fence)** | Robust statistics | No distribution assumption. Z-score is sensitive to outliers (outlier inflates σ, masking itself). IQR is robust — PRB utilization is right-skewed, CQI during interference is left-skewed. |
+| 5 | **CUSUM** | Sequential / change-point | Accumulates small consistent deviations invisible to per-point detectors. Standard NOC method for early warning: catches RRC SR quietly dropping 99.5% → 98.2% over 10 intervals before any threshold fires. |
+| 6 | **Bollinger Bands** | Rolling envelope / burst | Catches sudden short-term spikes that trend analysis misses. PRB momentary burst to 95% in a normally 40%-loaded cell; CQI crash during interference. Window=5 gives local context. |
+
+**Complementary coverage:**
+- Threshold + IQR → point-in-time violations
+- Peer Comparison → cross-cell relative anomalies
+- Trend + CUSUM → time-evolving degradation
+- Bollinger Bands → sudden bursts
+        """)
+
+    with st.spinner("Running 6 KPI detectors..."):
+        kpi_by_detector = detect_kpi_anomalies_by_detector(parsed_kpi)
+        kpi_anomalies   = sorted(
+            [a for anoms in kpi_by_detector.values() for a in anoms],
+            key=lambda a: ({"Critical":4,"High":3,"Medium":2,"Low":1}.get(a["severity"],0),
+                           a.get("score", 0)),
+            reverse=True,
+        )
 
     if not kpi_anomalies:
         st.success("✅ No KPI anomalies detected.")
@@ -253,6 +279,36 @@ if is_kpi and parsed_kpi:
         ka2.metric("🟠 High",     high_n)
         ka3.metric("🟡 Medium",   med_n)
         ka4.metric("🟢 Low",      low_n)
+
+        # ── KPI method comparison matrix ──────────────────────────────
+        st.subheader("🔬 KPI Method Comparison Matrix")
+        st.caption("Which detector flagged which KPI + Cell  |  🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low · ✅ OK")
+
+        KPI_DET_COLS = ["Threshold", "Peer Comparison", "Trend", "IQR", "CUSUM", "Bollinger Bands"]
+        KPI_SEV_BADGE = {"Critical": "🔴 Crit", "High": "🟠 High", "Medium": "🟡 Med", "Low": "🟢 Low"}
+
+        kpi_matrix_key: Dict[str, Dict[str, str]] = {}
+        for det_name, anoms in kpi_by_detector.items():
+            for a in anoms:
+                row_key = f"{a['label']} | {a['cell_id']}"
+                if row_key not in kpi_matrix_key:
+                    kpi_matrix_key[row_key] = {}
+                existing = kpi_matrix_key[row_key].get(det_name, "")
+                SEV_R = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
+                if SEV_R.get(a["severity"], 0) > SEV_R.get(existing, 0):
+                    kpi_matrix_key[row_key][det_name] = a["severity"]
+
+        if kpi_matrix_key:
+            matrix_rows = []
+            for row_key, det_sevs in list(kpi_matrix_key.items())[:60]:
+                row = {"KPI | Cell": row_key}
+                agreement = sum(1 for v in det_sevs.values() if v)
+                for det in KPI_DET_COLS:
+                    sev = det_sevs.get(det, "")
+                    row[det[:10]] = KPI_SEV_BADGE.get(sev, "✅") if sev else "✅"
+                row["Confirmed by"] = f"{agreement}/{len(KPI_DET_COLS)}"
+                matrix_rows.append(row)
+            st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, height=320)
 
         # Anomaly table
         anom_df = pd.DataFrame([{
