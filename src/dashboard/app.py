@@ -1,28 +1,14 @@
 """
 Unified Telecom Analyzer — Dashboard
 =====================================
+Presentation layer only. Business logic lives in src/parsers/, src/detection/, src/llm/.
 
-ARCHITECTURE:
-    This is the presentation layer only.
-    Business logic lives in src/parsers/, src/detection/, src/llm/
-    Dashboard just: receives input → calls services → displays output
-
-WHY STREAMLIT:
-    Rapid prototyping for data science dashboards.
-    No HTML/CSS/JS needed — pure Python.
-    Built-in widgets: file_uploader, metrics, dataframe, expander.
-    Alternative was Flask + React — overkill for Phase I.
-    Streamlit can be replaced later without touching parser/detection code.
-
-CURRENT STATE (Phase I):
-    ✅ PCAP parser — REAL (pcap_parser_real.py)
-    🔶 Detection engine — stub (will be real in Week 6-8)
-    🔶 LLM explainer — stub (will be real in Week 11-14)
-
-WHY STUBS STILL EXIST:
-    Incremental development — one real component at a time.
-    Detection and LLM stubs let us demo the full pipeline
-    even before those components are implemented.
+CURRENT STATE:
+  ✅ PCAP parser      — real (NAS / NGAP / RRC / F1AP / E1AP / XnAP)
+  ✅ Detection engine — real (6 detectors: IF · Statistical · OC-SVM · LOF · EE · LSTM-AE)
+  ✅ KPI parser       — real (Excel/CSV gNB KPI exports)
+  ✅ KPI detection    — real (Threshold + Peer Comparison + Trend)
+  🔶 LLM explainer   — stub (Phi-3 Mini RAG coming Week 11-14)
 """
 
 import streamlit as st
@@ -30,227 +16,556 @@ import pandas as pd
 import tempfile
 import os
 from pathlib import Path
+from typing import Dict
 import sys
 
-# WHY sys.path:
-#   Streamlit runs app.py from its own working directory.
-#   Without this, 'from src.parsers...' would fail with ModuleNotFoundError.
-#   We add project root to Python's search path explicitly.
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-# ── Import real parser (NOT stub anymore) ─────────────────────────
 from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
-
-# ── Import stubs (still used for detection + LLM) ─────────────────
-from src.detection.detector import detect_anomalies_stub
+from src.parsers.kpi_parser import parse_kpi_file
+from src.detection.detector import detect_anomalies_by_detector, merge_detector_results
+from src.detection.kpi_detector import detect_kpi_anomalies, kpi_summary_table
 from src.llm.explainer import explain_anomaly_stub
 
-# ── Page config ───────────────────────────────────────────────────
-# WHY WIDE LAYOUT:
-#   Procedure counter table has multiple columns.
-#   Wide layout uses full browser width — more readable.
 st.set_page_config(
     page_title="Unified Telecom Analyzer",
     page_icon="📡",
     layout="wide",
 )
 
-# ── Header ────────────────────────────────────────────────────────
+def make_proc_table(proc_dict):
+    rows = []
+    for proc_name, stats in proc_dict.items():
+        rows.append({
+            "Procedure":         proc_name,
+            "Attempts":          stats["attempts"],
+            "Success":           stats["success"],
+            "Failure":           stats["failure"],
+            "Success Rate %":    f"{stats['success_rate']:.1f}%",
+            "Top Failure Cause": (
+                max(stats["failure_causes"], key=stats["failure_causes"].get)
+                if stats["failure_causes"] else "—"
+            ),
+        })
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
 st.title("📡 Unified Telecom Analyzer")
 st.caption(
-    "Phase I · Real PCAP parser active · "
+    "Full 3GPP stack active: NAS · NGAP · RRC · F1AP · E1AP · XnAP  |  "
     "Detection and LLM: stubs (coming Week 6-14)"
 )
 
-# ── Sidebar ───────────────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Upload Data")
-
-    data_type = st.radio(
-        "Data type",
-        ["PCAP", "DU/CU Stats", "KPI Time-series"],
-    )
-
-    # File extensions per data type
-    # WHY DICT LOOKUP:
-    #   Cleaner than if/elif chain.
-    #   Easy to add new types — one line in dict.
+    data_type = st.radio("Data type", ["PCAP", "DU/CU Stats", "KPI Time-series"])
     ext_map = {
         "PCAP": ["pcap", "pcapng"],
-        "DU/CU Stats": ["csv"],
-        "KPI Time-series": ["csv", "parquet"],
+        "DU/CU Stats / KPI": ["csv", "xlsx", "xls"],
     }
-
-    uploaded = st.file_uploader(
-        f"Upload {data_type} file",
-        type=ext_map[data_type],
-    )
-
+    uploaded = st.file_uploader(f"Upload {data_type} file",
+                               type=ext_map.get(data_type, ["pcap"]))
     st.divider()
 
-    # Parser info
     st.subheader("Parser Status")
-    if data_type == "PCAP":
+    if data_type == "DU/CU Stats / KPI":
+        st.success("✅ KPI parser active")
+        st.markdown("""
+        **Accepts:** Excel (.xlsx) or CSV
+
+        **KPI categories:**
+        - Availability · Accessibility
+        - Retainability · Mobility
+        - Capacity (PRB) · Throughput
+        - Radio Quality (CQI/SINR/BLER)
+        - Latency · RACH · Scheduling
+
+        **Sample file:**
+        `data/raw/5G_Network_KPI_Sample.xlsx`
+        """)
+    elif data_type == "PCAP":
         st.success("✅ Real parser active")
-        st.caption("Using pcap_parser_real.py")
+        st.markdown("""
+        **Layers (all active):**
+        - ✅ NAS — TS 24.501
+        - ✅ NGAP — TS 38.413
+        - ✅ RRC — TS 38.331
+        - ✅ F1AP — TS 38.473
+        - ✅ E1AP — TS 38.463
+        - ✅ XnAP — TS 38.423
+
+        **Test file:**
+        `data/raw/test_5g_full.pcap`
+        *(run `scripts/generate_test_pcap.py`)*
+        """)
     else:
         st.warning("🔶 Stub parser (coming soon)")
 
     st.divider()
     show_raw = st.checkbox("Show raw parser output", value=False)
 
-# ── Main panel ────────────────────────────────────────────────────
+# ── No file yet ───────────────────────────────────────────────────────
 if uploaded is None:
     st.info("👈 Upload a file in the sidebar to begin.")
-
-    # Show what's real vs stub
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.success("**PCAP Parser**\n\nReal ✅\n\nNAS procedure tracking\nSuccess/failure rates\nCause code extraction")
+        st.success("**NAS** ✅ TS 24.501\n\nRegistration · Auth\nSecurity Mode\nPDU Session\nDeregistration")
     with col2:
-        st.warning("**Detection Engine**\n\nStub 🔶\n\nIsolation Forest coming\nLSTM Autoencoder coming\n(Week 6-8)")
+        st.success("**NGAP** ✅ TS 38.413\n\nInitialContextSetup\nPDUSession Setup/Release\nUEContextRelease\nHandover · Paging")
     with col3:
+        st.success("**RRC** ✅ TS 38.331\n\nSetup · Reestablishment\nReconfiguration · Release\nSecurity Mode\nUE Capability · Measurement")
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.success("**F1AP** ✅ TS 38.473\n\nF1 Setup\nUE Context Setup/Release\nDL/UL RRC Transfer\nInitial UL RRC")
+    with col5:
+        st.success("**E1AP** ✅ TS 38.463\n\ngNB-CU-UP Setup\nBearer Context Setup\nBearer Modification/Release\nData Notification")
+    with col6:
+        st.success("**XnAP** ✅ TS 38.423\n\nXn Setup\nHandover Request\nUE Context Release\nSN Addition (MR-DC)")
+    st.divider()
+    col_det, col_llm = st.columns(2)
+    with col_det:
+        st.success("**Detection Engine** ✅\n\nIsolation Forest\nStatistical (Threshold+Cascade)\nOne-Class SVM\nLOF\nElliptic Envelope\nLSTM Autoencoder")
+    with col_llm:
         st.warning("**LLM Explainer**\n\nStub 🔶\n\nPhi-3 Mini RAG coming\n3GPP spec retrieval coming\n(Week 11-14)")
     st.stop()
 
-# ── File received ─────────────────────────────────────────────────
+# ── Parse ─────────────────────────────────────────────────────────────
 st.success(f"✅ Received: `{uploaded.name}` ({uploaded.size:,} bytes)")
 
-# ── Parse ─────────────────────────────────────────────────────────
-# WHY TEMPFILE:
-#   Streamlit gives us BytesIO (in-memory file object).
-#   pyshark needs a real file PATH on disk.
-#   tempfile.NamedTemporaryFile creates a real disk file temporarily.
-#
-# WHY delete=False then manual cleanup:
-#   On Windows/WSL, NamedTemporaryFile with delete=True cannot be
-#   read by tshark while Python has it open (file locking issue).
-#   Solution: create with delete=False, manually delete after parsing.
-#
-# WHY suffix='.pcap':
-#   tshark identifies file format by extension.
-#   Without .pcap extension, tshark may misidentify format.
+suffix = uploaded.name.split('.')[-1].lower()
+is_kpi = data_type == "DU/CU Stats / KPI"
 
-with st.spinner("🔍 Parsing PCAP — extracting 5G procedures..."):
+with st.spinner("🔍 Parsing file..."):
     tmp_path = None
     try:
-        # Save uploaded file to disk
-        with tempfile.NamedTemporaryFile(
-            suffix=f".{uploaded.name.split('.')[-1]}",
-            delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=f".{suffix}", delete=False) as tmp:
             tmp.write(uploaded.read())
             tmp_path = tmp.name
 
-        # Call real parser
-        if data_type == "PCAP":
-            parsed = parse_pcap_real(tmp_path)
+        if is_kpi:
+            parsed_kpi = parse_kpi_file(tmp_path)
+            parsed = None
         else:
-            # Stub for non-PCAP types (Phase I)
-            from src.parsers.pcap_parser import parse_pcap_stub
-            parsed = parse_pcap_stub(uploaded.name)
+            parsed = parse_pcap_real(tmp_path)
+            parsed_kpi = None
 
     except Exception as e:
         st.error(f"❌ Parser error: {e}")
-        st.info("Make sure the file is a valid PCAP/PCAPng capture.")
         st.stop()
     finally:
-        # WHY FINALLY:
-        #   Temp file must be deleted even if exception occurs.
-        #   Without this — temp files accumulate on disk.
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
-# ── Summary metrics ───────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# KPI DASHBOARD (Excel / CSV path)
+# ══════════════════════════════════════════════════════════════════════
+if is_kpi and parsed_kpi:
+    st.subheader("📊 KPI Overview")
+
+    r = parsed_kpi
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Rows",           r["rows"])
+    m2.metric("Unique Cells",   len(r["cells"]))
+    m3.metric("Unique gNBs",    len(r["gnbs"]))
+    m4.metric("KPI Columns",    len(r["kpi_columns"]))
+    m5.metric("Time Range",     f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}")
+
+    # ── KPI Summary Table ─────────────────────────────────────────────
+    st.subheader("🚦 KPI Health Summary")
+    st.caption("🟢 OK  🟡 Warning  🔴 Critical  (based on mean value vs thresholds)")
+
+    summary_rows = kpi_summary_table(parsed_kpi)
+    if summary_rows:
+        df_summary = pd.DataFrame(summary_rows)
+        st.dataframe(df_summary, use_container_width=True, height=420)
+
+    # ── KPI Trend Charts ──────────────────────────────────────────────
+    st.subheader("📈 KPI Trend Explorer")
+    kpi_cols = r["kpi_columns"]
+    ts_col   = r["timestamp_col"]
+    cell_col = r["cell_col"]
+
+    if kpi_cols and ts_col:
+        import plotly.express as px
+
+        col_sel, cell_sel = st.columns(2)
+        with col_sel:
+            sel_kpi = st.selectbox("Select KPI", kpi_cols)
+        with cell_sel:
+            cell_options = ["All cells (fleet avg)"] + r["cells"]
+            sel_cell = st.selectbox("Select Cell", cell_options)
+
+        df_plot = pd.DataFrame(r["df_records"])
+        df_plot[ts_col] = pd.to_datetime(df_plot[ts_col], errors="coerce")
+
+        if sel_cell == "All cells (fleet avg)":
+            df_line = (df_plot.groupby(ts_col)[sel_kpi]
+                       .mean().reset_index().rename(columns={sel_kpi: "value"}))
+            title = f"{sel_kpi} — Fleet Average over Time"
+        else:
+            df_line = (df_plot[df_plot[cell_col] == sel_cell][[ts_col, sel_kpi]]
+                       .rename(columns={sel_kpi: "value"}))
+            title = f"{sel_kpi} — {sel_cell}"
+
+        if not df_line.empty:
+            from src.parsers.kpi_defs import get_meta
+            meta = get_meta(sel_kpi)
+            fig  = px.line(df_line, x=ts_col, y="value", title=title,
+                           labels={"value": f"{sel_kpi} ({meta.get('unit','')})",
+                                   ts_col: "Time"})
+            # Add warning / critical lines
+            if meta.get("warning") is not None:
+                fig.add_hline(y=meta["warning"],  line_dash="dot",
+                              line_color="orange", annotation_text="Warning")
+            if meta.get("critical") is not None:
+                fig.add_hline(y=meta["critical"], line_dash="dot",
+                              line_color="red",    annotation_text="Critical")
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ── Per-Cell KPI Heatmap ──────────────────────────────────────────
+    st.subheader("🗺️ Per-Cell KPI Breakdown")
+    if kpi_cols and cell_col:
+        df_all = pd.DataFrame(r["df_records"])
+        gnb_col = r.get("gnb_col", "")
+        group_cols = [cell_col] + ([gnb_col] if gnb_col else [])
+        df_cell = df_all.groupby(group_cols)[kpi_cols].mean().round(2).reset_index()
+        df_cell = df_cell.sort_values(kpi_cols[0])
+        st.dataframe(df_cell, use_container_width=True, height=350)
+
+    # ── KPI Anomaly Detection ─────────────────────────────────────────
+    st.divider()
+    st.subheader("⚠️ KPI Anomaly Detection")
+    st.caption("Threshold violations · Peer outliers · Degrading trends")
+
+    with st.spinner("Running KPI anomaly detection..."):
+        kpi_anomalies = detect_kpi_anomalies(parsed_kpi)
+
+    if not kpi_anomalies:
+        st.success("✅ No KPI anomalies detected.")
+    else:
+        crit_n = sum(1 for a in kpi_anomalies if a["severity"] == "Critical")
+        high_n = sum(1 for a in kpi_anomalies if a["severity"] == "High")
+        med_n  = sum(1 for a in kpi_anomalies if a["severity"] == "Medium")
+        low_n  = sum(1 for a in kpi_anomalies if a["severity"] == "Low")
+
+        ka1, ka2, ka3, ka4 = st.columns(4)
+        ka1.metric("🔴 Critical", crit_n)
+        ka2.metric("🟠 High",     high_n)
+        ka3.metric("🟡 Medium",   med_n)
+        ka4.metric("🟢 Low",      low_n)
+
+        # Anomaly table
+        anom_df = pd.DataFrame([{
+            "Severity":    a["severity"],
+            "KPI":         a["label"],
+            "Category":    a["category"],
+            "Cell":        a["cell_id"],
+            "gNB":         a["gnb_id"],
+            "Value":       a["value"],
+            "Unit":        a["unit"],
+            "Warning":     a["warning"],
+            "Critical":    a["critical"],
+            "Detector":    a["detector"],
+            "Evidence":    a["evidence"][:80],
+        } for a in kpi_anomalies])
+
+        sev_filter = st.selectbox("Filter severity",
+                                  ["All", "Critical", "High", "Medium", "Low"],
+                                  key="kpi_sev")
+        shown_df = anom_df if sev_filter == "All" else anom_df[anom_df["Severity"] == sev_filter]
+        st.dataframe(shown_df, use_container_width=True, height=400)
+
+        # Expandable detail cards for top anomalies
+        st.subheader("🔎 Top Anomaly Details")
+        SEV_ICON = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🟢"}
+        for a in kpi_anomalies[:15]:
+            icon   = SEV_ICON.get(a["severity"], "⚪")
+            header = (f"{icon} [{a['severity']}] {a['label']} | "
+                      f"{a['cell_id']} | {a['detector']}")
+            with st.expander(header, expanded=(a["severity"] == "Critical")):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**Evidence**")
+                    st.info(a["evidence"])
+                    st.markdown(
+                        f"Value: **{a['value']} {a['unit']}** &nbsp;|&nbsp; "
+                        f"Warning: {a['warning']} &nbsp;|&nbsp; "
+                        f"Critical: {a['critical']}"
+                    )
+                with c2:
+                    st.markdown("**Recommendation**")
+                    st.success(a["recommendation"])
+
+    st.stop()  # KPI path ends here — skip PCAP sections below
+
+# ── Summary metrics ───────────────────────────────────────────────────
 st.subheader("📊 Parsed Summary")
 
-# Top-level metrics
-col1, col2, col3 = st.columns(3)
-col1.metric(
-    "Total signalling events",
-    f"{parsed.get('total_events', 0):,}"
-)
-col2.metric(
-    "Packets processed",
-    f"{parsed.get('total_packets_processed', 0):,}"
-)
-col3.metric(
-    "Parser version",
-    parsed.get('parser_version', 'stub')
-)
-
-# ── Procedure counters ────────────────────────────────────────────
-st.subheader("📋 Procedure-Level Counters")
-
-# WHY THIS SECTION IS THE CORE VALUE:
-#   This is what NOC engineers do manually today — open Wireshark,
-#   count requests vs responses, compute success rate.
-#   We automate it. This is the primary engineering contribution.
-
 procedures = parsed.get('procedures', {})
+message_log = parsed.get('message_log', [])
+layer_counts = parsed.get('layer_event_counts', {})
+
+# Group by layer
+ALL_LAYERS = ["NAS", "NGAP", "RRC", "F1AP", "E1AP", "XnAP"]
+by_layer = {l: {} for l in ALL_LAYERS}
+for proc_name, stats in procedures.items():
+    layer = stats.get('layer', 'NAS')
+    if layer in by_layer:
+        by_layer[layer][proc_name] = stats
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Total signalling events", f"{parsed.get('total_events', 0):,}")
+col2.metric("Procedures tracked",      len(procedures))
+col3.metric("Parser version",          parsed.get('parser_version', '?'))
+
+col4, col5, col6, col7, col8, col9 = st.columns(6)
+for col, lyr in zip([col4, col5, col6, col7, col8, col9], ALL_LAYERS):
+    col.metric(f"{lyr} procs", len(by_layer[lyr]))
+
+# ── Per-layer procedure tables ────────────────────────────────────────
+st.subheader("📋 Procedure-Level Counters")
 
 if not procedures:
     st.warning("No 5G procedures found in this capture.")
     st.info(
-        "For PCAP files: make sure capture contains NAS/NGAP/RRC traffic. "
-        "Try the test file: data/raw/test_nas_registration.pcap"
+        "For test data: run `python scripts/generate_test_pcap.py` "
+        "then upload `data/raw/test_5g_full.pcap`"
     )
 else:
-    # Build procedure summary table
-    # WHY LIST OF DICTS → DATAFRAME:
-    #   Streamlit renders DataFrames as interactive tables.
-    #   List of dicts is the cleanest way to build DataFrame rows.
-    rows = []
-    for proc_name, stats in procedures.items():
-        rows.append({
-            "Procedure": proc_name,
-            "Attempts": stats["attempts"],
-            "Success": stats["success"],
-            "Failure": stats["failure"],
-            "Success Rate %": f"{stats['success_rate']:.1f}%",
-            "Top Failure Cause": (
-                max(stats["failure_causes"],
-                    key=stats["failure_causes"].get)
-                if stats["failure_causes"] else "—"
-            ),
-        })
+    LAYER_TABS = [
+        ("All Layers",          "all"),
+        ("NAS — TS 24.501",     "NAS"),
+        ("NGAP — TS 38.413",    "NGAP"),
+        ("RRC — TS 38.331",     "RRC"),
+        ("F1AP — TS 38.473",    "F1AP"),
+        ("E1AP — TS 38.463",    "E1AP"),
+        ("XnAP — TS 38.423",    "XnAP"),
+    ]
+    LAYER_CAPTIONS = {
+        "NAS":  "5G Mobility + Session Management (TS 24.501)",
+        "NGAP": "N2 interface: gNB-CU ↔ AMF (TS 38.413)",
+        "RRC":  "Uu interface: UE ↔ gNB (TS 38.331)",
+        "F1AP": "F1 interface: gNB-DU ↔ gNB-CU-CP (TS 38.473)",
+        "E1AP": "E1 interface: gNB-CU-CP ↔ gNB-CU-UP (TS 38.463)",
+        "XnAP": "Xn interface: gNB ↔ gNB, MR-DC (TS 38.423)",
+    }
 
-    df_procs = pd.DataFrame(rows)
-    st.dataframe(df_procs, use_container_width=True)
+    tabs = st.tabs([t for t, _ in LAYER_TABS])
 
-    # Failure cause breakdown per procedure
+    with tabs[0]:
+        st.dataframe(make_proc_table(procedures), use_container_width=True)
+
+    for i, (_, layer_key) in enumerate(LAYER_TABS[1:], start=1):
+        with tabs[i]:
+            if by_layer[layer_key]:
+                st.caption(LAYER_CAPTIONS[layer_key])
+                st.dataframe(make_proc_table(by_layer[layer_key]), use_container_width=True)
+            else:
+                st.info(f"No {layer_key} procedures found in this capture.")
+
+    # ── Failure cause breakdown ───────────────────────────────────────
     st.subheader("🔍 Failure Cause Breakdown")
-    for proc_name, stats in procedures.items():
-        if stats["failure_causes"]:
-            with st.expander(f"{proc_name} — failure causes"):
-                causes_df = pd.DataFrame([
-                    {"Cause": cause, "Count": count}
-                    for cause, count in sorted(
-                        stats["failure_causes"].items(),
-                        key=lambda x: x[1],
-                        reverse=True
-                    )
-                ])
-                st.dataframe(causes_df, use_container_width=True)
-        else:
-            with st.expander(f"{proc_name} — no failures"):
-                st.success("All procedures completed successfully.")
+    any_failures = any(s["failure_causes"] for s in procedures.values())
+    if not any_failures:
+        st.success("No failures found in this capture.")
+    else:
+        for proc_name, stats in procedures.items():
+            layer = stats.get('layer', 'NAS')
+            if stats["failure_causes"]:
+                with st.expander(f"[{layer}] {proc_name} — failure causes"):
+                    causes_df = pd.DataFrame([
+                        {"Cause": cause, "Count": count}
+                        for cause, count in sorted(
+                            stats["failure_causes"].items(), key=lambda x: x[1], reverse=True
+                        )
+                    ])
+                    st.dataframe(causes_df, use_container_width=True)
 
-# ── Raw output ────────────────────────────────────────────────────
+    # ── Message log with IE viewer ────────────────────────────────────
+    if message_log:
+        st.subheader("📨 Message Log & IE Inspector")
+        st.caption(
+            "Every decoded message with its Information Elements. "
+            "Expand a row to see extracted IEs vs. spec-defined IEs."
+        )
+        layer_filter = st.selectbox(
+            "Filter by layer", ["All"] + ALL_LAYERS, key="msg_log_filter"
+        )
+        filtered_log = [
+            e for e in message_log
+            if layer_filter == "All" or e["layer"] == layer_filter
+        ]
+        st.caption(f"Showing {len(filtered_log)} of {len(message_log)} events")
+
+        for evt in filtered_log[:200]:   # cap at 200 rows for performance
+            role_icon = {"request": "→", "response": "✓", "failure": "✗",
+                         "timeout": "⏱"}.get(evt["role"], "•")
+            label = (
+                f"[{evt['layer']}] {evt['procedure']}  "
+                f"{role_icon}  UE={evt['ue_id']}  "
+                f"IEs: {evt['observed_ie_count']}/{evt['expected_ie_count']}"
+            )
+            with st.expander(label, expanded=False):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**Observed IEs** (extracted from capture)")
+                    if evt["ies"]:
+                        ie_df = pd.DataFrame([
+                            {"IE Name": k, "Value": v}
+                            for k, v in evt["ies"].items()
+                        ])
+                        st.dataframe(ie_df, use_container_width=True)
+                    else:
+                        st.info("No IEs extracted (synthetic PCAP or pyshark dissection unavailable)")
+                with c2:
+                    st.markdown("**Missing Mandatory IEs** (per 3GPP spec)")
+                    if evt["mandatory_missing"]:
+                        for ie_name in evt["mandatory_missing"]:
+                            st.warning(f"• {ie_name}")
+                    else:
+                        st.success("All mandatory IEs present (or message uses synthetic payload)")
+
+# ── Raw output ────────────────────────────────────────────────────────
 if show_raw:
     with st.expander("Raw parser output (JSON)"):
         st.json(parsed)
 
-# ── Detection (stub) ──────────────────────────────────────────────
+# ── Detection — real ──────────────────────────────────────────────────
 st.divider()
-st.subheader("⚠️ Anomaly Detection")
-st.warning(
-    "🔶 Detection engine is a stub — Isolation Forest + LSTM Autoencoder "
-    "will be implemented in Week 6-8."
-)
+st.subheader("⚠️ Anomaly Detection — 6-Detector Ensemble")
 
-with st.spinner("Running anomaly detection (stub)..."):
-    anomalies = detect_anomalies_stub(parsed, detector="Isolation Forest (stub)")
+# ── Detector rationale ────────────────────────────────────────────────
+with st.expander("📖 Why these 6 detectors? (reviewer rationale)", expanded=False):
+    st.markdown("""
+| # | Detector | Type | Why we use it |
+|---|----------|------|---------------|
+| 1 | **Isolation Forest** | Unsupervised / tree-based | No label data needed — anomalies are rare in telecom (most procedures succeed). Trees isolate anomalies in fewer splits. O(n log n), scales to thousands of procedures. No distribution assumption. |
+| 2 | **Statistical (Threshold + Cascade)** | Rule-based / domain knowledge | Encodes 3GPP SLA thresholds directly. 100% interpretable. Catches known patterns: timeout concentration, cascading NAS→NGAP→RRC failures. Baseline every ML method is measured against. |
+| 3 | **One-Class SVM** | Kernel / geometric boundary | Learns a non-linear boundary around normal data in kernel space. Complements IF: where IF uses tree depth, SVM uses geometric margin. Better when the normal cluster is compact and non-Gaussian. |
+| 4 | **LOF (Local Outlier Factor)** | Density / local comparison | Compares each procedure to its k-nearest neighbors. IF and SVM are *global* — LOF catches *local* outliers: a procedure with 85% SR in a cluster where all peers are >99%. |
+| 5 | **Elliptic Envelope** | Statistical / Mahalanobis | Fastest interpretable baseline. Fits a multivariate Gaussian; flags points with high Mahalanobis distance. When the normal cluster is elliptical (stable networks), this is the most reliable detector. Sanity-checks the ML methods. |
+| 6 | **LSTM Autoencoder** | Deep learning / sequential | 5G signaling is sequential: Registration→Auth→Security→PDU Session. Tabular methods treat each procedure independently. The LSTM learns *normal sequences*; unusual orderings or gaps produce high reconstruction error. Only method that catches procedure-order violations. |
 
-if anomalies:
-    df_anomalies = pd.DataFrame(anomalies)
+**Multi-detector agreement** — when ≥ 2 detectors flag the same procedure, confidence is higher.
+IF alone may have false positives from contamination tuning; SVM alone can over-reject at boundaries.
+The ensemble cross-validates each finding.
+    """)
+
+SEV_COLOR = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}
+
+with st.spinner("Running 6 detectors: Isolation Forest · Statistical · OC-SVM · LOF · Elliptic Envelope · LSTM Autoencoder..."):
+    by_detector = detect_anomalies_by_detector(parsed)
+    anomalies   = merge_detector_results(by_detector)
+
+if not anomalies:
+    st.success("✅ No anomalies detected across all three detectors.")
+else:
+    # ── Summary metrics ───────────────────────────────────────────────
+    high   = sum(1 for a in anomalies if a["severity"] == "High")
+    medium = sum(1 for a in anomalies if a["severity"] == "Medium")
+    low    = sum(1 for a in anomalies if a["severity"] == "Low")
+    confirmed = sum(1 for a in anomalies if a.get("confirmed_by", 1) > 1)
+
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    mc1.metric("🔴 High severity",   high)
+    mc2.metric("🟡 Medium severity", medium)
+    mc3.metric("🟢 Low severity",    low)
+    mc4.metric("🔁 Multi-detector confirmed", confirmed)
+
+    # ── Method comparison matrix ──────────────────────────────────────
+    st.subheader("🔬 Method Comparison Matrix")
+    st.caption(
+        "Which detector flagged which procedure. "
+        "🔴 High · 🟡 Medium · 🟢 Low · ✅ Not flagged"
+    )
+
+    DETECTOR_COLS = [
+        "Isolation Forest", "Statistical", "One-Class SVM",
+        "LOF", "Elliptic Envelope", "LSTM Autoencoder",
+    ]
+    SEV_BADGE = {"High": "🔴 High", "Medium": "🟡 Med", "Low": "🟢 Low"}
+
+    # Build {procedure → {detector → severity}}
+    proc_det_map: Dict[str, Dict[str, str]] = {}
+    all_procs = set(a["procedure"] for anoms in by_detector.values() for a in anoms)
+    for proc in sorted(all_procs):
+        proc_det_map[proc] = {}
+        for det_name in DETECTOR_COLS:
+            for a in by_detector.get(det_name, []):
+                if a["procedure"] == proc:
+                    proc_det_map[proc][det_name] = a["severity"]
+                    break
+
+    if proc_det_map:
+        matrix_rows = []
+        for proc, det_sevs in proc_det_map.items():
+            row = {"Procedure": proc}
+            agreement = sum(1 for v in det_sevs.values() if v)
+            for det in DETECTOR_COLS:
+                sev = det_sevs.get(det, "")
+                row[det[:12]] = SEV_BADGE.get(sev, "✅") if sev else "✅"
+            row["Agreement"] = f"{agreement}/{len(DETECTOR_COLS)} detectors"
+            matrix_rows.append(row)
+
+        st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, height=350)
+    else:
+        st.success("No procedures flagged by any detector.")
+
+    # ── Anomaly table ─────────────────────────────────────────────────
+    sev_filter = st.selectbox(
+        "Filter by severity", ["All", "High", "Medium", "Low"], key="sev_filter"
+    )
+    shown = [a for a in anomalies if sev_filter == "All" or a["severity"] == sev_filter]
+
+    for a in shown:
+        icon  = SEV_COLOR.get(a["severity"], "⚪")
+        badge = " ✅ confirmed" if a.get("confirmed_by", 1) > 1 else ""
+        header = (
+            f"{icon} [{a['severity']}] {a['type']}  "
+            f"| score={a['score']:.3f} | {a['detector']}{badge}"
+        )
+        with st.expander(header, expanded=(a["severity"] == "High")):
+            c1, c2 = st.columns(2)
+
+            with c1:
+                st.markdown("**Evidence**")
+                st.info(a["evidence"])
+
+                if a.get("failure_causes"):
+                    st.markdown("**Failure causes**")
+                    causes_df = pd.DataFrame([
+                        {"Cause": k, "Count": v}
+                        for k, v in sorted(a["failure_causes"].items(),
+                                           key=lambda x: x[1], reverse=True)
+                    ])
+                    st.dataframe(causes_df, use_container_width=True)
+
+            with c2:
+                st.markdown("**Recommendation**")
+                st.success(a["recommendation"])
+                st.markdown(
+                    f"**Layer:** `{a.get('layer','?')}` &nbsp; "
+                    f"**Procedure:** `{a.get('procedure','?')}`"
+                )
+                if a.get("confirmed_by", 1) > 1:
+                    st.markdown(
+                        f"**Confirmed by {a['confirmed_by']} detectors** — "
+                        "high confidence finding."
+                    )
+
+    # ── LLM explanation stub ──────────────────────────────────────────
+    st.subheader("🤖 LLM Explanation")
+    st.warning("🔶 Phi-3 Mini + RAG over 3GPP specs coming in Week 11-14.")
+    top = [a for a in anomalies if a["severity"] in ("High", "Medium")][:3]
+    for a in top:
+        with st.expander(f"[{a['severity']}] {a['type']}"):
+            exp = explain_anomaly_stub(a)
+            st.markdown(f"**Hypothesis:** {exp['hypothesis']}")
+            if exp.get("citations"):
+                st.markdown("**3GPP Citations:**")
+                for cite in exp["citations"]:
+                    st.markdown(f"- `{cite['spec']} §{cite['section']}`: {cite['quote']}")
+            if exp.get("investigation_hints"):
+                st.markdown("**Investigation hints:**")
+                for hint in exp["investigation_hints"]:
+                    st.markdown(f"- {hint}")
