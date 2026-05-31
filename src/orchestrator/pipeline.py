@@ -59,6 +59,10 @@ def run_pcap_pipeline(
             exp = explain_anomaly(a)
             explanations.append({"anomaly": a, "explanation": exp})
 
+    from src.orchestrator.event_router import EventRouter
+    router = EventRouter()
+    router.ingest(anomalies, source="pcap")
+
     duration = round(time.perf_counter() - t0, 2)
     logger.info(f"[pipeline] PCAP pipeline done in {duration}s — {len(anomalies)} anomalies")
 
@@ -69,6 +73,8 @@ def run_pcap_pipeline(
         "anomalies":    anomalies,
         "by_detector":  by_detector,
         "explanations": explanations,
+        "events":       router.get_events(),
+        "event_summary":router.summary(),
         "duration_s":   duration,
     }
 
@@ -135,6 +141,10 @@ def run_kpi_pipeline(
             exp = explain_anomaly(adapted)
             explanations.append({"anomaly": a, "explanation": exp})
 
+    from src.orchestrator.event_router import EventRouter
+    router = EventRouter()
+    router.ingest(anomalies, source="kpi")
+
     duration = round(time.perf_counter() - t0, 2)
     logger.info(f"[pipeline] KPI pipeline done in {duration}s — {len(anomalies)} anomalies")
 
@@ -146,6 +156,8 @@ def run_kpi_pipeline(
         "by_detector":   by_detector,
         "summary_table": summary,
         "explanations":  explanations,
+        "events":        router.get_events(),
+        "event_summary": router.summary(),
         "duration_s":    duration,
     }
 
@@ -202,6 +214,10 @@ def run_stats_pipeline(
             exp = explain_anomaly(adapted)
             explanations.append({"anomaly": a, "explanation": exp})
 
+    from src.orchestrator.event_router import EventRouter
+    router = EventRouter()
+    router.ingest(anomalies, source="stats")
+
     duration = round(time.perf_counter() - t0, 2)
     logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies")
 
@@ -212,6 +228,8 @@ def run_stats_pipeline(
         "anomalies":    anomalies,
         "by_detector":  by_detector,
         "explanations": explanations,
+        "events":       router.get_events(),
+        "event_summary":router.summary(),
         "duration_s":   duration,
     }
 

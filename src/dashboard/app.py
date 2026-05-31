@@ -31,6 +31,7 @@ from src.detection.kpi_detector import (
 from src.detection.stats_detector import (
     detect_stats_anomalies, detect_stats_anomalies_by_detector
 )
+from src.orchestrator.event_router import EventRouter
 from src.llm.explainer import explain_anomaly, ollama_status
 
 st.set_page_config(
@@ -38,6 +39,75 @@ st.set_page_config(
     page_icon="📡",
     layout="wide",
 )
+
+def render_event_log(router: "EventRouter") -> None:
+    """Render the Event Router log + cross-source correlation panel."""
+    st.divider()
+    st.subheader("🔀 Event Router — Unified Event Log")
+    summary = router.summary()
+
+    # Summary metrics
+    e1, e2, e3, e4, e5 = st.columns(5)
+    e1.metric("Total Events",     summary["total"])
+    e2.metric("🔴 Critical+High", summary["by_severity"].get("Critical", 0) +
+                                   summary["by_severity"].get("High", 0))
+    e3.metric("🔁 Correlated",    summary["correlated"])
+    e4.metric("📡 Current",       summary["current"])
+    e5.metric("🔮 Predicted",     summary["predicted"])
+
+    src_cols = st.columns(3)
+    for col, src in zip(src_cols, ["pcap", "stats", "kpi"]):
+        col.metric(f"Source: {src.upper()}", summary["by_source"].get(src, 0))
+
+    # Top cells
+    if summary["top_cells"]:
+        st.markdown("**Top cells by event count:**  " +
+                    "  ·  ".join(f"`{c}` ({n})" for c, n in summary["top_cells"].items()))
+
+    # Correlated events highlight
+    correlated = router.get_correlated()
+    if correlated:
+        st.subheader("🔗 Cross-Source Correlated Events")
+        st.caption("Same cell flagged by ≥ 2 data sources — highest confidence findings")
+        for ev in correlated[:10]:
+            conf_pct = int(ev["correlation_confidence"] * 100)
+            sev_icon = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}.get(ev["severity"], "⚪")
+            sources  = [ev["source"]] + ev["correlated_sources"]
+            with st.expander(
+                f"{sev_icon} [{ev['severity']}] {ev['category']} | Cell: {ev['cell_id']} "
+                f"| Sources: {' + '.join(s.upper() for s in sources)} | Confidence: {conf_pct}%",
+                expanded=(ev["severity"] in ("Critical", "High")),
+            ):
+                c1, c2, c3 = st.columns(3)
+                c1.markdown(f"**Source:** `{ev['source'].upper()}`")
+                c2.markdown(f"**Corroborated by:** `{', '.join(ev['correlated_sources']).upper()}`")
+                c3.markdown(f"**Confidence:** `{conf_pct}%`")
+                st.info(ev["evidence"])
+                st.markdown(f"**State:** `{ev['state']}`  |  "
+                            f"**Lead time:** `{ev['lead_time_h']}h`  |  "
+                            f"**Detector:** `{ev['detector']}`")
+
+    # Full event table
+    with st.expander("📋 Full Event Log (all sources)", expanded=False):
+        events = router.get_events()
+        if events:
+            df_ev = pd.DataFrame([{
+                "Severity":    e["severity"],
+                "Source":      e["source"].upper(),
+                "State":       e["state"],
+                "Category":    e["category"],
+                "Cell":        e["cell_id"],
+                "Metric/Proc": e["metric"],
+                "Detector":    e["detector"],
+                "Correlated":  "✅" if e["correlated_sources"] else "—",
+                "Confidence":  f"{int(e['correlation_confidence']*100)}%"
+                               if e["correlated_sources"] else "—",
+                "Score":       round(e["score"], 3),
+            } for e in events])
+            st.dataframe(df_ev, use_container_width=True, height=400)
+        else:
+            st.success("No events in log.")
+
 
 def make_proc_table(proc_dict):
     rows = []
@@ -379,6 +449,11 @@ if is_kpi and parsed_kpi:
                     st.markdown("**Recommendation**")
                     st.success(a["recommendation"])
 
+    # ── Event Router ─────────────────────────────────────────────────
+    kpi_router = EventRouter()
+    kpi_router.ingest(kpi_anomalies, source="kpi")
+    render_event_log(kpi_router)
+
     st.stop()  # KPI path ends here
 
 # ══════════════════════════════════════════════════════════════════════
@@ -566,6 +641,11 @@ if is_stats and parsed_stats:
                 with c2:
                     st.markdown("**Recommendation**")
                     st.success(a["recommendation"])
+
+    # ── Event Router ─────────────────────────────────────────────────
+    stats_router = EventRouter()
+    stats_router.ingest(stats_anomalies, source="stats")
+    render_event_log(stats_router)
 
     st.stop()  # Stats path ends here
 
@@ -874,3 +954,9 @@ else:
                 st.markdown("**Investigation Checklist**")
                 for hint in hints:
                     st.markdown(f"- {hint}")
+
+# ── Event Router — PCAP path ──────────────────────────────────────────
+if parsed is not None and anomalies:
+    pcap_router = EventRouter()
+    pcap_router.ingest(anomalies, source="pcap")
+    render_event_log(pcap_router)
