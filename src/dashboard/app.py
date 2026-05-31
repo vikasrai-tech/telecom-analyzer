@@ -32,6 +32,8 @@ from src.detection.stats_detector import (
     detect_stats_anomalies, detect_stats_anomalies_by_detector
 )
 from src.orchestrator.event_router import EventRouter
+from src.detection.predictor import run_prediction
+from src.feedback.store import save_feedback, load_feedback, feedback_stats
 from src.llm.explainer import explain_anomaly, ollama_status
 
 st.set_page_config(
@@ -109,6 +111,136 @@ def render_event_log(router: "EventRouter") -> None:
             st.success("No events in log.")
 
 
+def render_feedback_button(event_id: str, source: str, anomaly_type: str,
+                           severity: str, detector: str, cell_id: str,
+                           evidence: str) -> None:
+    """Render 👍 / 👎 / ❓ feedback buttons for one anomaly card."""
+    key_base = f"fb_{event_id}"
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 4])
+    with c1:
+        if st.button("👍 Correct", key=f"{key_base}_ok"):
+            save_feedback(event_id, source, anomaly_type, severity,
+                          detector, cell_id, evidence, verdict="correct",
+                          session_id=st.session_state.get("session_id", ""))
+            st.success("Feedback saved!")
+    with c2:
+        if st.button("👎 False +ve", key=f"{key_base}_fp"):
+            save_feedback(event_id, source, anomaly_type, severity,
+                          detector, cell_id, evidence, verdict="false_positive",
+                          session_id=st.session_state.get("session_id", ""))
+            st.warning("Marked as false positive.")
+    with c3:
+        if st.button("❓ Uncertain", key=f"{key_base}_unk"):
+            save_feedback(event_id, source, anomaly_type, severity,
+                          detector, cell_id, evidence, verdict="uncertain",
+                          session_id=st.session_state.get("session_id", ""))
+            st.info("Marked uncertain.")
+
+
+def render_prediction_panel(parsed: Dict, source: str) -> None:
+    """Run prediction layer and show predicted anomalies."""
+    st.divider()
+    st.subheader("🔮 Prediction Layer — Forecast Ahead (Phase II)")
+    st.caption("LSTM + Prophet: predicts anomalies up to 4h in advance · tagged state=predicted")
+
+    with st.expander("📖 Why LSTM + Prophet? (reviewer rationale)", expanded=False):
+        st.markdown("""
+| Method | Type | Why |
+|--------|------|-----|
+| **Prophet** | Bayesian structural time-series | Handles seasonality, trends, and missing data. Produces confidence intervals. Best for KPIs with daily/weekly patterns (PRB load, throughput). |
+| **LSTM** | Deep learning / sequence | Captures nonlinear dependencies between metrics. Better than Prophet when there's no clear seasonality — L1/L2 counters like HARQ NACK rate or BLER show abrupt non-seasonal shifts. |
+
+**Complementary:** Prophet catches slow degradation early; LSTM catches sudden pattern breaks.
+**Lead time:** Default 4h — gives NOC engineers time to act before threshold breach.
+        """)
+
+    horizon_h = st.slider("Forecast horizon (hours)", 1, 12, 4, key=f"horizon_{source}")
+
+    with st.spinner(f"Running LSTM + Prophet forecast ({horizon_h}h ahead)..."):
+        try:
+            pred_by_method = run_prediction(parsed, horizon_h=horizon_h)
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
+            return
+
+    all_predicted = [
+        {**a, "method": method}
+        for method, anoms in pred_by_method.items()
+        for a in anoms
+    ]
+
+    if not all_predicted:
+        st.success(f"✅ No predicted anomalies in the next {horizon_h}h.")
+        return
+
+    p1, p2, p3 = st.columns(3)
+    p1.metric("Predicted anomalies", len(all_predicted))
+    p2.metric("🔮 Prophet", len(pred_by_method.get("prophet", [])))
+    p3.metric("🧠 LSTM",    len(pred_by_method.get("lstm", [])))
+
+    SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
+    router = EventRouter()
+    for method, anoms in pred_by_method.items():
+        router.ingest_predicted(anoms, source=source, lead_time_h=horizon_h)
+
+    for a in sorted(all_predicted,
+                    key=lambda x: {"Critical":4,"High":3,"Medium":2,"Low":1}.get(x["severity"],0),
+                    reverse=True)[:15]:
+        icon = SEV_ICON.get(a["severity"], "⚪")
+        with st.expander(
+            f"{icon} [PREDICTED {a['severity']}] {a['label']} | {a['cell_id']} "
+            f"| {a['method'].upper()} | lead={horizon_h}h",
+            expanded=(a["severity"] in ("Critical", "High")),
+        ):
+            st.info(a["evidence"])
+            st.success(a["recommendation"])
+            st.markdown(f"**State:** `predicted`  |  **Lead time:** `{horizon_h}h`  |  "
+                        f"**Method:** `{a['method']}`")
+
+
+def render_feedback_history() -> None:
+    """Show feedback history panel in the sidebar or expander."""
+    records = load_feedback(limit=100)
+    stats   = feedback_stats()
+
+    st.subheader("📋 Feedback History")
+    if stats["total"] == 0:
+        st.info("No feedback submitted yet in this session.")
+        return
+
+    f1, f2, f3, f4 = st.columns(4)
+    f1.metric("Total",          stats["total"])
+    f2.metric("✅ Correct",     stats["correct"])
+    f3.metric("❌ False +ve",   stats["false_positive"])
+    f4.metric("❓ Uncertain",   stats["uncertain"])
+    if stats["precision"] is not None:
+        st.progress(stats["precision"], text=f"Precision: {stats['precision']*100:.1f}%")
+
+    if records:
+        df_fb = pd.DataFrame([{
+            "Time":     r["timestamp"][:16],
+            "Verdict":  r["verdict"],
+            "Type":     r["anomaly_type"],
+            "Severity": r["severity"],
+            "Source":   r["source"],
+            "Detector": r["detector"],
+            "Cell":     r["cell_id"],
+        } for r in records[:50]])
+        st.dataframe(df_fb, use_container_width=True, height=300)
+
+    # Per-detector precision
+    if stats["by_detector"]:
+        st.markdown("**Precision by detector:**")
+        det_rows = []
+        for det, counts in stats["by_detector"].items():
+            total = counts["correct"] + counts["false_positive"]
+            prec  = round(counts["correct"] / total, 2) if total > 0 else None
+            det_rows.append({"Detector": det, "Correct": counts["correct"],
+                              "False +ve": counts["false_positive"],
+                              "Precision": prec})
+        st.dataframe(pd.DataFrame(det_rows), use_container_width=True)
+
+
 def make_proc_table(proc_dict):
     rows = []
     for proc_name, stats in proc_dict.items():
@@ -130,6 +262,11 @@ st.caption(
     "Full 3GPP stack active: NAS · NGAP · RRC · F1AP · E1AP · XnAP  |  "
     "6-detector ensemble · RAG + Ollama LLM · REST API"
 )
+
+# ── Session init ──────────────────────────────────────────────────────
+import uuid as _uuid
+if "session_id" not in st.session_state:
+    st.session_state["session_id"] = str(_uuid.uuid4())[:8]
 
 # ── Sidebar ───────────────────────────────────────────────────────────
 with st.sidebar:
@@ -195,6 +332,9 @@ with st.sidebar:
 
     st.divider()
     show_raw = st.checkbox("Show raw parser output", value=False)
+    st.divider()
+    with st.expander("📋 Feedback History", expanded=False):
+        render_feedback_history()
 
 # ── No file yet ───────────────────────────────────────────────────────
 if uploaded is None:
@@ -448,6 +588,16 @@ if is_kpi and parsed_kpi:
                 with c2:
                     st.markdown("**Recommendation**")
                     st.success(a["recommendation"])
+                st.markdown("**Engineer Feedback**")
+                render_feedback_button(
+                    event_id=a.get("label","") + "_" + a.get("cell_id",""),
+                    source="kpi", anomaly_type=a.get("label",""),
+                    severity=a["severity"], detector=a.get("detector",""),
+                    cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
+                )
+
+    # ── Prediction Layer ──────────────────────────────────────────────
+    render_prediction_panel(parsed_kpi, source="kpi")
 
     # ── Event Router ─────────────────────────────────────────────────
     kpi_router = EventRouter()
@@ -641,6 +791,16 @@ if is_stats and parsed_stats:
                 with c2:
                     st.markdown("**Recommendation**")
                     st.success(a["recommendation"])
+                st.markdown("**Engineer Feedback**")
+                render_feedback_button(
+                    event_id=a.get("label","") + "_" + a.get("cell_id",""),
+                    source="stats", anomaly_type=a.get("label",""),
+                    severity=a["severity"], detector=a.get("detector",""),
+                    cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
+                )
+
+    # ── Prediction Layer ──────────────────────────────────────────────
+    render_prediction_panel(parsed_stats, source="stats")
 
     # ── Event Router ─────────────────────────────────────────────────
     stats_router = EventRouter()
@@ -903,6 +1063,13 @@ else:
                         f"**Confirmed by {a['confirmed_by']} detectors** — "
                         "high confidence finding."
                     )
+            st.markdown("**Engineer Feedback**")
+            render_feedback_button(
+                event_id=a.get("type","") + "_" + a.get("procedure",""),
+                source="pcap", anomaly_type=a.get("type",""),
+                severity=a["severity"], detector=a.get("detector",""),
+                cell_id=a.get("cell_id","—"), evidence=a.get("evidence",""),
+            )
 
     # ── LLM explanation — RAG + Ollama ───────────────────────────────
     st.subheader("🤖 LLM Explanation — RAG over 3GPP Specs")
