@@ -54,7 +54,7 @@ def make_proc_table(proc_dict):
 st.title("📡 Unified Telecom Analyzer")
 st.caption(
     "Full 3GPP stack active: NAS · NGAP · RRC · F1AP · E1AP · XnAP  |  "
-    "Detection and LLM: stubs (coming Week 6-14)"
+    "6-detector ensemble · RAG + Ollama LLM · REST API"
 )
 
 # ── Sidebar ───────────────────────────────────────────────────────────
