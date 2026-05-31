@@ -47,9 +47,25 @@ def detect_anomalies_by_detector(
     Use this for the comparison matrix in the dashboard.
     """
     results: Dict[str, List[Dict[str, Any]]] = {}
+    # Load retrained params if available
+    try:
+        from src.detection.retrainer import load_retrain_config
+        cfg = load_retrain_config()
+    except Exception:
+        cfg = {}
+
     for name, cls in ALL_DETECTORS:
         try:
-            found = cls().detect(parsed)
+            params = cfg.get(name, {})
+            if name == "Isolation Forest" and "contamination" in params:
+                inst = cls(contamination=params["contamination"])
+            elif name == "One-Class SVM" and "nu" in params:
+                inst = cls(nu=params["nu"])
+            elif name in ("LOF", "Elliptic Envelope") and "contamination" in params:
+                inst = cls(contamination=params["contamination"])
+            else:
+                inst = cls()
+            found = inst.detect(parsed)
             logger.info(f"{name}: {len(found)} anomalies")
             results[name] = found
         except Exception as e:

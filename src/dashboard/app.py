@@ -199,22 +199,23 @@ def render_prediction_panel(parsed: Dict, source: str) -> None:
 
 
 def render_feedback_history() -> None:
-    """Show feedback history panel in the sidebar or expander."""
+    """Show feedback history + retraining trigger panel."""
     records = load_feedback(limit=100)
     stats   = feedback_stats()
 
     st.subheader("📋 Feedback History")
     if stats["total"] == 0:
-        st.info("No feedback submitted yet in this session.")
+        st.info("No feedback submitted yet. Use 👍/👎/❓ on anomaly cards.")
         return
 
     f1, f2, f3, f4 = st.columns(4)
-    f1.metric("Total",          stats["total"])
-    f2.metric("✅ Correct",     stats["correct"])
-    f3.metric("❌ False +ve",   stats["false_positive"])
-    f4.metric("❓ Uncertain",   stats["uncertain"])
+    f1.metric("Total",        stats["total"])
+    f2.metric("✅ Correct",   stats["correct"])
+    f3.metric("❌ False +ve", stats["false_positive"])
+    f4.metric("❓ Uncertain", stats["uncertain"])
     if stats["precision"] is not None:
-        st.progress(stats["precision"], text=f"Precision: {stats['precision']*100:.1f}%")
+        st.progress(stats["precision"],
+                    text=f"Overall Precision: {stats['precision']*100:.1f}%")
 
     if records:
         df_fb = pd.DataFrame([{
@@ -226,7 +227,7 @@ def render_feedback_history() -> None:
             "Detector": r["detector"],
             "Cell":     r["cell_id"],
         } for r in records[:50]])
-        st.dataframe(df_fb, use_container_width=True, height=300)
+        st.dataframe(df_fb, use_container_width=True, height=250)
 
     # Per-detector precision
     if stats["by_detector"]:
@@ -239,6 +240,44 @@ def render_feedback_history() -> None:
                               "False +ve": counts["false_positive"],
                               "Precision": prec})
         st.dataframe(pd.DataFrame(det_rows), use_container_width=True)
+
+    # ── Retraining trigger ────────────────────────────────────────────
+    st.divider()
+    st.markdown("**🔄 Nightly Retraining**")
+    st.caption("Adjusts detector parameters based on feedback. "
+               "Runs automatically at 2am via cron (`make retrain`).")
+
+    col_btn, col_dry = st.columns(2)
+    with col_btn:
+        if st.button("🔄 Retrain Now", key="retrain_btn",
+                     disabled=(stats["total"] < 5)):
+            from src.detection.retrainer import run_retraining
+            with st.spinner("Running retraining..."):
+                report = run_retraining()
+            if report["status"] == "ok":
+                n_changed = sum(1 for a in report["adjustments"].values() if a["changed"])
+                st.success(f"✅ Retraining complete — {n_changed} detector(s) adjusted")
+                for det, adj in report["adjustments"].items():
+                    if adj["changed"]:
+                        st.markdown(f"- `{det}`: fp={adj['fp_rate']*100:.0f}%  "
+                                    f"`{adj['before']}` → `{adj['after']}`")
+            else:
+                st.warning(report.get("reason", "Retraining skipped"))
+        if stats["total"] < 5:
+            st.caption("Need ≥ 5 feedback records to retrain.")
+
+    with col_dry:
+        if st.button("🔍 Dry Run", key="retrain_dry"):
+            from src.detection.retrainer import run_retraining
+            with st.spinner("Simulating retraining..."):
+                report = run_retraining(dry_run=True)
+            if report["status"] == "ok":
+                st.info("Dry-run result (config NOT written):")
+                for det, adj in report["adjustments"].items():
+                    arrow = "→" if adj["changed"] else "·"
+                    st.markdown(f"- `{det}` {arrow} `{adj['after']}`")
+            else:
+                st.warning(report.get("reason", "—"))
 
 
 def make_proc_table(proc_dict):
