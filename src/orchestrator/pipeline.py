@@ -150,15 +150,91 @@ def run_kpi_pipeline(
     }
 
 
+def run_stats_pipeline(
+    file_path: str,
+    explain_top_n: int = 4,
+    skip_llm: bool = False,
+) -> Dict[str, Any]:
+    """
+    Parse DU/CU stats file → detect L1/L2 anomalies → LLM explain top anomalies.
+
+    Returns
+    -------
+    {
+      "parsed":       dict from stats_parser.parse_stats_file(),
+      "anomalies":    merged list from all 6 stats detectors,
+      "by_detector":  {detector_name: [anomaly, ...]},
+      "explanations": [{anomaly, explanation}, ...],
+      "duration_s":   float,
+    }
+    """
+    t0 = time.perf_counter()
+
+    from src.parsers.stats_parser import parse_stats_file
+    from src.detection.stats_detector import (
+        detect_stats_anomalies_by_detector,
+        detect_stats_anomalies,
+    )
+    from src.llm.explainer import explain_anomaly
+
+    logger.info(f"[pipeline] Parsing stats file: {file_path}")
+    parsed = parse_stats_file(file_path)
+
+    logger.info("[pipeline] Running 6 stats detectors...")
+    by_detector = detect_stats_anomalies_by_detector(parsed)
+    anomalies   = detect_stats_anomalies(parsed)
+
+    explanations: List[Dict[str, Any]] = []
+    if not skip_llm:
+        top = [a for a in anomalies if a["severity"] in ("Critical", "High")][:explain_top_n]
+        if not top:
+            top = anomalies[:2]
+        for a in top:
+            adapted = {
+                "type":           a.get("label", "L1/L2 anomaly"),
+                "severity":       a["severity"],
+                "layer":          "KPI",
+                "procedure":      a.get("category", ""),
+                "evidence":       a.get("evidence", ""),
+                "failure_causes": {},
+                "detector":       a.get("detector", ""),
+            }
+            exp = explain_anomaly(adapted)
+            explanations.append({"anomaly": a, "explanation": exp})
+
+    duration = round(time.perf_counter() - t0, 2)
+    logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies")
+
+    return {
+        "pipeline":     "stats",
+        "input_file":   str(file_path),
+        "parsed":       parsed,
+        "anomalies":    anomalies,
+        "by_detector":  by_detector,
+        "explanations": explanations,
+        "duration_s":   duration,
+    }
+
+
 def run_pipeline(
     file_path: str,
     kpi: bool = False,
+    stats: bool = False,
     explain_top_n: int = 4,
     skip_llm: bool = False,
 ) -> Dict[str, Any]:
     """Auto-detect or force pipeline type."""
-    if kpi or Path(file_path).suffix.lower() in (".xlsx", ".xls", ".csv"):
+    suffix = Path(file_path).suffix.lower()
+    if kpi or suffix in (".xlsx", ".xls"):
         return run_kpi_pipeline(file_path, explain_top_n=explain_top_n, skip_llm=skip_llm)
+    if stats:
+        return run_stats_pipeline(file_path, explain_top_n=explain_top_n, skip_llm=skip_llm)
+    if suffix in (".csv", ".parquet"):
+        # Ambiguous — try stats first (srsRAN/OAI/NIST), fall back to KPI
+        try:
+            return run_stats_pipeline(file_path, explain_top_n=explain_top_n, skip_llm=skip_llm)
+        except Exception:
+            return run_kpi_pipeline(file_path, explain_top_n=explain_top_n, skip_llm=skip_llm)
     return run_pcap_pipeline(file_path, explain_top_n=explain_top_n, skip_llm=skip_llm)
 
 

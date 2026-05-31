@@ -23,9 +23,13 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
 from src.parsers.kpi_parser import parse_kpi_file
+from src.parsers.stats_parser import parse_stats_file, get_meta as stats_get_meta
 from src.detection.detector import detect_anomalies_by_detector, merge_detector_results
 from src.detection.kpi_detector import (
     detect_kpi_anomalies, detect_kpi_anomalies_by_detector, kpi_summary_table
+)
+from src.detection.stats_detector import (
+    detect_stats_anomalies, detect_stats_anomalies_by_detector
 )
 from src.llm.explainer import explain_anomaly, ollama_status
 
@@ -62,18 +66,19 @@ with st.sidebar:
     st.header("Upload Data")
     data_type = st.radio("Data type", ["PCAP", "DU/CU Stats", "KPI Time-series"])
     ext_map = {
-        "PCAP": ["pcap", "pcapng"],
-        "DU/CU Stats / KPI": ["csv", "xlsx", "xls"],
+        "PCAP":             ["pcap", "pcapng"],
+        "DU/CU Stats":      ["csv", "parquet"],
+        "KPI Time-series":  ["csv", "xlsx", "xls", "parquet"],
     }
     uploaded = st.file_uploader(f"Upload {data_type} file",
                                type=ext_map.get(data_type, ["pcap"]))
     st.divider()
 
     st.subheader("Parser Status")
-    if data_type == "DU/CU Stats / KPI":
+    if data_type == "KPI Time-series":
         st.success("✅ KPI parser active")
         st.markdown("""
-        **Accepts:** Excel (.xlsx) or CSV
+        **Accepts:** Excel (.xlsx), CSV, Parquet
 
         **KPI categories:**
         - Availability · Accessibility
@@ -84,6 +89,23 @@ with st.sidebar:
 
         **Sample file:**
         `data/raw/5G_Network_KPI_Sample.xlsx`
+        """)
+    elif data_type == "DU/CU Stats":
+        st.success("✅ Stats parser active")
+        st.markdown("""
+        **Accepts:** CSV, Parquet
+
+        **Formats auto-detected:**
+        - ✅ srsRAN (pci, dl_nof_ok/nok, dl_mcs, pusch_snr_db …)
+        - ✅ OAI (DL_MCS1, PRB_DL, dlsch_errors, SNR …)
+        - ✅ NIST (RSRP_dBm, DL_BLER_pct, PRB_Utilization_pct …)
+
+        **L1/L2 metrics:** PRB · BLER · MCS · HARQ · SNR · RSRP
+
+        **Sample files:**
+        `data/raw/srsran_stats.csv`
+        `data/raw/oai_stats.csv`
+        `data/raw/nist_stats.csv`
         """)
     elif data_type == "PCAP":
         st.success("✅ Real parser active")
@@ -100,8 +122,6 @@ with st.sidebar:
         `data/raw/test_5g_full.pcap`
         *(run `scripts/generate_test_pcap.py`)*
         """)
-    else:
-        st.warning("🔶 Stub parser (coming soon)")
 
     st.divider()
     show_raw = st.checkbox("Show raw parser output", value=False)
@@ -135,7 +155,8 @@ if uploaded is None:
 st.success(f"✅ Received: `{uploaded.name}` ({uploaded.size:,} bytes)")
 
 suffix = uploaded.name.split('.')[-1].lower()
-is_kpi = data_type == "DU/CU Stats / KPI"
+is_kpi   = data_type == "KPI Time-series"
+is_stats = data_type == "DU/CU Stats"
 
 with st.spinner("🔍 Parsing file..."):
     tmp_path = None
@@ -145,11 +166,17 @@ with st.spinner("🔍 Parsing file..."):
             tmp_path = tmp.name
 
         if is_kpi:
-            parsed_kpi = parse_kpi_file(tmp_path)
-            parsed = None
+            parsed_kpi   = parse_kpi_file(tmp_path)
+            parsed_stats = None
+            parsed       = None
+        elif is_stats:
+            parsed_stats = parse_stats_file(tmp_path)
+            parsed_kpi   = None
+            parsed       = None
         else:
-            parsed = parse_pcap_real(tmp_path)
-            parsed_kpi = None
+            parsed       = parse_pcap_real(tmp_path)
+            parsed_kpi   = None
+            parsed_stats = None
 
     except Exception as e:
         st.error(f"❌ Parser error: {e}")
@@ -352,7 +379,195 @@ if is_kpi and parsed_kpi:
                     st.markdown("**Recommendation**")
                     st.success(a["recommendation"])
 
-    st.stop()  # KPI path ends here — skip PCAP sections below
+    st.stop()  # KPI path ends here
+
+# ══════════════════════════════════════════════════════════════════════
+# STATS DASHBOARD (DU/CU Stats path — srsRAN / OAI / NIST)
+# ══════════════════════════════════════════════════════════════════════
+if is_stats and parsed_stats:
+    import plotly.express as px
+
+    r = parsed_stats
+    st.subheader("📡 DU/CU Stats Overview")
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Rows",          r["rows"])
+    m2.metric("Cells",         len(r["cells"]))
+    m3.metric("L1/L2 Metrics", len(r["l1l2_columns"]))
+    m4.metric("Format",        r["format"].upper())
+    m5.metric("Time Range",
+              f"{str(r['time_range'][0])[:16]} → {str(r['time_range'][1])[:16]}"
+              if r["time_range"][0] else "—")
+
+    # ── L1/L2 Summary Table ───────────────────────────────────────────
+    st.subheader("🚦 L1/L2 Metric Health Summary")
+    st.caption("🟢 OK  🟡 Warning  🔴 Critical  (based on mean value vs 3GPP thresholds)")
+
+    if r["summary"]:
+        summary_rows = []
+        for col, stats in r["summary"].items():
+            meta = stats_get_meta(col)
+            mean_val = stats["mean"]
+            w = meta.get("warning")
+            c_thresh = meta.get("critical")
+
+            # Determine status
+            status = "🟢 OK"
+            worse_high = any(k in col for k in ("bler", "prb", "nack"))
+            if w is not None:
+                if worse_high:
+                    if c_thresh and mean_val >= c_thresh:
+                        status = "🔴 Critical"
+                    elif mean_val >= w:
+                        status = "🟡 Warning"
+                else:
+                    if c_thresh and mean_val <= c_thresh:
+                        status = "🔴 Critical"
+                    elif mean_val <= w:
+                        status = "🟡 Warning"
+
+            summary_rows.append({
+                "Status":   status,
+                "Metric":   col,
+                "Desc":     meta["desc"],
+                "Unit":     meta["unit"],
+                "Mean":     round(mean_val, 2),
+                "Min":      round(stats["min"], 2),
+                "Max":      round(stats["max"], 2),
+                "P10":      round(stats["p10"], 2),
+                "P90":      round(stats["p90"], 2),
+                "Warning":  w,
+                "Critical": c_thresh,
+            })
+        st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, height=400)
+
+    # ── Trend Explorer ────────────────────────────────────────────────
+    st.subheader("📈 L1/L2 Metric Trend Explorer")
+    l1l2_cols = r["l1l2_columns"]
+    ts_col    = r["timestamp_col"]
+    cell_col  = r["cell_col"]
+
+    if l1l2_cols and ts_col:
+        col_sel, cell_sel = st.columns(2)
+        with col_sel:
+            sel_metric = st.selectbox("Select Metric", l1l2_cols, key="stats_metric")
+        with cell_sel:
+            cell_opts = ["All cells (avg)"] + r["cells"]
+            sel_cell  = st.selectbox("Select Cell", cell_opts, key="stats_cell")
+
+        df_plot = pd.DataFrame(r["df_records"])
+        df_plot[ts_col] = pd.to_datetime(df_plot[ts_col], errors="coerce")
+
+        if sel_cell == "All cells (avg)":
+            df_line = (df_plot.groupby(ts_col)[sel_metric]
+                       .mean().reset_index().rename(columns={sel_metric: "value"}))
+            title = f"{sel_metric} — All Cells Average"
+        else:
+            df_line = (df_plot[df_plot[cell_col] == sel_cell][[ts_col, sel_metric]]
+                       .rename(columns={sel_metric: "value"}))
+            title = f"{sel_metric} — {sel_cell}"
+
+        if not df_line.empty:
+            meta = stats_get_meta(sel_metric)
+            fig  = px.line(df_line, x=ts_col, y="value", title=title,
+                           labels={"value": f"{sel_metric} ({meta['unit']})", ts_col: "Time"})
+            if meta.get("warning") is not None:
+                fig.add_hline(y=meta["warning"],  line_dash="dot",
+                              line_color="orange", annotation_text="Warning")
+            if meta.get("critical") is not None:
+                fig.add_hline(y=meta["critical"], line_dash="dot",
+                              line_color="red",   annotation_text="Critical")
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ── Per-Cell Heatmap ──────────────────────────────────────────────
+    st.subheader("🗺️ Per-Cell Metric Breakdown")
+    if l1l2_cols and cell_col:
+        df_all  = pd.DataFrame(r["df_records"])
+        df_cell = df_all.groupby(cell_col)[l1l2_cols].mean().round(3).reset_index()
+        st.dataframe(df_cell, use_container_width=True, height=300)
+
+    # ── Stats Anomaly Detection ───────────────────────────────────────
+    st.divider()
+    st.subheader("⚠️ L1/L2 Anomaly Detection — 6-Method Ensemble")
+    st.caption("Threshold · Peer Comparison · Trend · IQR · CUSUM · Bollinger Bands")
+
+    with st.expander("📖 Why these 6 methods? (reviewer rationale)", expanded=False):
+        st.markdown("""
+| # | Method | Type | Why for L1/L2 stats |
+|---|--------|------|---------------------|
+| 1 | **Threshold** | Rule-based | 3GPP/vendor limits for BLER (<10%), PRB (<80%), SNR (>5 dB). Instant, interpretable. |
+| 2 | **Peer Comparison** | Z-score / cross-cell | A cell with BLER=8% is "OK" vs threshold but suspect if all peers are at 2%. |
+| 3 | **Trend** | Linear regression | Gradual MCS degradation or rising HARQ NACK rate — early warning before threshold fires. |
+| 4 | **IQR** | Robust / distribution-free | L1 counters are often skewed (HARQ NACK counts). IQR handles non-Gaussian distributions. |
+| 5 | **CUSUM** | Sequential / change-point | Catches persistent drift in SNR or PRB utilisation that per-point methods miss. |
+| 6 | **Bollinger Bands** | Rolling envelope | Detects transient interference spikes in SINR/RSRP that last only a few intervals. |
+        """)
+
+    with st.spinner("Running 6 L1/L2 detectors..."):
+        stats_by_det  = detect_stats_anomalies_by_detector(parsed_stats)
+        stats_anomalies = detect_stats_anomalies(parsed_stats)
+
+    if not stats_anomalies:
+        st.success("✅ No L1/L2 anomalies detected.")
+    else:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("🔴 Critical", sum(1 for a in stats_anomalies if a["severity"] == "Critical"))
+        c2.metric("🟠 High",     sum(1 for a in stats_anomalies if a["severity"] == "High"))
+        c3.metric("🟡 Medium",   sum(1 for a in stats_anomalies if a["severity"] == "Medium"))
+        c4.metric("🟢 Low",      sum(1 for a in stats_anomalies if a["severity"] == "Low"))
+
+        # Method comparison matrix
+        st.subheader("🔬 Method Comparison Matrix")
+        DET_COLS  = ["Threshold", "Peer Comparison", "Trend", "IQR", "CUSUM", "Bollinger Bands"]
+        SEV_BADGE = {"Critical": "🔴 Crit", "High": "🟠 High", "Medium": "🟡 Med", "Low": "🟢 Low"}
+        SEV_R     = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
+
+        matrix: Dict[str, Dict[str, str]] = {}
+        for det_name, anoms in stats_by_det.items():
+            for a in anoms:
+                key = f"{a['label']} | {a['cell_id']}"
+                matrix.setdefault(key, {})
+                if SEV_R.get(a["severity"], 0) > SEV_R.get(matrix[key].get(det_name, ""), 0):
+                    matrix[key][det_name] = a["severity"]
+
+        if matrix:
+            rows = []
+            for key, det_sevs in list(matrix.items())[:60]:
+                row = {"Metric | Cell": key}
+                for det in DET_COLS:
+                    sev = det_sevs.get(det, "")
+                    row[det[:10]] = SEV_BADGE.get(sev, "✅") if sev else "✅"
+                row["Confirmed by"] = f"{sum(1 for v in det_sevs.values() if v)}/{len(DET_COLS)}"
+                rows.append(row)
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, height=300)
+
+        # Anomaly table
+        sev_filter = st.selectbox("Filter severity",
+                                  ["All", "Critical", "High", "Medium", "Low"],
+                                  key="stats_sev")
+        shown = stats_anomalies if sev_filter == "All" else [
+            a for a in stats_anomalies if a["severity"] == sev_filter
+        ]
+        SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
+        for a in shown[:20]:
+            icon = SEV_ICON.get(a["severity"], "⚪")
+            with st.expander(
+                f"{icon} [{a['severity']}] {a['label']} | {a['cell_id']} | {a['detector']}",
+                expanded=(a["severity"] in ("Critical", "High")),
+            ):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**Evidence**")
+                    st.info(a["evidence"])
+                    st.markdown(
+                        f"Value: **{a['value']} {a['unit']}** &nbsp;|&nbsp; "
+                        f"Warning: {a['warning']} &nbsp;|&nbsp; Critical: {a['critical']}"
+                    )
+                with c2:
+                    st.markdown("**Recommendation**")
+                    st.success(a["recommendation"])
+
+    st.stop()  # Stats path ends here
 
 # ── Summary metrics ───────────────────────────────────────────────────
 st.subheader("📊 Parsed Summary")

@@ -36,15 +36,17 @@ ID_COLUMNS = {"timestamp", "cell_id", "gnb_id", "date", "time",
 
 
 def _load_raw(filepath: str) -> pd.DataFrame:
-    """Load Excel or CSV into a DataFrame."""
+    """Load Excel, CSV, or Parquet into a DataFrame."""
     path = Path(filepath)
     suffix = path.suffix.lower()
     if suffix in (".xlsx", ".xls"):
         df = pd.read_excel(filepath, engine="openpyxl")
     elif suffix == ".csv":
         df = pd.read_csv(filepath)
+    elif suffix == ".parquet":
+        df = pd.read_parquet(filepath)
     else:
-        raise ValueError(f"Unsupported format: {suffix}. Use .xlsx or .csv")
+        raise ValueError(f"Unsupported format: {suffix}. Use .xlsx, .csv, or .parquet")
     return df
 
 
