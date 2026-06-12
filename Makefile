@@ -1,8 +1,9 @@
-.PHONY: help dev api test test-all retrain lint format clean
+.PHONY: help dev demo api test test-all retrain lint format clean
 
 help:
 	@echo "Available targets:"
-	@echo "  make dev       - Run Streamlit dashboard"
+	@echo "  make demo      - Run SIMPLE dashboard (easy view for demo)"
+	@echo "  make dev       - Run full technical dashboard"
 	@echo "  make api       - Run FastAPI REST server (port 8000)"
 	@echo "  make test      - Run smoke tests (stubs, fast)"
 	@echo "  make test-all  - Run full integration tests (requires test data)"
@@ -13,6 +14,9 @@ help:
 	@echo ""
 	@echo "  Cron example (daily 2am):"
 	@echo "  0 2 * * * cd /mnt/e/telecom-analyzer && make retrain >> logs/retrain.log 2>&1"
+
+demo:
+	streamlit run src/dashboard/app_simple.py
 
 dev:
 	streamlit run src/dashboard/app.py
