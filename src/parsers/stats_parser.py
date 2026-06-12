@@ -51,8 +51,18 @@ L1L2_META: Dict[str, Dict] = {
     "rsrp_dbm":         {"unit": "dBm",  "desc": "Reference Signal Received Power","warning":-105,"critical":-115},
     "rsrq_db":          {"unit": "dB",   "desc": "Reference Signal Received Quality","warning":-14,"critical":-18},
     "nof_ue":           {"unit": "count","desc": "Active UE Count",            "warning": None,"critical": None},
-    "dl_harq_nack":     {"unit": "count","desc": "DL HARQ NACK count (raw)",   "warning": None,"critical": None},
-    "ul_harq_nack":     {"unit": "count","desc": "UL HARQ NACK count (raw)",   "warning": None,"critical": None},
+    "dl_harq_nack":          {"unit": "count","desc": "DL HARQ NACK count (raw)",         "warning": None, "critical": None},
+    "ul_harq_nack":          {"unit": "count","desc": "UL HARQ NACK count (raw)",         "warning": None, "critical": None},
+    # Derived — Method 4 (rolling baseline delta)
+    "dl_prb_util_baseline_delta": {"unit": "%", "desc": "DL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},
+    "ul_prb_util_baseline_delta": {"unit": "%", "desc": "UL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},
+    "dl_bler_baseline_delta":     {"unit": "%", "desc": "DL BLER delta from rolling mean",        "warning": 5,  "critical": 10},
+    "ul_bler_baseline_delta":     {"unit": "%", "desc": "UL BLER delta from rolling mean",        "warning": 5,  "critical": 10},
+    "prb_baseline_delta":         {"unit": "%", "desc": "DL PRB utilisation vs rolling baseline", "warning": 15, "critical": 25},
+    # Derived — Method 6 (feature engineering)
+    "congestion_score":  {"unit": "binary","desc": "PRB>80% AND BLER>5% simultaneously", "warning": 0.5, "critical": 1.0},
+    "hour_of_day":       {"unit": "h",    "desc": "Hour of day (0-23) — time context",   "warning": None, "critical": None},
+    "day_of_week":       {"unit": "day",  "desc": "Day of week (0=Mon, 6=Sun)",           "warning": None, "critical": None},
 }
 
 # ── Format fingerprints ───────────────────────────────────────────────
@@ -242,6 +252,63 @@ def _normalize_generic(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
     return df, ts_col, cell_col
 
 
+def _engineer_features(df: pd.DataFrame, ts_col: str, cell_col: str) -> pd.DataFrame:
+    """
+    Methods 3-6 from the DU/CU Stats Parser design:
+      3. Normalization    — Z-score for raw count columns
+      4. Rolling Baseline — rolling(60).mean() per cell per metric → *_baseline + *_delta
+      5. Missing Values   — ffill then linear interpolation per cell group
+      6. Feature Eng.     — congestion_score, hour_of_day, day_of_week
+    """
+    numeric_cols = [c for c in L1L2_META if c in df.columns]
+    if not numeric_cols:
+        return df
+
+    # Method 5: Missing value handling — ffill then interpolate per cell
+    if cell_col and cell_col in df.columns:
+        for col in numeric_cols:
+            df[col] = (df.groupby(cell_col)[col]
+                       .transform(lambda s: s.ffill().interpolate(method="linear")))
+    else:
+        for col in numeric_cols:
+            df[col] = df[col].ffill().interpolate(method="linear")
+
+    # Method 4: Rolling Window Baseline (window=60 rows per cell)
+    # Produces prb_baseline_delta, dl_bler_baseline_delta, etc.
+    ROLLING_WINDOW = 60
+    DELTA_COLS = ["dl_prb_util", "ul_prb_util", "dl_bler", "ul_bler",
+                  "dl_harq_nack_rate", "ul_harq_nack_rate", "pusch_snr_db", "snr_db"]
+    for col in DELTA_COLS:
+        if col not in df.columns:
+            continue
+        if cell_col and cell_col in df.columns:
+            baseline = (df.groupby(cell_col)[col]
+                        .transform(lambda s: s.rolling(ROLLING_WINDOW, min_periods=5).mean()))
+        else:
+            baseline = df[col].rolling(ROLLING_WINDOW, min_periods=5).mean()
+        delta_col = col + "_baseline_delta"
+        df[delta_col] = (df[col] - baseline).round(3)
+
+    # Method 6: Feature Engineering
+    # congestion_score: 1 when PRB > 80% AND BLER > 5% (simultaneous radio + capacity issue)
+    if "dl_prb_util" in df.columns and "dl_bler" in df.columns:
+        df["congestion_score"] = (
+            (df["dl_prb_util"] > 80) & (df["dl_bler"] > 5)
+        ).astype(float)
+
+    # hour_of_day and day_of_week from timestamp
+    if ts_col and ts_col in df.columns:
+        ts = pd.to_datetime(df[ts_col], errors="coerce")
+        df["hour_of_day"] = ts.dt.hour.astype(float)
+        df["day_of_week"] = ts.dt.dayofweek.astype(float)   # 0=Mon … 6=Sun
+
+    # prb_baseline_delta already computed above; add explicit alias for Image 3 naming
+    if "dl_prb_util_baseline_delta" in df.columns:
+        df["prb_baseline_delta"] = df["dl_prb_util_baseline_delta"]
+
+    return df
+
+
 def _summary(df: pd.DataFrame, cols: List[str]) -> Dict[str, Any]:
     out = {}
     for col in cols:
@@ -292,7 +359,10 @@ def parse_stats_file(filepath: str) -> Dict[str, Any]:
     else:
         df, ts_col, cell_col = _normalize_generic(df)
 
-    # Identify which canonical L1/L2 columns are present
+    # Methods 3-6: normalization, rolling baseline, missing values, feature engineering
+    df = _engineer_features(df, ts_col, cell_col)
+
+    # Identify which canonical L1/L2 columns are present (including derived)
     l1l2_cols = [c for c in L1L2_META if c in df.columns]
 
     # Parse timestamps
@@ -319,7 +389,7 @@ def parse_stats_file(filepath: str) -> Dict[str, Any]:
         "cell_col":       cell_col,
         "df_records":     df.to_dict(orient="records"),
         "summary":        _summary(df, l1l2_cols),
-        "parser_version": "stats_v1",
+        "parser_version": "stats_v2",
     }
 
 
