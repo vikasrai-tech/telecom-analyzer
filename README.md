@@ -73,14 +73,14 @@ telecom-analyzer/
 
 | Week  | Milestone                | Status |
 |-------|--------------------------|--------|
-| 1     | Setup + walking skeleton | ⏳     |
-| 2-4   | PCAP parser + procedures | ⏳     |
-| 5-7   | DU/CU + KPI parsers      | ⏳     |
-| 8-10  | Detection engine         | ⏳     |
-| 11-14 | RAG + LLM integration    | ⏳     |
-| 15-17 | Dashboard + feedback     | ⏳     |
-| 18-21 | MLOps pipeline           | ⏳     |
-| 22-24 | Final demo + paper draft | ⏳     |
+| 1     | Setup + walking skeleton | ✅     |
+| 2-4   | PCAP parser + procedures | ✅     |
+| 5-7   | DU/CU + KPI parsers      | ✅     |
+| 8-10  | Detection engine         | ✅     |
+| 11-14 | RAG + LLM integration    | ✅     |
+| 15-17 | Dashboard + feedback     | ✅     |
+| 18-21 | MLOps pipeline           | ✅     |
+| 22-24 | Final demo + paper draft | ✅     |
 
 ## License
 
