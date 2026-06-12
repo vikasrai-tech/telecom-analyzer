@@ -345,6 +345,85 @@ def render_rca_panel(anomalies: List[Dict]) -> None:
             st.markdown(f"**3GPP Reference:** `{r.spec_ref}`")
 
 
+def render_evaluation_panel() -> None:
+    """Render Precision/Recall/F1 evaluation panel (on-demand, cached)."""
+    st.subheader("📊 Detector Evaluation — Precision / Recall / F1")
+    st.caption(
+        "Runs each detector against a synthetic labeled dataset with known injected anomalies. "
+        "Ground truth = (cell_id, KPI/metric) pairs where anomalies were injected. "
+        "Ensemble = union of all detectors."
+    )
+
+    col_kpi, col_stats = st.columns(2)
+    run_kpi   = col_kpi.button("▶ Run KPI Evaluation",   key="eval_kpi_btn")
+    run_stats = col_stats.button("▶ Run Stats Evaluation", key="eval_stats_btn")
+
+    if run_kpi:
+        from src.evaluation import run_kpi_evaluation
+        with st.spinner("Generating synthetic KPI dataset + running 6 detectors..."):
+            report = run_kpi_evaluation(n_cells=5, n_timestamps=100,
+                                        anomaly_rate=0.20, seed=42)
+        st.session_state["eval_kpi_report"] = report.as_dict()
+
+    if run_stats:
+        from src.evaluation import run_stats_evaluation
+        with st.spinner("Generating synthetic stats dataset + running 6 detectors..."):
+            report = run_stats_evaluation(n_cells=3, n_timestamps=100,
+                                          anomaly_rate=0.20, seed=99)
+        st.session_state["eval_stats_report"] = report.as_dict()
+
+    def _render_report(rep: dict, label: str) -> None:
+        info = rep.get("dataset_info", {})
+        st.markdown(f"**{label} — Dataset:** "
+                    f"{info.get('n_cells','-')} cells · "
+                    f"{info.get('n_timestamps','-')} timestamps · "
+                    f"anomaly rate {int(info.get('anomaly_rate',0)*100)}%")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Anomalous pairs",  rep["n_anomaly_pairs"])
+        m2.metric("Normal pairs",     rep["n_normal_pairs"])
+        m3.metric("Total pairs",      rep["n_total_pairs"])
+
+        rows = rep["per_detector"] + [rep["ensemble"]]
+        table_data = []
+        for m in rows:
+            table_data.append({
+                "Detector":  m["detector"],
+                "TP":        m["tp"],
+                "FP":        m["fp"],
+                "FN":        m["fn"],
+                "TN":        m["tn"],
+                "Precision": f"{m['precision']:.2f}" if m["precision"] is not None else "—",
+                "Recall":    f"{m['recall']:.2f}"    if m["recall"]    is not None else "—",
+                "F1":        f"{m['f1']:.2f}"        if m["f1"]        is not None else "—",
+                "Accuracy":  f"{m['accuracy']:.2f}",
+            })
+        st.dataframe(table_data, use_container_width=True)
+
+        # Bar chart — F1 scores
+        import pandas as pd
+        chart_df = pd.DataFrame([
+            {"Detector": m["detector"],
+             "F1": m["f1"] or 0.0,
+             "Precision": m["precision"] or 0.0,
+             "Recall": m["recall"] or 0.0}
+            for m in rows if m["f1"] is not None
+        ])
+        if not chart_df.empty:
+            st.markdown("**F1 Score by Detector**")
+            st.bar_chart(chart_df.set_index("Detector")[["F1", "Precision", "Recall"]])
+
+    if "eval_kpi_report" in st.session_state:
+        st.divider()
+        _render_report(st.session_state["eval_kpi_report"], "KPI Detectors")
+
+    if "eval_stats_report" in st.session_state:
+        st.divider()
+        _render_report(st.session_state["eval_stats_report"], "Stats Detectors")
+
+    if "eval_kpi_report" not in st.session_state and "eval_stats_report" not in st.session_state:
+        st.info("Click a button above to run evaluation against the synthetic labeled dataset.")
+
+
 def make_proc_table(proc_dict):
     rows = []
     for proc_name, stats in proc_dict.items():
@@ -439,6 +518,9 @@ with st.sidebar:
     st.divider()
     with st.expander("📋 Feedback History", expanded=False):
         render_feedback_history()
+    st.divider()
+    with st.expander("📊 Detector Evaluation", expanded=False):
+        render_evaluation_panel()
 
 # ── No file yet ───────────────────────────────────────────────────────
 if uploaded is None:
