@@ -61,3 +61,6 @@ mlruns/
 # Logs
 *.log
 logs/
+docs/*.pptx
+docs/*.docx
+docs/~$*
