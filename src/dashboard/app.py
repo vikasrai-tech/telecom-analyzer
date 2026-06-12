@@ -280,6 +280,71 @@ def render_feedback_history() -> None:
                 st.warning(report.get("reason", "—"))
 
 
+def render_rca_panel(anomalies: List[Dict]) -> None:
+    """Render Root Cause Analysis panel for a list of anomalies."""
+    st.subheader("🔍 Root Cause Analysis (RCA)")
+    if not anomalies:
+        st.info("No anomalies to analyse.")
+        return
+
+    from src.rca import analyze as rca_analyze
+    rca_results = rca_analyze(anomalies)
+
+    if not rca_results:
+        st.info("No root causes identified.")
+        return
+
+    # Summary metrics
+    causal = [r for r in rca_results if r.rule_name != "single_event"]
+    single = [r for r in rca_results if r.rule_name == "single_event"]
+    high_conf = [r for r in rca_results if r.confidence >= 0.75]
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Root Causes Found", len(rca_results))
+    m2.metric("Causal Chains", len(causal))
+    m3.metric("High Confidence (≥75%)", len(high_conf))
+
+    st.caption(
+        "RCA traces anomalies back through the 5G protocol stack (PHY → MAC → RRC → F1AP → NGAP → NAS) "
+        "to identify the lowest-layer event that triggered downstream failures."
+    )
+    st.divider()
+
+    SEV_COLOR = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🟢"}
+
+    for i, r in enumerate(rca_results):
+        icon = SEV_COLOR.get(r.severity, "⚪")
+        conf_pct = f"{r.confidence*100:.0f}%"
+        label = f"{icon} [{conf_pct} confidence] {r.root_cause_anomaly.get('type', 'Unknown')} — {r.cell_id}"
+        with st.expander(label, expanded=(i == 0)):
+            cols = st.columns([2, 1])
+            with cols[0]:
+                st.markdown(f"**Rule:** `{r.rule_name}`")
+                st.markdown(f"**Severity:** `{r.severity}`  |  **Cell:** `{r.cell_id}`")
+                st.markdown(f"**Layer Path:** `{r.layer_path}`")
+
+            with cols[1]:
+                st.metric("Confidence", conf_pct)
+                st.metric("Affected Anomalies", len(r.affected_anomalies))
+
+            st.markdown("**Causal Chain**")
+            if len(r.causal_chain) > 1:
+                chain_str = " → ".join(
+                    f"`{a.get('type','?')[:50]}`" for a in r.causal_chain
+                )
+                st.markdown(chain_str)
+            else:
+                st.markdown(f"`{r.causal_chain[0].get('type','?')}` (isolated event)")
+
+            st.markdown("**Evidence Summary**")
+            st.info(r.evidence_summary)
+
+            st.markdown("**Recommendation**")
+            st.success(r.recommendation)
+
+            st.markdown(f"**3GPP Reference:** `{r.spec_ref}`")
+
+
 def make_proc_table(proc_dict):
     rows = []
     for proc_name, stats in proc_dict.items():
@@ -635,6 +700,9 @@ if is_kpi and parsed_kpi:
                     cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
                 )
 
+    # ── Root Cause Analysis ───────────────────────────────────────────
+    render_rca_panel(kpi_anomalies)
+
     # ── Prediction Layer ──────────────────────────────────────────────
     render_prediction_panel(parsed_kpi, source="kpi")
 
@@ -837,6 +905,9 @@ if is_stats and parsed_stats:
                     severity=a["severity"], detector=a.get("detector",""),
                     cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
                 )
+
+    # ── Root Cause Analysis ───────────────────────────────────────────
+    render_rca_panel(stats_anomalies)
 
     # ── Prediction Layer ──────────────────────────────────────────────
     render_prediction_panel(parsed_stats, source="stats")
@@ -1160,6 +1231,10 @@ else:
                 st.markdown("**Investigation Checklist**")
                 for hint in hints:
                     st.markdown(f"- {hint}")
+
+# ── Root Cause Analysis — PCAP path ──────────────────────────────────
+if parsed is not None and anomalies:
+    render_rca_panel(anomalies)
 
 # ── Event Router — PCAP path ──────────────────────────────────────────
 if parsed is not None and anomalies:
