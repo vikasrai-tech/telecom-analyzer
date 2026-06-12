@@ -280,150 +280,6 @@ def render_feedback_history() -> None:
                 st.warning(report.get("reason", "—"))
 
 
-def render_rca_panel(anomalies: List[Dict]) -> None:
-    """Render Root Cause Analysis panel for a list of anomalies."""
-    st.subheader("🔍 Root Cause Analysis (RCA)")
-    if not anomalies:
-        st.info("No anomalies to analyse.")
-        return
-
-    from src.rca import analyze as rca_analyze
-    rca_results = rca_analyze(anomalies)
-
-    if not rca_results:
-        st.info("No root causes identified.")
-        return
-
-    # Summary metrics
-    causal = [r for r in rca_results if r.rule_name != "single_event"]
-    single = [r for r in rca_results if r.rule_name == "single_event"]
-    high_conf = [r for r in rca_results if r.confidence >= 0.75]
-
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Root Causes Found", len(rca_results))
-    m2.metric("Causal Chains", len(causal))
-    m3.metric("High Confidence (≥75%)", len(high_conf))
-
-    st.caption(
-        "RCA traces anomalies back through the 5G protocol stack (PHY → MAC → RRC → F1AP → NGAP → NAS) "
-        "to identify the lowest-layer event that triggered downstream failures."
-    )
-    st.divider()
-
-    SEV_COLOR = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🟢"}
-
-    for i, r in enumerate(rca_results):
-        icon = SEV_COLOR.get(r.severity, "⚪")
-        conf_pct = f"{r.confidence*100:.0f}%"
-        label = f"{icon} [{conf_pct} confidence] {r.root_cause_anomaly.get('type', 'Unknown')} — {r.cell_id}"
-        with st.expander(label, expanded=(i == 0)):
-            cols = st.columns([2, 1])
-            with cols[0]:
-                st.markdown(f"**Rule:** `{r.rule_name}`")
-                st.markdown(f"**Severity:** `{r.severity}`  |  **Cell:** `{r.cell_id}`")
-                st.markdown(f"**Layer Path:** `{r.layer_path}`")
-
-            with cols[1]:
-                st.metric("Confidence", conf_pct)
-                st.metric("Affected Anomalies", len(r.affected_anomalies))
-
-            st.markdown("**Causal Chain**")
-            if len(r.causal_chain) > 1:
-                chain_str = " → ".join(
-                    f"`{a.get('type','?')[:50]}`" for a in r.causal_chain
-                )
-                st.markdown(chain_str)
-            else:
-                st.markdown(f"`{r.causal_chain[0].get('type','?')}` (isolated event)")
-
-            st.markdown("**Evidence Summary**")
-            st.info(r.evidence_summary)
-
-            st.markdown("**Recommendation**")
-            st.success(r.recommendation)
-
-            st.markdown(f"**3GPP Reference:** `{r.spec_ref}`")
-
-
-def render_evaluation_panel() -> None:
-    """Render Precision/Recall/F1 evaluation panel (on-demand, cached)."""
-    st.subheader("📊 Detector Evaluation — Precision / Recall / F1")
-    st.caption(
-        "Runs each detector against a synthetic labeled dataset with known injected anomalies. "
-        "Ground truth = (cell_id, KPI/metric) pairs where anomalies were injected. "
-        "Ensemble = union of all detectors."
-    )
-
-    col_kpi, col_stats = st.columns(2)
-    run_kpi   = col_kpi.button("▶ Run KPI Evaluation",   key="eval_kpi_btn")
-    run_stats = col_stats.button("▶ Run Stats Evaluation", key="eval_stats_btn")
-
-    if run_kpi:
-        from src.evaluation import run_kpi_evaluation
-        with st.spinner("Generating synthetic KPI dataset + running 6 detectors..."):
-            report = run_kpi_evaluation(n_cells=5, n_timestamps=100,
-                                        anomaly_rate=0.20, seed=42)
-        st.session_state["eval_kpi_report"] = report.as_dict()
-
-    if run_stats:
-        from src.evaluation import run_stats_evaluation
-        with st.spinner("Generating synthetic stats dataset + running 6 detectors..."):
-            report = run_stats_evaluation(n_cells=3, n_timestamps=100,
-                                          anomaly_rate=0.20, seed=99)
-        st.session_state["eval_stats_report"] = report.as_dict()
-
-    def _render_report(rep: dict, label: str) -> None:
-        info = rep.get("dataset_info", {})
-        st.markdown(f"**{label} — Dataset:** "
-                    f"{info.get('n_cells','-')} cells · "
-                    f"{info.get('n_timestamps','-')} timestamps · "
-                    f"anomaly rate {int(info.get('anomaly_rate',0)*100)}%")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Anomalous pairs",  rep["n_anomaly_pairs"])
-        m2.metric("Normal pairs",     rep["n_normal_pairs"])
-        m3.metric("Total pairs",      rep["n_total_pairs"])
-
-        rows = rep["per_detector"] + [rep["ensemble"]]
-        table_data = []
-        for m in rows:
-            table_data.append({
-                "Detector":  m["detector"],
-                "TP":        m["tp"],
-                "FP":        m["fp"],
-                "FN":        m["fn"],
-                "TN":        m["tn"],
-                "Precision": f"{m['precision']:.2f}" if m["precision"] is not None else "—",
-                "Recall":    f"{m['recall']:.2f}"    if m["recall"]    is not None else "—",
-                "F1":        f"{m['f1']:.2f}"        if m["f1"]        is not None else "—",
-                "Accuracy":  f"{m['accuracy']:.2f}",
-            })
-        st.dataframe(table_data, use_container_width=True)
-
-        # Bar chart — F1 scores
-        import pandas as pd
-        chart_df = pd.DataFrame([
-            {"Detector": m["detector"],
-             "F1": m["f1"] or 0.0,
-             "Precision": m["precision"] or 0.0,
-             "Recall": m["recall"] or 0.0}
-            for m in rows if m["f1"] is not None
-        ])
-        if not chart_df.empty:
-            st.markdown("**F1 Score by Detector**")
-            st.bar_chart(chart_df.set_index("Detector")[["F1", "Precision", "Recall"]])
-
-    if "eval_kpi_report" in st.session_state:
-        st.divider()
-        _render_report(st.session_state["eval_kpi_report"], "KPI Detectors")
-
-    if "eval_stats_report" in st.session_state:
-        st.divider()
-        _render_report(st.session_state["eval_stats_report"], "Stats Detectors")
-
-    if "eval_kpi_report" not in st.session_state and "eval_stats_report" not in st.session_state:
-        st.info("Click a button above to run evaluation against the synthetic labeled dataset.")
-
-
 def make_proc_table(proc_dict):
     rows = []
     for proc_name, stats in proc_dict.items():
@@ -518,9 +374,6 @@ with st.sidebar:
     st.divider()
     with st.expander("📋 Feedback History", expanded=False):
         render_feedback_history()
-    st.divider()
-    with st.expander("📊 Detector Evaluation", expanded=False):
-        render_evaluation_panel()
 
 # ── No file yet ───────────────────────────────────────────────────────
 if uploaded is None:
@@ -782,9 +635,6 @@ if is_kpi and parsed_kpi:
                     cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
                 )
 
-    # ── Root Cause Analysis ───────────────────────────────────────────
-    render_rca_panel(kpi_anomalies)
-
     # ── Prediction Layer ──────────────────────────────────────────────
     render_prediction_panel(parsed_kpi, source="kpi")
 
@@ -987,9 +837,6 @@ if is_stats and parsed_stats:
                     severity=a["severity"], detector=a.get("detector",""),
                     cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
                 )
-
-    # ── Root Cause Analysis ───────────────────────────────────────────
-    render_rca_panel(stats_anomalies)
 
     # ── Prediction Layer ──────────────────────────────────────────────
     render_prediction_panel(parsed_stats, source="stats")
@@ -1313,10 +1160,6 @@ else:
                 st.markdown("**Investigation Checklist**")
                 for hint in hints:
                     st.markdown(f"- {hint}")
-
-# ── Root Cause Analysis — PCAP path ──────────────────────────────────
-if parsed is not None and anomalies:
-    render_rca_panel(anomalies)
 
 # ── Event Router — PCAP path ──────────────────────────────────────────
 if parsed is not None and anomalies:

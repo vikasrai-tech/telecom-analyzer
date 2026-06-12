@@ -60,16 +60,11 @@ def run_pcap_pipeline(
             explanations.append({"anomaly": a, "explanation": exp})
 
     from src.orchestrator.event_router import EventRouter
-    from src.rca import analyze as rca_analyze
-
     router = EventRouter()
     router.ingest(anomalies, source="pcap")
 
-    logger.info("[pipeline] Running RCA...")
-    rca_results = rca_analyze(anomalies)
-
     duration = round(time.perf_counter() - t0, 2)
-    logger.info(f"[pipeline] PCAP pipeline done in {duration}s — {len(anomalies)} anomalies, {len(rca_results)} root cause(s)")
+    logger.info(f"[pipeline] PCAP pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
         "pipeline":     "pcap",
@@ -78,7 +73,6 @@ def run_pcap_pipeline(
         "anomalies":    anomalies,
         "by_detector":  by_detector,
         "explanations": explanations,
-        "rca":          [r.as_dict() for r in rca_results],
         "events":       router.get_events(),
         "event_summary":router.summary(),
         "duration_s":   duration,
@@ -148,16 +142,11 @@ def run_kpi_pipeline(
             explanations.append({"anomaly": a, "explanation": exp})
 
     from src.orchestrator.event_router import EventRouter
-    from src.rca import analyze as rca_analyze
-
     router = EventRouter()
     router.ingest(anomalies, source="kpi")
 
-    logger.info("[pipeline] Running RCA...")
-    rca_results = rca_analyze(anomalies)
-
     duration = round(time.perf_counter() - t0, 2)
-    logger.info(f"[pipeline] KPI pipeline done in {duration}s — {len(anomalies)} anomalies, {len(rca_results)} root cause(s)")
+    logger.info(f"[pipeline] KPI pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
         "pipeline":      "kpi",
@@ -167,7 +156,6 @@ def run_kpi_pipeline(
         "by_detector":   by_detector,
         "summary_table": summary,
         "explanations":  explanations,
-        "rca":           [r.as_dict() for r in rca_results],
         "events":        router.get_events(),
         "event_summary": router.summary(),
         "duration_s":    duration,
@@ -227,16 +215,11 @@ def run_stats_pipeline(
             explanations.append({"anomaly": a, "explanation": exp})
 
     from src.orchestrator.event_router import EventRouter
-    from src.rca import analyze as rca_analyze
-
     router = EventRouter()
     router.ingest(anomalies, source="stats")
 
-    logger.info("[pipeline] Running RCA...")
-    rca_results = rca_analyze(anomalies)
-
     duration = round(time.perf_counter() - t0, 2)
-    logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies, {len(rca_results)} root cause(s)")
+    logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
         "pipeline":     "stats",
@@ -245,7 +228,6 @@ def run_stats_pipeline(
         "anomalies":    anomalies,
         "by_detector":  by_detector,
         "explanations": explanations,
-        "rca":          [r.as_dict() for r in rca_results],
         "events":       router.get_events(),
         "event_summary":router.summary(),
         "duration_s":   duration,
