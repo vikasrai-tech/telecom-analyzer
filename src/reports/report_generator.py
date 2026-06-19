@@ -67,14 +67,16 @@ def generate_xlsx(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
 
 
 def _safe_sheet_name(title: str, existing: list) -> str:
-    name = title[:31]
-    if name not in existing:
-        return name
+    # Excel forbids: / \ ? * [ ] :  and limits to 31 chars
+    import re
+    clean = re.sub(r"[/\\?*\[\]:]", "-", title).strip()[:31]
+    if clean not in existing:
+        return clean
     for i in range(2, 100):
-        candidate = f"{title[:28]}_{i}"
+        candidate = re.sub(r"[/\\?*\[\]:]", "-", title).strip()[:28] + f"_{i}"
         if candidate not in existing:
             return candidate
-    return title[:31]
+    return clean
 
 
 # ── PDF ───────────────────────────────────────────────────────────────────────

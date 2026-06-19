@@ -1575,7 +1575,7 @@ if is_stats and parsed_stats:
     _stats_export_sections = []
     if r.get("summary") and summary_rows:
         _stats_export_sections.append({
-            "title": "L1/L2 Metric Health Summary",
+            "title": "L1-L2 Metric Health Summary",
             "df": pd.DataFrame(summary_rows),
         })
     if not _stats_df_cell.empty:
@@ -1592,7 +1592,7 @@ if is_stats and parsed_stats:
     } for a in stats_anomalies]) if stats_anomalies else pd.DataFrame()
     if not _stats_anom_df.empty:
         _stats_export_sections.append({
-            "title": "L1/L2 Anomalies",
+            "title": "L1-L2 Anomalies",
             "df": _stats_anom_df,
             "notes": f"{len(stats_anomalies)} anomalies detected",
         })
