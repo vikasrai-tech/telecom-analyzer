@@ -1,0 +1,59 @@
+# Azure Container Apps declarative config
+# Deploy with:
+#   az containerapp create --name telecom-analyzer \
+#     --resource-group telecom-analyzer-rg \
+#     --yaml deploy/containerapp.yaml
+
+location: eastus
+name: telecom-analyzer
+type: Microsoft.App/containerApps
+
+properties:
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8501
+      transport: http
+      allowInsecure: false
+    registries:
+      - server: <YOUR_ACR_NAME>.azurecr.io
+        username: <YOUR_ACR_NAME>
+        passwordSecretRef: acr-password
+    secrets:
+      - name: acr-password
+        value: <YOUR_ACR_PASSWORD>   # fill in or use az keyvault
+
+  template:
+    containers:
+      - name: telecom-analyzer
+        image: <YOUR_ACR_NAME>.azurecr.io/telecom-analyzer:latest
+        resources:
+          cpu: 2.0
+          memory: 4Gi
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+            value: "false"
+        probes:
+          - type: Liveness
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          - type: Readiness
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+    scale:
+      minReplicas: 0    # scale to zero when idle (saves cost)
+      maxReplicas: 2
+      rules:
+        - name: http-rule
+          http:
+            metadata:
+              concurrentRequests: "10"

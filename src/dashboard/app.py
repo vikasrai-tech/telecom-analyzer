@@ -15,6 +15,7 @@ import streamlit as st
 import pandas as pd
 import tempfile
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
 import sys
@@ -41,6 +42,547 @@ st.set_page_config(
     page_icon="📡",
     layout="wide",
 )
+
+def render_time_filter(r: dict, key_suffix: str = "") -> dict:
+    """
+    Render a time-range filter widget and return a filtered copy of the parsed data dict.
+    Works for both KPI and Stats data. Supports quick presets + custom date/time pickers.
+    """
+    ts_col = r.get("timestamp_col", "")
+    if not ts_col:
+        return r
+
+    df = pd.DataFrame(r["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+    df = df.dropna(subset=[ts_col])
+    if df.empty:
+        return r
+
+    ts_min = df[ts_col].min()
+    ts_max = df[ts_col].max()
+    duration_h = (ts_max - ts_min).total_seconds() / 3600
+
+    with st.expander("🕐 Time Range Filter", expanded=True):
+        st.caption(
+            f"Dataset: **{ts_min.strftime('%Y-%m-%d %H:%M')}** → "
+            f"**{ts_max.strftime('%Y-%m-%d %H:%M')}**  "
+            f"(total {duration_h:.1f}h,  {len(df):,} rows)"
+        )
+
+        # Quick presets — only show those shorter than actual data span
+        presets = ["All data"]
+        for label, hours in [("Last 1h", 1), ("Last 2h", 2), ("Last 4h", 4),
+                              ("Last 8h", 8), ("Last 12h", 12), ("Last 24h", 24)]:
+            if duration_h >= hours:
+                presets.append(label)
+        presets.append("Custom range")
+
+        quick = st.radio(
+            "Quick select",
+            presets,
+            horizontal=True,
+            key=f"tf_quick{key_suffix}",
+        )
+
+        ts_start, ts_end = ts_min, ts_max
+
+        if quick.startswith("Last"):
+            hours = float(quick.split()[1].rstrip("h"))
+            ts_start = ts_max - pd.Timedelta(hours=hours)
+
+        elif quick == "Custom range":
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                s_date = st.date_input("Start date", value=ts_min.date(),
+                                       min_value=ts_min.date(), max_value=ts_max.date(),
+                                       key=f"tf_sd{key_suffix}")
+            with c2:
+                s_time = st.time_input("Start time", value=ts_min.time(),
+                                       step=300, key=f"tf_st{key_suffix}")
+            with c3:
+                e_date = st.date_input("End date", value=ts_max.date(),
+                                       min_value=ts_min.date(), max_value=ts_max.date(),
+                                       key=f"tf_ed{key_suffix}")
+            with c4:
+                e_time = st.time_input("End time", value=ts_max.time(),
+                                       step=300, key=f"tf_et{key_suffix}")
+            ts_start = pd.Timestamp.combine(s_date, s_time)
+            ts_end   = pd.Timestamp.combine(e_date, e_time)
+            if ts_start > ts_end:
+                st.warning("⚠️ Start is after end — swapping.")
+                ts_start, ts_end = ts_end, ts_start
+
+        # Apply filter
+        mask    = (df[ts_col] >= ts_start) & (df[ts_col] <= ts_end)
+        df_f    = df[mask].copy()
+        n_total = len(df)
+        n_f     = len(df_f)
+        win_h   = max((ts_end - ts_start).total_seconds() / 3600, 0)
+
+        fi1, fi2, fi3, fi4 = st.columns(4)
+        fi1.metric("Total rows",     f"{n_total:,}")
+        fi2.metric("Filtered rows",  f"{n_f:,}",
+                   delta=f"{n_f - n_total:,}" if n_f != n_total else None)
+        fi3.metric("Coverage",       f"{n_f / n_total * 100:.1f}%")
+        fi4.metric("Window",         f"{win_h:.1f} h")
+
+        if n_f == 0:
+            st.warning("⚠️ No data in selected range — reverting to full dataset.")
+            return r
+
+    # Build filtered copy
+    r_f = dict(r)
+    r_f["df_records"] = df_f.to_dict("records")
+    r_f["rows"]       = n_f
+    r_f["time_range"] = [
+        str(df_f[ts_col].min()),
+        str(df_f[ts_col].max()),
+    ]
+    cell_col = r.get("cell_col", "")
+    gnb_col  = r.get("gnb_col", "")
+    if cell_col and cell_col in df_f.columns:
+        r_f["cells"] = sorted(df_f[cell_col].dropna().unique().tolist())
+    if gnb_col and gnb_col in df_f.columns:
+        r_f["gnbs"] = sorted(df_f[gnb_col].dropna().unique().tolist())
+
+    # Recompute per-column summary for Stats data
+    if "summary" in r and r["summary"]:
+        new_summary = {}
+        for col in r["summary"]:
+            if col in df_f.columns:
+                s = df_f[col].dropna()
+                if len(s) > 0:
+                    new_summary[col] = {
+                        "mean": float(s.mean()),
+                        "std":  float(s.std()),
+                        "min":  float(s.min()),
+                        "max":  float(s.max()),
+                        "p10":  float(s.quantile(0.10)),
+                        "p90":  float(s.quantile(0.90)),
+                    }
+        r_f["summary"] = new_summary
+
+    return r_f
+
+
+def render_kpi_dashboard_charts(r: dict) -> None:
+    """Auto-generate trend + cell-comparison charts for the KPI dashboard."""
+    import plotly.express as px
+    from src.parsers.kpi_defs import get_meta as kpi_get_meta
+
+    kpi_cols = r["kpi_columns"]
+    ts_col   = r["timestamp_col"]
+    cell_col = r["cell_col"]
+    if not kpi_cols or not ts_col:
+        return
+
+    PRIORITY = [
+        "DL_Throughput_Mbps", "UL_Throughput_Mbps",
+        "PRB_Utilization_DL_%", "PRB_Utilization_UL_%",
+        "RRC_Success_Rate_%", "Handover_Success_Rate_%",
+        "CQI", "SINR_dB",
+        "Cell_Availability_%", "Packet_Loss_%",
+    ]
+    LINE_COLORS = {
+        "DL_Throughput_Mbps":      "#1f77b4",
+        "UL_Throughput_Mbps":      "#17becf",
+        "PRB_Utilization_DL_%":    "#d62728",
+        "PRB_Utilization_UL_%":    "#ff7f0e",
+        "RRC_Success_Rate_%":      "#2ca02c",
+        "Handover_Success_Rate_%": "#9467bd",
+        "CQI":                     "#8c564b",
+        "SINR_dB":                 "#e377c2",
+        "Cell_Availability_%":     "#bcbd22",
+        "Packet_Loss_%":           "#e31a1c",
+    }
+    display = [k for k in PRIORITY if k in kpi_cols] or kpi_cols
+    display  = display[:8]
+
+    df = pd.DataFrame(r["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+
+    # ── Trend charts — 2 per row ─────────────────────────────────────────────
+    st.subheader("📊 Dashboard — Key KPI Trends")
+    st.caption("Fleet-average over time  ·  🟠 dashed = Warning  ·  🔴 dashed = Critical")
+
+    for i in range(0, len(display), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i + j >= len(display):
+                break
+            kpi   = display[i + j]
+            kmeta = kpi_get_meta(kpi)
+            color = LINE_COLORS.get(kpi, "#1f4e79")
+
+            df_agg = (df.groupby(ts_col)[kpi].mean()
+                        .reset_index().rename(columns={kpi: "value"})
+                        .dropna(subset=["value"]))
+            if df_agg.empty:
+                continue
+
+            fig = px.line(
+                df_agg, x=ts_col, y="value",
+                title=kpi,
+                labels={"value": kmeta.get("unit", ""), ts_col: ""},
+                color_discrete_sequence=[color],
+            )
+            fig.update_traces(line=dict(width=2.5),
+                              fill="tozeroy",
+                              fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.08)")
+            if kmeta.get("warning") is not None:
+                fig.add_hline(y=kmeta["warning"], line_dash="dash", line_color="orange",
+                              annotation_text=f"Warn {kmeta['warning']}", annotation_font_size=9,
+                              annotation_position="bottom right")
+            if kmeta.get("critical") is not None:
+                fig.add_hline(y=kmeta["critical"], line_dash="dash", line_color="red",
+                              annotation_text=f"Crit {kmeta['critical']}", annotation_font_size=9,
+                              annotation_position="top right")
+            fig.update_layout(
+                height=260, margin=dict(l=44, r=16, t=38, b=22),
+                plot_bgcolor="#f8f9fa", paper_bgcolor="white",
+                font=dict(size=11), showlegend=False,
+                xaxis=dict(showgrid=False, zeroline=False),
+                yaxis=dict(gridcolor="#e5e5e5"),
+                title_font_size=13,
+            )
+            col.plotly_chart(fig, use_container_width=True)
+
+    # ── Cell comparison ──────────────────────────────────────────────────────
+    if cell_col:
+        st.subheader("🏙️ Cell Comparison")
+        bar_kpi = st.selectbox("Select KPI for comparison", display, key="dash_kpi_bar")
+        kmeta   = kpi_get_meta(bar_kpi)
+        better_high = kmeta.get("better_high", True)
+
+        df_bar = (df.groupby(cell_col)[bar_kpi].mean().reset_index()
+                    .rename(columns={bar_kpi: "mean_val"})
+                    .sort_values("mean_val", ascending=not better_high))
+
+        b1, b2 = st.columns([2, 3])
+        with b1:
+            fig_bar = px.bar(
+                df_bar, x="mean_val", y=cell_col, orientation="h",
+                title=f"{bar_kpi} — avg per cell",
+                labels={"mean_val": kmeta.get("unit", ""), cell_col: "Cell"},
+                color="mean_val",
+                color_continuous_scale="RdYlGn" if better_high else "RdYlGn_r",
+            )
+            if kmeta.get("warning"):
+                fig_bar.add_vline(x=kmeta["warning"], line_dash="dash", line_color="orange")
+            if kmeta.get("critical"):
+                fig_bar.add_vline(x=kmeta["critical"], line_dash="dash", line_color="red")
+            fig_bar.update_layout(height=max(280, len(df_bar) * 28 + 80),
+                                  margin=dict(l=10, r=20, t=38, b=24),
+                                  plot_bgcolor="#f8f9fa", coloraxis_showscale=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with b2:
+            top_cells  = df_bar[cell_col].tolist()[:6]
+            df_multi   = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_kpi]]
+            fleet_avg  = df.groupby(ts_col)[bar_kpi].mean().reset_index()
+            fleet_avg[cell_col] = "⬛ Fleet Avg"
+            df_combined = pd.concat([df_multi, fleet_avg[[ts_col, cell_col, bar_kpi]]])
+
+            fig_multi = px.line(
+                df_combined, x=ts_col, y=bar_kpi, color=cell_col,
+                title=f"{bar_kpi} — per-cell trend",
+                labels={bar_kpi: kmeta.get("unit", ""), ts_col: ""},
+            )
+            if kmeta.get("warning"):
+                fig_multi.add_hline(y=kmeta["warning"], line_dash="dash",
+                                    line_color="orange", annotation_text="Warn",
+                                    annotation_font_size=9)
+            if kmeta.get("critical"):
+                fig_multi.add_hline(y=kmeta["critical"], line_dash="dash",
+                                    line_color="red", annotation_text="Crit",
+                                    annotation_font_size=9)
+            fig_multi.update_layout(
+                height=max(280, len(df_bar) * 28 + 80),
+                margin=dict(l=44, r=20, t=38, b=24),
+                plot_bgcolor="#f8f9fa",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="right", x=1, font=dict(size=10)),
+            )
+            st.plotly_chart(fig_multi, use_container_width=True)
+
+
+def render_stats_dashboard_charts(r: dict) -> None:
+    """Auto-generate trend + cell-comparison charts for the DU/CU Stats dashboard."""
+    import plotly.express as px
+    from src.parsers.stats_parser import get_meta as s_get_meta
+
+    l1l2_cols = r["l1l2_columns"]
+    ts_col    = r["timestamp_col"]
+    cell_col  = r["cell_col"]
+    if not l1l2_cols or not ts_col:
+        return
+
+    PRIORITY = [
+        "dl_throughput_mbps", "ul_throughput_mbps",
+        "dl_bler",            "ul_bler",
+        "dl_prb_util",        "ul_prb_util",
+        "pusch_snr_db",       "dl_mcs",
+        "dl_harq_nack_rate",  "nof_ue",
+    ]
+    LINE_COLORS = {
+        "dl_throughput_mbps":  "#1f77b4",
+        "ul_throughput_mbps":  "#17becf",
+        "dl_bler":             "#d62728",
+        "ul_bler":             "#ff7f0e",
+        "dl_prb_util":         "#9467bd",
+        "ul_prb_util":         "#8c564b",
+        "pusch_snr_db":        "#2ca02c",
+        "dl_mcs":              "#e377c2",
+        "dl_harq_nack_rate":   "#e31a1c",
+        "nof_ue":              "#bcbd22",
+    }
+    LABELS = {
+        "dl_throughput_mbps":  "DL Throughput",
+        "ul_throughput_mbps":  "UL Throughput",
+        "dl_bler":             "DL BLER",
+        "ul_bler":             "UL BLER",
+        "dl_prb_util":         "DL PRB Utilization",
+        "ul_prb_util":         "UL PRB Utilization",
+        "pusch_snr_db":        "PUSCH SNR",
+        "dl_mcs":              "DL MCS",
+        "dl_harq_nack_rate":   "DL HARQ NACK Rate",
+        "nof_ue":              "Active UEs",
+    }
+
+    display = [k for k in PRIORITY if k in l1l2_cols] or l1l2_cols
+    display  = display[:8]
+
+    df = pd.DataFrame(r["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+
+    fmt = r.get("format", "").upper()
+    st.subheader(f"📊 Dashboard — L1/L2 Metric Trends  [{fmt}]")
+    st.caption("All-cell average over time  ·  🟠 dashed = Warning  ·  🔴 dashed = Critical")
+
+    for i in range(0, len(display), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i + j >= len(display):
+                break
+            metric  = display[i + j]
+            smeta   = s_get_meta(metric)
+            color   = LINE_COLORS.get(metric, "#1f4e79")
+            label   = LABELS.get(metric, metric)
+
+            df_agg = (df.groupby(ts_col)[metric].mean()
+                        .reset_index().rename(columns={metric: "value"})
+                        .dropna(subset=["value"]))
+            if df_agg.empty:
+                continue
+
+            fig = px.line(
+                df_agg, x=ts_col, y="value",
+                title=label,
+                labels={"value": smeta.get("unit", ""), ts_col: ""},
+                color_discrete_sequence=[color],
+            )
+            fig.update_traces(line=dict(width=2.5),
+                              fill="tozeroy",
+                              fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.09)")
+            if smeta.get("warning") is not None:
+                fig.add_hline(y=smeta["warning"], line_dash="dash", line_color="orange",
+                              annotation_text=f"Warn {smeta['warning']}", annotation_font_size=9,
+                              annotation_position="bottom right")
+            if smeta.get("critical") is not None:
+                fig.add_hline(y=smeta["critical"], line_dash="dash", line_color="red",
+                              annotation_text=f"Crit {smeta['critical']}", annotation_font_size=9,
+                              annotation_position="top right")
+            fig.update_layout(
+                height=260, margin=dict(l=44, r=16, t=38, b=22),
+                plot_bgcolor="#f8f9fa", paper_bgcolor="white",
+                font=dict(size=11), showlegend=False,
+                xaxis=dict(showgrid=False, zeroline=False),
+                yaxis=dict(gridcolor="#e5e5e5"),
+                title_font_size=13,
+            )
+            col.plotly_chart(fig, use_container_width=True)
+
+    # ── Cell comparison ──────────────────────────────────────────────────────
+    if cell_col:
+        st.subheader("🏙️ Cell (PCI) Comparison")
+        bar_metric = st.selectbox("Select metric for comparison", display, key="dash_stats_bar")
+        smeta      = s_get_meta(bar_metric)
+
+        df_bar = (df.groupby(cell_col)[bar_metric].mean().reset_index()
+                    .rename(columns={bar_metric: "mean_val"})
+                    .sort_values("mean_val", ascending=False))
+
+        b1, b2 = st.columns([2, 3])
+        with b1:
+            worse_high = any(k in bar_metric for k in ("bler", "nack", "prb", "congestion"))
+            cscale = "RdYlGn_r" if worse_high else "RdYlGn"
+            fig_bar = px.bar(
+                df_bar, x="mean_val", y=cell_col, orientation="h",
+                title=f"{LABELS.get(bar_metric, bar_metric)} — avg per PCI",
+                labels={"mean_val": smeta.get("unit", ""), cell_col: "PCI"},
+                color="mean_val", color_continuous_scale=cscale,
+            )
+            if smeta.get("warning"):
+                fig_bar.add_vline(x=smeta["warning"], line_dash="dash", line_color="orange")
+            if smeta.get("critical"):
+                fig_bar.add_vline(x=smeta["critical"], line_dash="dash", line_color="red")
+            fig_bar.update_layout(height=max(280, len(df_bar) * 32 + 80),
+                                  margin=dict(l=10, r=20, t=38, b=24),
+                                  plot_bgcolor="#f8f9fa", coloraxis_showscale=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with b2:
+            top_cells   = df_bar[cell_col].tolist()
+            df_multi    = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_metric]]
+            fleet_avg   = df.groupby(ts_col)[bar_metric].mean().reset_index()
+            fleet_avg[cell_col] = "⬛ All-Cell Avg"
+            df_combined = pd.concat([df_multi, fleet_avg[[ts_col, cell_col, bar_metric]]])
+
+            fig_multi = px.line(
+                df_combined, x=ts_col, y=bar_metric, color=cell_col,
+                title=f"{LABELS.get(bar_metric, bar_metric)} — per PCI trend",
+                labels={bar_metric: smeta.get("unit", ""), ts_col: ""},
+            )
+            if smeta.get("warning"):
+                fig_multi.add_hline(y=smeta["warning"], line_dash="dash",
+                                    line_color="orange", annotation_text="Warn",
+                                    annotation_font_size=9)
+            if smeta.get("critical"):
+                fig_multi.add_hline(y=smeta["critical"], line_dash="dash",
+                                    line_color="red", annotation_text="Crit",
+                                    annotation_font_size=9)
+            fig_multi.update_layout(
+                height=max(280, len(df_bar) * 32 + 80),
+                margin=dict(l=44, r=20, t=38, b=24),
+                plot_bgcolor="#f8f9fa",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="right", x=1, font=dict(size=10)),
+            )
+            st.plotly_chart(fig_multi, use_container_width=True)
+
+
+def render_anomaly_distribution_charts(anomalies: list, source: str) -> None:
+    """Pie + bar charts showing anomaly breakdown by severity and detector."""
+    if not anomalies:
+        return
+    import plotly.express as px
+
+    st.subheader("📊 Anomaly Distribution")
+    df_a = pd.DataFrame([{
+        "Severity": a["severity"],
+        "Detector": a.get("detector", "—"),
+        "Cell":     a.get("cell_id", a.get("label", "—")),
+    } for a in anomalies])
+
+    SEV_COLORS = {"Critical": "#c0392b", "High": "#e67e22",
+                  "Medium": "#f1c40f", "Low": "#27ae60"}
+
+    ch1, ch2, ch3 = st.columns(3)
+    with ch1:
+        sev_counts = df_a["Severity"].value_counts().reset_index()
+        sev_counts.columns = ["Severity", "Count"]
+        fig_pie = px.pie(sev_counts, values="Count", names="Severity",
+                         title="By Severity",
+                         color="Severity",
+                         color_discrete_map=SEV_COLORS,
+                         hole=0.4)
+        fig_pie.update_layout(height=280, margin=dict(l=0, r=0, t=36, b=0),
+                              showlegend=True, legend=dict(font=dict(size=10)))
+        fig_pie.update_traces(textfont_size=11)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with ch2:
+        det_counts = df_a["Detector"].value_counts().reset_index()
+        det_counts.columns = ["Detector", "Count"]
+        fig_det = px.bar(det_counts, x="Count", y="Detector", orientation="h",
+                         title="By Detector",
+                         color="Count", color_continuous_scale="Blues")
+        fig_det.update_layout(height=280, margin=dict(l=10, r=20, t=36, b=0),
+                              plot_bgcolor="#f8f9fa", coloraxis_showscale=False,
+                              yaxis=dict(categoryorder="total ascending"))
+        st.plotly_chart(fig_det, use_container_width=True)
+
+    with ch3:
+        cell_counts = df_a["Cell"].value_counts().head(10).reset_index()
+        cell_counts.columns = ["Cell", "Anomalies"]
+        fig_cell = px.bar(cell_counts, x="Anomalies", y="Cell", orientation="h",
+                          title="Top Affected Cells",
+                          color="Anomalies", color_continuous_scale="Reds")
+        fig_cell.update_layout(height=280, margin=dict(l=10, r=20, t=36, b=0),
+                               plot_bgcolor="#f8f9fa", coloraxis_showscale=False,
+                               yaxis=dict(categoryorder="total ascending"))
+        st.plotly_chart(fig_cell, use_container_width=True)
+
+
+def render_export_panel(
+    sections,
+    meta: dict,
+    filename_prefix: str = "report",
+    figures: list = None,
+    anomaly_cards: list = None,
+) -> None:
+    """Render CSV / Excel / PDF / HTML download buttons for the current analysis."""
+    from src.reports.report_generator import (
+        generate_csv, generate_xlsx, generate_pdf, generate_html,
+    )
+
+    st.divider()
+    st.subheader("📥 Export Report")
+    st.caption(
+        "**HTML** mirrors the full dashboard (charts + tables + anomaly cards).  "
+        "**CSV / Excel** are flat data tables for further analysis.  "
+        "**PDF** is a printable summary."
+    )
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        html_bytes = generate_html(sections, meta, figures=figures, anomaly_cards=anomaly_cards)
+        st.download_button(
+            label="🌐 Full Report (HTML)",
+            data=html_bytes,
+            file_name=f"{filename_prefix}_{timestamp}.html",
+            mime="text/html",
+            use_container_width=True,
+            key=f"dl_html_{filename_prefix}",
+            help="Full dashboard: charts, tables, anomaly cards. Open in browser → Print → Save as PDF",
+        )
+
+    with col2:
+        csv_bytes = generate_csv(sections, meta)
+        st.download_button(
+            label="📄 CSV",
+            data=csv_bytes,
+            file_name=f"{filename_prefix}_{timestamp}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key=f"dl_csv_{filename_prefix}",
+        )
+
+    with col3:
+        xlsx_bytes = generate_xlsx(sections, meta)
+        st.download_button(
+            label="📊 Excel (.xlsx)",
+            data=xlsx_bytes,
+            file_name=f"{filename_prefix}_{timestamp}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            key=f"dl_xlsx_{filename_prefix}",
+        )
+
+    with col4:
+        with st.spinner("Building PDF…"):
+            pdf_bytes = generate_pdf(sections, meta)
+        st.download_button(
+            label="📑 PDF",
+            data=pdf_bytes,
+            file_name=f"{filename_prefix}_{timestamp}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            key=f"dl_pdf_{filename_prefix}",
+        )
+
 
 def render_event_log(router: "EventRouter") -> None:
     """Render the Event Router log + cross-source correlation panel."""
@@ -438,9 +980,43 @@ with st.spinner("🔍 Parsing file..."):
 # KPI DASHBOARD (Excel / CSV path)
 # ══════════════════════════════════════════════════════════════════════
 if is_kpi and parsed_kpi:
-    st.subheader("📊 KPI Overview")
+    r = render_time_filter(parsed_kpi, key_suffix="_kpi")
 
-    r = parsed_kpi
+    # ── gNB Filter ────────────────────────────────────────────────────
+    _kpi_data = parsed_kpi  # may be narrowed below
+    _gnb_col  = r.get("gnb_col", "")
+    if r.get("gnbs"):
+        st.subheader("🏢 Filter by gNB")
+        _g1, _g2 = st.columns([3, 1])
+        with _g1:
+            _sel_gnbs = st.multiselect(
+                "Select gNB(s) — all selected = no filter",
+                options=r["gnbs"],
+                default=r["gnbs"],
+                key="kpi_gnb_filter",
+                placeholder="Choose one or more gNBs…",
+            )
+        with _g2:
+            st.metric("Selected gNBs", f"{len(_sel_gnbs)} / {len(r['gnbs'])}")
+
+        if not _sel_gnbs:
+            st.warning("⚠️ No gNB selected — showing full dataset.")
+        elif set(_sel_gnbs) != set(r["gnbs"]) and _gnb_col:
+            _df_gnb = pd.DataFrame(r["df_records"])
+            if _gnb_col in _df_gnb.columns:
+                _df_gnb = _df_gnb[_df_gnb[_gnb_col].isin(_sel_gnbs)]
+                _r_gnb = dict(r)
+                _r_gnb["df_records"] = _df_gnb.to_dict("records")
+                _r_gnb["rows"]       = len(_df_gnb)
+                _r_gnb["gnbs"]       = _sel_gnbs
+                _cc = r.get("cell_col", "")
+                if _cc and _cc in _df_gnb.columns:
+                    _r_gnb["cells"] = sorted(_df_gnb[_cc].dropna().unique().tolist())
+                r = _r_gnb
+                _kpi_data = dict(parsed_kpi)
+                _kpi_data["df_records"] = _df_gnb.to_dict("records")
+
+    st.subheader("📊 KPI Overview")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Rows",           r["rows"])
     m2.metric("Unique Cells",   len(r["cells"]))
@@ -448,11 +1024,13 @@ if is_kpi and parsed_kpi:
     m4.metric("KPI Columns",    len(r["kpi_columns"]))
     m5.metric("Time Range",     f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}")
 
+    render_kpi_dashboard_charts(r)
+
     # ── KPI Summary Table ─────────────────────────────────────────────
     st.subheader("🚦 KPI Health Summary")
     st.caption("🟢 OK  🟡 Warning  🔴 Critical  (based on mean value vs thresholds)")
 
-    summary_rows = kpi_summary_table(parsed_kpi)
+    summary_rows = kpi_summary_table(_kpi_data)
     if summary_rows:
         df_summary = pd.DataFrame(summary_rows)
         st.dataframe(df_summary, use_container_width=True, height=420)
@@ -462,6 +1040,9 @@ if is_kpi and parsed_kpi:
     kpi_cols = r["kpi_columns"]
     ts_col   = r["timestamp_col"]
     cell_col = r["cell_col"]
+
+    _kpi_trend_fig = None
+    _kpi_df_cell   = pd.DataFrame()
 
     if kpi_cols and ts_col:
         import plotly.express as px
@@ -487,18 +1068,19 @@ if is_kpi and parsed_kpi:
 
         if not df_line.empty:
             from src.parsers.kpi_defs import get_meta
-            meta = get_meta(sel_kpi)
+            kpi_meta = get_meta(sel_kpi)
             fig  = px.line(df_line, x=ts_col, y="value", title=title,
-                           labels={"value": f"{sel_kpi} ({meta.get('unit','')})",
+                           labels={"value": f"{sel_kpi} ({kpi_meta.get('unit','')})",
                                    ts_col: "Time"})
             # Add warning / critical lines
-            if meta.get("warning") is not None:
-                fig.add_hline(y=meta["warning"],  line_dash="dot",
+            if kpi_meta.get("warning") is not None:
+                fig.add_hline(y=kpi_meta["warning"],  line_dash="dot",
                               line_color="orange", annotation_text="Warning")
-            if meta.get("critical") is not None:
-                fig.add_hline(y=meta["critical"], line_dash="dot",
+            if kpi_meta.get("critical") is not None:
+                fig.add_hline(y=kpi_meta["critical"], line_dash="dot",
                               line_color="red",    annotation_text="Critical")
             st.plotly_chart(fig, use_container_width=True)
+            _kpi_trend_fig = fig  # capture for HTML export
 
     # ── Per-Cell KPI Heatmap ──────────────────────────────────────────
     st.subheader("🗺️ Per-Cell KPI Breakdown")
@@ -509,6 +1091,7 @@ if is_kpi and parsed_kpi:
         df_cell = df_all.groupby(group_cols)[kpi_cols].mean().round(2).reset_index()
         df_cell = df_cell.sort_values(kpi_cols[0])
         st.dataframe(df_cell, use_container_width=True, height=350)
+        _kpi_df_cell = df_cell  # capture for HTML export
 
     # ── KPI Anomaly Detection ─────────────────────────────────────────
     st.divider()
@@ -534,7 +1117,7 @@ if is_kpi and parsed_kpi:
         """)
 
     with st.spinner("Running 6 KPI detectors..."):
-        kpi_by_detector = detect_kpi_anomalies_by_detector(parsed_kpi)
+        kpi_by_detector = detect_kpi_anomalies_by_detector(_kpi_data)
         kpi_anomalies   = sorted(
             [a for anoms in kpi_by_detector.values() for a in anoms],
             key=lambda a: ({"Critical":4,"High":3,"Medium":2,"Low":1}.get(a["severity"],0),
@@ -545,6 +1128,7 @@ if is_kpi and parsed_kpi:
     if not kpi_anomalies:
         st.success("✅ No KPI anomalies detected.")
     else:
+        render_anomaly_distribution_charts(kpi_anomalies, "KPI")
         crit_n = sum(1 for a in kpi_anomalies if a["severity"] == "Critical")
         high_n = sum(1 for a in kpi_anomalies if a["severity"] == "High")
         med_n  = sum(1 for a in kpi_anomalies if a["severity"] == "Medium")
@@ -574,6 +1158,7 @@ if is_kpi and parsed_kpi:
                 if SEV_R.get(a["severity"], 0) > SEV_R.get(existing, 0):
                     kpi_matrix_key[row_key][det_name] = a["severity"]
 
+        _kpi_matrix_df = pd.DataFrame()
         if kpi_matrix_key:
             matrix_rows = []
             for row_key, det_sevs in list(kpi_matrix_key.items())[:60]:
@@ -584,7 +1169,8 @@ if is_kpi and parsed_kpi:
                     row[det[:10]] = KPI_SEV_BADGE.get(sev, "✅") if sev else "✅"
                 row["Confirmed by"] = f"{agreement}/{len(KPI_DET_COLS)}"
                 matrix_rows.append(row)
-            st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, height=320)
+            _kpi_matrix_df = pd.DataFrame(matrix_rows)
+            st.dataframe(_kpi_matrix_df, use_container_width=True, height=320)
 
         # Anomaly table
         anom_df = pd.DataFrame([{
@@ -607,36 +1193,131 @@ if is_kpi and parsed_kpi:
         shown_df = anom_df if sev_filter == "All" else anom_df[anom_df["Severity"] == sev_filter]
         st.dataframe(shown_df, use_container_width=True, height=400)
 
-        # Expandable detail cards for top anomalies
-        st.subheader("🔎 Top Anomaly Details")
-        SEV_ICON = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🟢"}
-        for a in kpi_anomalies[:15]:
-            icon   = SEV_ICON.get(a["severity"], "⚪")
-            header = (f"{icon} [{a['severity']}] {a['label']} | "
-                      f"{a['cell_id']} | {a['detector']}")
-            with st.expander(header, expanded=(a["severity"] == "Critical")):
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**Evidence**")
-                    st.info(a["evidence"])
-                    st.markdown(
-                        f"Value: **{a['value']} {a['unit']}** &nbsp;|&nbsp; "
-                        f"Warning: {a['warning']} &nbsp;|&nbsp; "
-                        f"Critical: {a['critical']}"
-                    )
-                with c2:
-                    st.markdown("**Recommendation**")
-                    st.success(a["recommendation"])
-                st.markdown("**Engineer Feedback**")
-                render_feedback_button(
-                    event_id=a.get("label","") + "_" + a.get("cell_id",""),
-                    source="kpi", anomaly_type=a.get("label",""),
-                    severity=a["severity"], detector=a.get("detector",""),
-                    cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
+        # ── Inline Issue Analysis ─────────────────────────────────────────
+        st.subheader("🔬 Issue Analysis")
+        _kpi_shown = ([a for a in kpi_anomalies if a["severity"] == sev_filter]
+                      if sev_filter != "All" else kpi_anomalies)[:20]
+        if _kpi_shown:
+            _kpi_labels = [
+                f"#{i+1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
+                for i, a in enumerate(_kpi_shown)
+            ]
+            _kpi_sel = st.selectbox(
+                "Select issue to view analysis →",
+                range(len(_kpi_labels)),
+                format_func=lambda i: _kpi_labels[i],
+                key="kpi_issue_sel",
+            )
+            _ka = _kpi_shown[_kpi_sel]
+            _SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
+            _kicon = _SEV_ICON.get(_ka["severity"], "⚪")
+
+            st.markdown(f"#### {_kicon} {_ka['label']}  |  Cell: `{_ka['cell_id']}`")
+            _kac1, _kac2 = st.columns(2)
+            with _kac1:
+                st.markdown("**Issue**")
+                st.info(_ka["evidence"])
+                st.markdown(
+                    f"Value: **{_ka['value']} {_ka['unit']}** &nbsp;|&nbsp; "
+                    f"Warning: {_ka['warning']} &nbsp;|&nbsp; Critical: {_ka['critical']}"
                 )
+            with _kac2:
+                st.markdown("**Recommendation**")
+                st.success(_ka["recommendation"])
+
+            st.markdown("**🤖 LLM Analysis — RAG over 3GPP Specs**")
+            _kpi_exp_key = f"llm_kpi_{_ka.get('label','')}_{_ka.get('cell_id','')}"
+            if _kpi_exp_key not in st.session_state:
+                with st.spinner("Retrieving 3GPP specs + generating analysis..."):
+                    st.session_state[_kpi_exp_key] = explain_anomaly(_ka)
+            _kexp = st.session_state[_kpi_exp_key]
+            _ksrc = _kexp.get("source", "")
+            st.caption(f"🤖 {_ksrc}" if "Ollama" in _ksrc else f"📚 {_ksrc}")
+            st.info(_kexp.get("hypothesis", "—"))
+            if _kexp.get("citations"):
+                st.markdown("**3GPP Citations**")
+                for _cite in _kexp["citations"]:
+                    st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+            if _kexp.get("investigation_hints"):
+                st.markdown("**Investigation Checklist**")
+                for _hint in _kexp["investigation_hints"]:
+                    st.markdown(f"- {_hint}")
+
+            st.markdown("**Engineer Feedback**")
+            render_feedback_button(
+                event_id=_ka.get("label","") + "_" + _ka.get("cell_id",""),
+                source="kpi", anomaly_type=_ka.get("label",""),
+                severity=_ka["severity"], detector=_ka.get("detector",""),
+                cell_id=_ka.get("cell_id",""), evidence=_ka.get("evidence",""),
+            )
+
+    # ── Export Report ─────────────────────────────────────────────────
+    _kpi_export_sections = []
+    if summary_rows:
+        _kpi_export_sections.append({
+            "title": "KPI Health Summary",
+            "df": pd.DataFrame(summary_rows),
+        })
+    if not _kpi_df_cell.empty:
+        _kpi_export_sections.append({
+            "title": "Per-Cell KPI Breakdown",
+            "df": _kpi_df_cell,
+        })
+    if not _kpi_matrix_df.empty:
+        _kpi_export_sections.append({
+            "title": "KPI Method Comparison Matrix",
+            "df": _kpi_matrix_df,
+            "notes": "🔴 Crit = Critical · 🟠 High · 🟡 Med · 🟢 Low · ✅ Not flagged",
+        })
+    _kpi_anom_df = pd.DataFrame([{
+        "Severity": a["severity"], "KPI": a["label"],
+        "Category": a["category"], "Cell": a["cell_id"],
+        "gNB": a["gnb_id"], "Value": a["value"], "Unit": a["unit"],
+        "Warning": a["warning"], "Critical": a["critical"],
+        "Detector": a["detector"], "Evidence": a["evidence"],
+        "Recommendation": a["recommendation"],
+    } for a in kpi_anomalies]) if kpi_anomalies else pd.DataFrame()
+    if not _kpi_anom_df.empty:
+        _kpi_export_sections.append({
+            "title": "KPI Anomalies",
+            "df": _kpi_anom_df,
+            "notes": f"{len(kpi_anomalies)} anomalies detected",
+        })
+
+    _kpi_meta = {
+        "Source File":  uploaded.name,
+        "Data Type":    "KPI Time-series",
+        "Rows":         r["rows"],
+        "Unique Cells": len(r["cells"]),
+        "Unique gNBs":  len(r["gnbs"]),
+        "KPI Columns":  len(r["kpi_columns"]),
+        "Time Range":   f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}",
+        "Anomalies":    len(kpi_anomalies),
+    }
+    _kpi_figures = (
+        [{"title": f"KPI Trend: {_kpi_trend_fig.layout.title.text}", "fig": _kpi_trend_fig}]
+        if _kpi_trend_fig is not None else []
+    )
+    _kpi_anomaly_cards = [
+        {
+            "severity":       a["severity"],
+            "title":          f"{a['label']} | {a['cell_id']} | {a['detector']}",
+            "evidence":       a["evidence"],
+            "recommendation": a["recommendation"],
+            "value":          a["value"],
+            "unit":           a["unit"],
+            "warning":        a["warning"],
+            "critical":       a["critical"],
+        }
+        for a in kpi_anomalies[:20]
+    ]
+    render_export_panel(
+        _kpi_export_sections, _kpi_meta, "kpi_report",
+        figures=_kpi_figures, anomaly_cards=_kpi_anomaly_cards,
+    )
 
     # ── Prediction Layer ──────────────────────────────────────────────
-    render_prediction_panel(parsed_kpi, source="kpi")
+    render_prediction_panel(_kpi_data, source="kpi")
 
     # ── Event Router ─────────────────────────────────────────────────
     kpi_router = EventRouter()
@@ -651,7 +1332,7 @@ if is_kpi and parsed_kpi:
 if is_stats and parsed_stats:
     import plotly.express as px
 
-    r = parsed_stats
+    r = render_time_filter(parsed_stats, key_suffix="_stats")
     st.subheader("📡 DU/CU Stats Overview")
 
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -662,6 +1343,8 @@ if is_stats and parsed_stats:
     m5.metric("Time Range",
               f"{str(r['time_range'][0])[:16]} → {str(r['time_range'][1])[:16]}"
               if r["time_range"][0] else "—")
+
+    render_stats_dashboard_charts(r)
 
     # ── L1/L2 Summary Table ───────────────────────────────────────────
     st.subheader("🚦 L1/L2 Metric Health Summary")
@@ -711,6 +1394,9 @@ if is_stats and parsed_stats:
     ts_col    = r["timestamp_col"]
     cell_col  = r["cell_col"]
 
+    _stats_trend_fig = None
+    _stats_df_cell   = pd.DataFrame()
+
     if l1l2_cols and ts_col:
         col_sel, cell_sel = st.columns(2)
         with col_sel:
@@ -732,16 +1418,17 @@ if is_stats and parsed_stats:
             title = f"{sel_metric} — {sel_cell}"
 
         if not df_line.empty:
-            meta = stats_get_meta(sel_metric)
+            stat_meta = stats_get_meta(sel_metric)
             fig  = px.line(df_line, x=ts_col, y="value", title=title,
-                           labels={"value": f"{sel_metric} ({meta['unit']})", ts_col: "Time"})
-            if meta.get("warning") is not None:
-                fig.add_hline(y=meta["warning"],  line_dash="dot",
+                           labels={"value": f"{sel_metric} ({stat_meta['unit']})", ts_col: "Time"})
+            if stat_meta.get("warning") is not None:
+                fig.add_hline(y=stat_meta["warning"],  line_dash="dot",
                               line_color="orange", annotation_text="Warning")
-            if meta.get("critical") is not None:
-                fig.add_hline(y=meta["critical"], line_dash="dot",
+            if stat_meta.get("critical") is not None:
+                fig.add_hline(y=stat_meta["critical"], line_dash="dot",
                               line_color="red",   annotation_text="Critical")
             st.plotly_chart(fig, use_container_width=True)
+            _stats_trend_fig = fig  # capture for HTML export
 
     # ── Per-Cell Heatmap ──────────────────────────────────────────────
     st.subheader("🗺️ Per-Cell Metric Breakdown")
@@ -749,6 +1436,7 @@ if is_stats and parsed_stats:
         df_all  = pd.DataFrame(r["df_records"])
         df_cell = df_all.groupby(cell_col)[l1l2_cols].mean().round(3).reset_index()
         st.dataframe(df_cell, use_container_width=True, height=300)
+        _stats_df_cell = df_cell  # capture for HTML export
 
     # ── Stats Anomaly Detection ───────────────────────────────────────
     st.divider()
@@ -774,6 +1462,7 @@ if is_stats and parsed_stats:
     if not stats_anomalies:
         st.success("✅ No L1/L2 anomalies detected.")
     else:
+        render_anomaly_distribution_charts(stats_anomalies, "Stats")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔴 Critical", sum(1 for a in stats_anomalies if a["severity"] == "Critical"))
         c2.metric("🟠 High",     sum(1 for a in stats_anomalies if a["severity"] == "High"))
@@ -812,31 +1501,131 @@ if is_stats and parsed_stats:
         shown = stats_anomalies if sev_filter == "All" else [
             a for a in stats_anomalies if a["severity"] == sev_filter
         ]
-        SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
-        for a in shown[:20]:
-            icon = SEV_ICON.get(a["severity"], "⚪")
-            with st.expander(
-                f"{icon} [{a['severity']}] {a['label']} | {a['cell_id']} | {a['detector']}",
-                expanded=(a["severity"] in ("Critical", "High")),
-            ):
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**Evidence**")
-                    st.info(a["evidence"])
-                    st.markdown(
-                        f"Value: **{a['value']} {a['unit']}** &nbsp;|&nbsp; "
-                        f"Warning: {a['warning']} &nbsp;|&nbsp; Critical: {a['critical']}"
-                    )
-                with c2:
-                    st.markdown("**Recommendation**")
-                    st.success(a["recommendation"])
-                st.markdown("**Engineer Feedback**")
-                render_feedback_button(
-                    event_id=a.get("label","") + "_" + a.get("cell_id",""),
-                    source="stats", anomaly_type=a.get("label",""),
-                    severity=a["severity"], detector=a.get("detector",""),
-                    cell_id=a.get("cell_id",""), evidence=a.get("evidence",""),
+        _stats_anom_flat = pd.DataFrame([{
+            "Severity": a["severity"],
+            "Metric":   a["label"],
+            "Cell":     a["cell_id"],
+            "Value":    a["value"],
+            "Unit":     a["unit"],
+            "Warning":  a["warning"],
+            "Critical": a["critical"],
+            "Detector": a["detector"],
+            "Evidence": a["evidence"][:80],
+        } for a in shown])
+        st.dataframe(_stats_anom_flat, use_container_width=True, height=350)
+
+        # ── Inline Issue Analysis ─────────────────────────────────────────
+        st.subheader("🔬 Issue Analysis")
+        _stats_shown = shown[:20]
+        if _stats_shown:
+            _stats_labels = [
+                f"#{i+1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
+                for i, a in enumerate(_stats_shown)
+            ]
+            _stats_sel = st.selectbox(
+                "Select issue to view analysis →",
+                range(len(_stats_labels)),
+                format_func=lambda i: _stats_labels[i],
+                key="stats_issue_sel",
+            )
+            _sa = _stats_shown[_stats_sel]
+            _SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
+            _sicon = _SEV_ICON.get(_sa["severity"], "⚪")
+
+            st.markdown(f"#### {_sicon} {_sa['label']}  |  Cell: `{_sa['cell_id']}`")
+            _sc1, _sc2 = st.columns(2)
+            with _sc1:
+                st.markdown("**Issue**")
+                st.info(_sa["evidence"])
+                st.markdown(
+                    f"Value: **{_sa['value']} {_sa['unit']}** &nbsp;|&nbsp; "
+                    f"Warning: {_sa['warning']} &nbsp;|&nbsp; Critical: {_sa['critical']}"
                 )
+            with _sc2:
+                st.markdown("**Recommendation**")
+                st.success(_sa["recommendation"])
+
+            st.markdown("**🤖 LLM Analysis — RAG over 3GPP Specs**")
+            _stats_exp_key = f"llm_stats_{_sa.get('label','')}_{_sa.get('cell_id','')}"
+            if _stats_exp_key not in st.session_state:
+                with st.spinner("Retrieving 3GPP specs + generating analysis..."):
+                    st.session_state[_stats_exp_key] = explain_anomaly(_sa)
+            _sexp = st.session_state[_stats_exp_key]
+            _ssrc = _sexp.get("source", "")
+            st.caption(f"🤖 {_ssrc}" if "Ollama" in _ssrc else f"📚 {_ssrc}")
+            st.info(_sexp.get("hypothesis", "—"))
+            if _sexp.get("citations"):
+                st.markdown("**3GPP Citations**")
+                for _cite in _sexp["citations"]:
+                    st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+            if _sexp.get("investigation_hints"):
+                st.markdown("**Investigation Checklist**")
+                for _hint in _sexp["investigation_hints"]:
+                    st.markdown(f"- {_hint}")
+
+            st.markdown("**Engineer Feedback**")
+            render_feedback_button(
+                event_id=_sa.get("label","") + "_" + _sa.get("cell_id",""),
+                source="stats", anomaly_type=_sa.get("label",""),
+                severity=_sa["severity"], detector=_sa.get("detector",""),
+                cell_id=_sa.get("cell_id",""), evidence=_sa.get("evidence",""),
+            )
+
+    # ── Export Report ─────────────────────────────────────────────────
+    _stats_export_sections = []
+    if r.get("summary") and summary_rows:
+        _stats_export_sections.append({
+            "title": "L1/L2 Metric Health Summary",
+            "df": pd.DataFrame(summary_rows),
+        })
+    if not _stats_df_cell.empty:
+        _stats_export_sections.append({
+            "title": "Per-Cell Metric Breakdown",
+            "df": _stats_df_cell,
+        })
+    _stats_anom_df = pd.DataFrame([{
+        "Severity": a["severity"], "Metric": a["label"],
+        "Cell": a["cell_id"], "Value": a["value"], "Unit": a["unit"],
+        "Warning": a["warning"], "Critical": a["critical"],
+        "Detector": a["detector"], "Evidence": a["evidence"],
+        "Recommendation": a["recommendation"],
+    } for a in stats_anomalies]) if stats_anomalies else pd.DataFrame()
+    if not _stats_anom_df.empty:
+        _stats_export_sections.append({
+            "title": "L1/L2 Anomalies",
+            "df": _stats_anom_df,
+            "notes": f"{len(stats_anomalies)} anomalies detected",
+        })
+    _stats_meta = {
+        "Source File":   uploaded.name,
+        "Data Type":     "DU/CU Stats",
+        "Format":        r["format"].upper(),
+        "Rows":          r["rows"],
+        "Cells":         len(r["cells"]),
+        "L1/L2 Metrics": len(r["l1l2_columns"]),
+        "Anomalies":     len(stats_anomalies),
+    }
+    _stats_figures = (
+        [{"title": f"Metric Trend: {_stats_trend_fig.layout.title.text}", "fig": _stats_trend_fig}]
+        if _stats_trend_fig is not None else []
+    )
+    _stats_anomaly_cards = [
+        {
+            "severity":       a["severity"],
+            "title":          f"{a['label']} | {a['cell_id']} | {a['detector']}",
+            "evidence":       a["evidence"],
+            "recommendation": a["recommendation"],
+            "value":          a["value"],
+            "unit":           a["unit"],
+            "warning":        a["warning"],
+            "critical":       a["critical"],
+        }
+        for a in stats_anomalies[:20]
+    ]
+    render_export_panel(
+        _stats_export_sections, _stats_meta, "stats_report",
+        figures=_stats_figures, anomaly_cards=_stats_anomaly_cards,
+    )
 
     # ── Prediction Layer ──────────────────────────────────────────────
     render_prediction_panel(parsed_stats, source="stats")
@@ -1066,100 +1855,150 @@ else:
         "Filter by severity", ["All", "High", "Medium", "Low"], key="sev_filter"
     )
     shown = [a for a in anomalies if sev_filter == "All" or a["severity"] == sev_filter]
+    _pcap_flat = pd.DataFrame([{
+        "Severity":  a["severity"],
+        "Layer":     a.get("layer", "—"),
+        "Procedure": a.get("procedure", "—"),
+        "Type":      a["type"],
+        "Score":     round(a["score"], 3),
+        "Detector":  a["detector"],
+        "Confirmed": f"✅ {a['confirmed_by']} detectors" if a.get("confirmed_by", 1) > 1 else "—",
+        "Evidence":  a["evidence"][:80],
+    } for a in shown])
+    st.dataframe(_pcap_flat, use_container_width=True, height=350)
 
-    for a in shown:
-        icon  = SEV_COLOR.get(a["severity"], "⚪")
-        badge = " ✅ confirmed" if a.get("confirmed_by", 1) > 1 else ""
-        header = (
-            f"{icon} [{a['severity']}] {a['type']}  "
-            f"| score={a['score']:.3f} | {a['detector']}{badge}"
-        )
-        with st.expander(header, expanded=(a["severity"] == "High")):
-            c1, c2 = st.columns(2)
+    # ── Export Report ─────────────────────────────────────────────────
+    _pcap_proc_df = make_proc_table(procedures)
+    _pcap_anom_df = pd.DataFrame([{
+        "Severity":     a["severity"],
+        "Layer":        a.get("layer", "—"),
+        "Procedure":    a.get("procedure", "—"),
+        "Type":         a["type"],
+        "Score":        round(a["score"], 3),
+        "Detector":     a["detector"],
+        "Cell":         a.get("cell_id", "—"),
+        "Evidence":     a["evidence"],
+        "Recommendation": a["recommendation"],
+    } for a in anomalies]) if anomalies else pd.DataFrame()
 
-            with c1:
-                st.markdown("**Evidence**")
-                st.info(a["evidence"])
+    _pcap_export_sections = []
+    if not _pcap_proc_df.empty:
+        _pcap_export_sections.append({"title": "Procedure Counters", "df": _pcap_proc_df})
+    if not _pcap_anom_df.empty:
+        _pcap_export_sections.append({
+            "title": "Anomaly Detection Results",
+            "df": _pcap_anom_df,
+            "notes": f"{len(anomalies)} anomalies detected",
+        })
+    _pcap_meta = {
+        "Source File":        uploaded.name,
+        "Data Type":          "PCAP (5G Signalling)",
+        "Total Events":       parsed.get("total_events", 0),
+        "Procedures Tracked": len(procedures),
+        "Anomalies":          len(anomalies),
+        "Parser Version":     parsed.get("parser_version", "—"),
+    }
+    _pcap_anomaly_cards = [
+        {
+            "severity":       a["severity"],
+            "title":          f"{a.get('type','?')} | {a.get('procedure','?')} | {a['detector']}",
+            "evidence":       a["evidence"],
+            "recommendation": a["recommendation"],
+            "value":          round(a["score"], 3),
+            "unit":           "score",
+            "warning":        "—",
+            "critical":       "—",
+        }
+        for a in anomalies[:20]
+    ]
+    render_export_panel(
+        _pcap_export_sections, _pcap_meta, "pcap_report",
+        anomaly_cards=_pcap_anomaly_cards,
+    )
 
-                if a.get("failure_causes"):
-                    st.markdown("**Failure causes**")
-                    causes_df = pd.DataFrame([
-                        {"Cause": k, "Count": v}
-                        for k, v in sorted(a["failure_causes"].items(),
-                                           key=lambda x: x[1], reverse=True)
-                    ])
-                    st.dataframe(causes_df, use_container_width=True)
-
-            with c2:
-                st.markdown("**Recommendation**")
-                st.success(a["recommendation"])
-                st.markdown(
-                    f"**Layer:** `{a.get('layer','?')}` &nbsp; "
-                    f"**Procedure:** `{a.get('procedure','?')}`"
-                )
-                if a.get("confirmed_by", 1) > 1:
-                    st.markdown(
-                        f"**Confirmed by {a['confirmed_by']} detectors** — "
-                        "high confidence finding."
-                    )
-            st.markdown("**Engineer Feedback**")
-            render_feedback_button(
-                event_id=a.get("type","") + "_" + a.get("procedure",""),
-                source="pcap", anomaly_type=a.get("type",""),
-                severity=a["severity"], detector=a.get("detector",""),
-                cell_id=a.get("cell_id","—"), evidence=a.get("evidence",""),
-            )
-
-    # ── LLM explanation — RAG + Ollama ───────────────────────────────
-    st.subheader("🤖 LLM Explanation — RAG over 3GPP Specs")
-
-    # Ollama status badge
-    status = ollama_status()
-    if status["available"]:
-        st.success(f"✅ {status['mode']} — model: `{status['model']}`")
+    # ── Inline Issue Analysis ─────────────────────────────────────────
+    st.subheader("🔬 Issue Analysis — RAG over 3GPP Specs")
+    _pcap_status = ollama_status()
+    if _pcap_status["available"]:
+        st.success(f"✅ {_pcap_status['mode']} — model: `{_pcap_status['model']}`")
     else:
         st.info(
-            f"ℹ️ Running in **{status['mode']}** mode — "
-            f"{status.get('message', 'Ollama not available')}  \n"
+            f"ℹ️ Running in **{_pcap_status['mode']}** mode — "
+            f"{_pcap_status.get('message', 'Ollama not available')}  \n"
             "To enable LLM: `ollama pull phi3:mini` then restart the dashboard."
         )
 
-    top_anomalies = [a for a in anomalies if a["severity"] in ("High", "Medium")][:4]
-    if not top_anomalies:
-        top_anomalies = anomalies[:2]
+    _pcap_shown = shown[:20]
+    if _pcap_shown:
+        _pcap_labels = [
+            f"#{i+1}  [{a['severity']}]  {a['type']}  |  "
+            f"{a.get('procedure','?')}  |  {a['detector']}"
+            for i, a in enumerate(_pcap_shown)
+        ]
+        _pcap_sel = st.selectbox(
+            "Select issue to view analysis →",
+            range(len(_pcap_labels)),
+            format_func=lambda i: _pcap_labels[i],
+            key="pcap_issue_sel",
+        )
+        _pa = _pcap_shown[_pcap_sel]
+        _SEV_ICON = {"High": "🔴", "Medium": "🟡", "Low": "🟢", "Critical": "🚨"}
+        _picon = _SEV_ICON.get(_pa["severity"], "⚪")
 
-    SEV_ICON = {"High": "🔴", "Medium": "🟡", "Low": "🟢", "Critical": "🚨"}
+        st.markdown(
+            f"#### {_picon} {_pa['type']}  |  "
+            f"[{_pa.get('layer','?')}] `{_pa.get('procedure','?')}`"
+        )
+        _pc1, _pc2 = st.columns(2)
+        with _pc1:
+            st.markdown("**Issue**")
+            st.info(_pa["evidence"])
+            if _pa.get("failure_causes"):
+                st.markdown("**Failure Causes**")
+                _causes_df = pd.DataFrame([
+                    {"Cause": k, "Count": v}
+                    for k, v in sorted(_pa["failure_causes"].items(),
+                                       key=lambda x: x[1], reverse=True)
+                ])
+                st.dataframe(_causes_df, use_container_width=True)
+        with _pc2:
+            st.markdown("**Recommendation**")
+            st.success(_pa["recommendation"])
+            st.markdown(
+                f"**Layer:** `{_pa.get('layer','?')}` &nbsp; "
+                f"**Procedure:** `{_pa.get('procedure','?')}` &nbsp; "
+                f"**Score:** `{_pa['score']:.3f}`"
+            )
+            if _pa.get("confirmed_by", 1) > 1:
+                st.markdown(
+                    f"**Confirmed by {_pa['confirmed_by']} detectors** — high confidence."
+                )
 
-    for a in top_anomalies:
-        icon   = SEV_ICON.get(a["severity"], "⚪")
-        header = f"{icon} [{a['severity']}] {a['type']}"
-        with st.expander(header, expanded=(a["severity"] == "High")):
-            with st.spinner("Retrieving 3GPP specs + generating explanation..."):
-                exp = explain_anomaly(a)
+        st.markdown("**🤖 LLM Analysis**")
+        _pcap_exp_key = f"llm_pcap_{_pa.get('type','')}_{_pa.get('procedure','')}"
+        if _pcap_exp_key not in st.session_state:
+            with st.spinner("Retrieving 3GPP specs + generating analysis..."):
+                st.session_state[_pcap_exp_key] = explain_anomaly(_pa)
+        _pexp = st.session_state[_pcap_exp_key]
+        _psrc = _pexp.get("source", "")
+        st.caption(f"🤖 {_psrc}" if "Ollama" in _psrc else f"📚 {_psrc}")
+        st.info(_pexp.get("hypothesis", "—"))
+        if _pexp.get("citations"):
+            st.markdown("**3GPP Citations**")
+            for _cite in _pexp["citations"]:
+                st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+        if _pexp.get("investigation_hints"):
+            st.markdown("**Investigation Checklist**")
+            for _hint in _pexp["investigation_hints"]:
+                st.markdown(f"- {_hint}")
 
-            src = exp.get("source", "")
-            if "Ollama" in src:
-                st.caption(f"🤖 Generated by {src}")
-            else:
-                st.caption(f"📚 {src}")
-
-            st.markdown("**Hypothesis**")
-            st.info(exp.get("hypothesis", "—"))
-
-            citations = exp.get("citations", [])
-            if citations:
-                st.markdown("**3GPP Citations**")
-                for cite in citations:
-                    spec    = cite.get("spec", "")
-                    section = cite.get("section", "")
-                    quote   = cite.get("quote", "")
-                    st.markdown(f"- `{spec} §{section}` — {quote}")
-
-            hints = exp.get("investigation_hints", [])
-            if hints:
-                st.markdown("**Investigation Checklist**")
-                for hint in hints:
-                    st.markdown(f"- {hint}")
+        st.markdown("**Engineer Feedback**")
+        render_feedback_button(
+            event_id=_pa.get("type","") + "_" + _pa.get("procedure",""),
+            source="pcap", anomaly_type=_pa.get("type",""),
+            severity=_pa["severity"], detector=_pa.get("detector",""),
+            cell_id=_pa.get("cell_id","—"), evidence=_pa.get("evidence",""),
+        )
 
 # ── Event Router — PCAP path ──────────────────────────────────────────
 if parsed is not None and anomalies:

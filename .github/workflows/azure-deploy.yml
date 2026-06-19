@@ -1,0 +1,47 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:    # also allow manual trigger from GitHub UI
+
+env:
+  RESOURCE_GROUP: telecom-analyzer-rg
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  APP_NAME: telecom-analyzer
+  IMAGE: telecom-analyzer:${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build & push image via ACR Build
+        run: |
+          az acr build \
+            --registry $ACR_NAME \
+            --image $IMAGE \
+            .
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image ${ACR_NAME}.azurecr.io/$IMAGE
+
+      - name: Print app URL
+        run: |
+          URL=$(az containerapp show \
+            --name $APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "✅ Live at: https://$URL"

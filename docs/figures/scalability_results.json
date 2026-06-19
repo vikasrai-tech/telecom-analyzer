@@ -1,0 +1,62 @@
+{
+  "4": {
+    "n_rows": 1440,
+    "latency_mean": 8.45,
+    "latency_runs": [
+      8.01,
+      8.68,
+      8.67
+    ],
+    "memory_mean_mb": 5.7,
+    "memory_runs": [
+      5.8,
+      5.7,
+      5.7
+    ]
+  },
+  "8": {
+    "n_rows": 2880,
+    "latency_mean": 17.58,
+    "latency_runs": [
+      16.65,
+      18.07,
+      18.02
+    ],
+    "memory_mean_mb": 11.7,
+    "memory_runs": [
+      11.7,
+      11.7,
+      11.7
+    ]
+  },
+  "12": {
+    "n_rows": 4320,
+    "latency_mean": 28.31,
+    "latency_runs": [
+      25.03,
+      26.1,
+      33.81
+    ],
+    "memory_mean_mb": 16.6,
+    "memory_runs": [
+      16.6,
+      16.6,
+      16.6
+    ]
+  },
+  "16": {
+    "n_rows": 5760,
+    "latency_mean": 53.42,
+    "latency_runs": [
+      51.95,
+      47.23,
+      61.09
+    ],
+    "memory_mean_mb": 21.4,
+    "memory_runs": [
+      21.4,
+      21.4,
+      21.4
+    ]
+  }
+}
