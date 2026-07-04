@@ -1,13 +1,21 @@
 # Data and models (use DVC for these)
-data/raw/
 data/processed/
 data/specs/
 models/
-*.pcap
+# Ignore large / generated data in raw — allow small demo files explicitly
+data/raw/*.parquet
+data/raw/ue_64_6hr.pcap
+data/raw/kpi_64ue_6hr.csv
+data/raw/stats_64ue_6hr.csv
+data/raw/stats_64ue_6hr.parquet
+data/raw/srsran_stats.csv
+data/raw/srsran_stats.parquet
+data/raw/nist_stats.csv
+data/raw/oai_stats.csv
 *.pcapng
-*.csv
-*.parquet
-!tests/fixtures/*.csv
+# Allow small demo data
+!data/samples/*.csv
+!data/samples/*.txt
 
 # Python
 __pycache__/
@@ -64,3 +72,7 @@ logs/
 docs/*.pptx
 docs/*.docx
 docs/~$*
+docs/*_Demo_Guide.md
+docs/*_Guide.md
+data/feedback/
+data/models/

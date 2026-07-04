@@ -1,0 +1,232 @@
+
+========================================================================
+  DU / CU gNB Statistics — Sample Report
+========================================================================
+  Generated : 2026-06-28 04:05:01
+  Format    : srsRAN L1/L2 per-cell stats (1-minute granularity)
+  Topology  : 4 cells  |  4 UEs/cell  |  TDD + FDD sites
+  Scenarios : Normal · Congestion · Hard Outage · Slow SNR Drift
+  Rows      : 249 total  (141 fault rows)
+
+========================================================================
+  Column Definitions (3GPP / srsRAN)
+========================================================================
+  timestamp           ISO-8601 measurement timestamp (1-min intervals)
+  pci                 Physical Cell Identity  (PCI_1 .. PCI_16)
+  cell_type           TDD (Time-Division Duplex) or FDD (Freq-Division Duplex)
+  nof_ue              Number of active UEs scheduled in this TTI window
+  dl_brate            Downlink bit-rate  [bps]  — aggregate across all UEs
+  ul_brate            Uplink   bit-rate  [bps]  — aggregate across all UEs
+  dl_nof_ok           DL HARQ ACK count  — successfully decoded transport blocks
+  dl_nof_nok          DL HARQ NACK count — failed decodes (retransmission needed)
+  ul_nof_ok           UL HARQ ACK count
+  ul_nof_nok          UL HARQ NACK count
+  dl_mcs              DL Modulation & Coding Scheme index  (0-28); higher = better
+  ul_mcs              UL Modulation & Coding Scheme index  (0-26); higher = better
+  dl_prb              DL Physical Resource Block utilisation [%]  (0-100)
+  ul_prb              UL Physical Resource Block utilisation [%]  (0-100)
+  pusch_snr_db        UL PUSCH Signal-to-Noise Ratio  [dB]; <10 dB = poor link
+  pucch_snr_db        UL PUCCH SNR [dB]  — control channel quality
+  anomaly_label       Injected ground-truth label  (annotated file only)
+
+
+  -- PCI_1  (TDD)  —  NORMAL BASELINE --
+
+  No fault injected. Diurnal traffic ramp from 08:00.
+    MCS stays 16-20, PRB 10-40%, SNR 20-24 dB.
+
+  Timestamp               UEs  DL(Mbps)  UL(Mbps)   MCS   PRB%  NACKs  SNR(dB)  Label
+  ---------------------- ---- --------- --------- ----- ------ ------ --------  --------------
+  2026-06-13T08:00:00       1     192.0      21.8  17.4   11.7      0    23.56  Normal
+  2026-06-13T08:01:00       2     308.0      13.9  17.6   22.3      1    21.14  Normal
+  2026-06-13T08:02:00       1     303.3      20.5  16.4   22.0     16    20.32  Normal
+  2026-06-13T08:29:00       1     474.8      21.3  14.8   23.2     14    22.55  Normal
+  2026-06-13T08:30:00       1     361.4      21.5  18.5   17.7     11    22.39  Normal
+
+  Summary (PCI_1):
+    Total rows   : 31
+    Fault rows   : 0
+
+
+  -- PCI_3  (TDD)  —  CONGESTION FAULT  [09:30 - 10:30] --
+
+  Radio-layer overload on TDD cell.
+    RB utilisation rises to 95-100%.
+    DL throughput drops 65-80%.
+    HARQ NACK rate spikes to 170-200 per minute.
+    MCS collapses from ~18 to 6-9 (link adaptation under load).
+
+  Timestamp               UEs  DL(Mbps)  UL(Mbps)   MCS   PRB%  NACKs  SNR(dB)  Label
+  ---------------------- ---- --------- --------- ----- ------ ------ --------  --------------
+  2026-06-13T09:15:00       2     514.5      30.4  15.0   24.8     14    21.43  Normal
+  2026-06-13T09:16:00       3     577.4      31.5  15.0   26.5     11    25.44  Normal
+  2026-06-13T09:17:00       3     402.1      34.4  16.9   25.2      1    21.62  Normal
+    ... fault begins ...                                                          
+  2026-06-13T09:30:00       3     113.1      13.0   6.4   96.7    184    23.08  CONGESTION
+  2026-06-13T09:31:00       3     117.0      11.6   8.6   95.5    191    25.22  CONGESTION
+  2026-06-13T09:32:00       2     118.7      12.5   9.4   96.5    173    21.65  CONGESTION
+  2026-06-13T09:33:00       3     111.1       8.9   9.8   99.6    196    20.57  CONGESTION
+  2026-06-13T09:34:00       3      98.5       9.3   8.6   94.6    175    17.50  CONGESTION
+  2026-06-13T09:35:00       3     149.4       9.3   8.8   95.5    134    21.58  CONGESTION
+  2026-06-13T09:36:00       2     129.0       9.6  11.4   92.6    142    22.32  CONGESTION
+  2026-06-13T09:37:00       3     210.4      12.7  10.5   97.9    186    20.16  CONGESTION
+  2026-06-13T09:38:00       3     168.5       7.2  10.8   95.9    184    22.79  CONGESTION
+  2026-06-13T09:39:00       3     129.9      11.4  11.6   96.5    177    24.05  CONGESTION
+  2026-06-13T09:40:00       2     125.3      13.0   4.8   96.5    180    19.72  CONGESTION
+  2026-06-13T09:41:00       3     215.6       6.7   9.3   98.6    243    25.67  CONGESTION
+  2026-06-13T09:42:00       2     130.0      12.2  10.7   96.1    171    23.33  CONGESTION
+  2026-06-13T09:43:00       3     192.8      12.0  11.5   94.4    129    22.45  CONGESTION
+  2026-06-13T09:44:00       2     114.2      13.2   6.4   99.1    158    22.21  CONGESTION
+  2026-06-13T09:45:00       3     160.9      10.6   8.5   95.7    180    22.24  CONGESTION
+  2026-06-13T09:46:00       3     185.5      10.4   4.0   91.6    189    24.40  CONGESTION
+  2026-06-13T09:47:00       2     118.1      11.1   8.4   97.4    184    21.93  CONGESTION
+  2026-06-13T09:48:00       2     155.2      15.1   8.0   96.9    209    23.26  CONGESTION
+  2026-06-13T09:49:00       3     161.0      13.3   6.5   97.1    169    22.01  CONGESTION
+  2026-06-13T10:44:00       3     569.5      45.3  21.8   28.9     14    23.32  Normal
+  2026-06-13T10:45:00       3     520.4      44.1  19.2   26.8     19    19.81  Normal
+  ... (40 more fault rows in CSV) ...
+
+  Summary (PCI_3):
+    Total rows   : 91
+    Fault rows   : 60
+    DL brate normal mean : 519.5 Mbps
+    DL brate fault  mean : 155.3 Mbps
+    SNR    normal mean   : 21.90 dB
+    SNR    fault  mean   : 21.79 dB
+    NACKs  normal mean   : 11.9
+    NACKs  fault  mean   : 176.9
+
+
+  -- PCI_12  (FDD)  —  HARD OUTAGE FAULT  [12:00 - 12:20] --
+
+  Simulated unplanned site failure on FDD cell.
+    nof_ue drops to 0 (no scheduled users).
+    dl_brate collapses to < 1 Mbps (noise floor).
+    dl_prb and ul_prb fall to < 2%.
+    PUSCH SNR crashes to 1-5 dB (no signal).
+
+  Timestamp               UEs  DL(Mbps)  UL(Mbps)   MCS   PRB%  NACKs  SNR(dB)  Label
+  ---------------------- ---- --------- --------- ----- ------ ------ --------  --------------
+  2026-06-13T11:45:00       2      43.1      18.2  15.7   30.2     18    22.52  Normal
+  2026-06-13T11:46:00       3      34.5      16.0  15.2   32.6     13    20.71  Normal
+  2026-06-13T11:47:00       2      36.9      19.6  18.8   34.1     14    20.36  Normal
+    ... fault begins ...                                                          
+  2026-06-13T12:00:00       0       0.6       0.3   3.6    0.7      0     1.42  OUTAGE
+  2026-06-13T12:01:00       0       0.6       0.3   3.7    1.3      2     3.61  OUTAGE
+  2026-06-13T12:02:00       0       0.4       0.2   5.0    0.9      1     2.76  OUTAGE
+  2026-06-13T12:03:00       0       0.5       0.3   4.0    0.2      1     4.57  OUTAGE
+  2026-06-13T12:04:00       0       0.5       0.3   5.6    0.6      1     2.26  OUTAGE
+  2026-06-13T12:05:00       0       0.6       0.3   4.8    1.0      1     1.10  OUTAGE
+  2026-06-13T12:06:00       0       0.5       0.3   3.6    0.1      1     3.97  OUTAGE
+  2026-06-13T12:07:00       0       0.5       0.3   3.4    1.5      1     5.02  OUTAGE
+  2026-06-13T12:08:00       0       0.4       0.3   5.4    1.7      0     4.43  OUTAGE
+  2026-06-13T12:09:00       0       0.4       0.3   4.5    0.0      0     4.97  OUTAGE
+  2026-06-13T12:10:00       0       0.5       0.2   3.3    0.5      0     2.95  OUTAGE
+  2026-06-13T12:11:00       0       0.5       0.3   4.7    1.5      1     4.39  OUTAGE
+  2026-06-13T12:12:00       0       0.4       0.2   2.3    0.6      1     2.72  OUTAGE
+  2026-06-13T12:13:00       0       0.6       0.3   2.7    1.3      1     2.06  OUTAGE
+  2026-06-13T12:14:00       0       0.5       0.3   2.3    1.4      1     2.68  OUTAGE
+  2026-06-13T12:15:00       0       0.5       0.2   5.2    0.9      2     2.74  OUTAGE
+  2026-06-13T12:16:00       0       0.4       0.2   3.9    1.4      2     3.59  OUTAGE
+  2026-06-13T12:17:00       0       0.4       0.3   3.0    0.4      1     3.40  OUTAGE
+  2026-06-13T12:18:00       0       0.4       0.2   2.6    0.7      0     3.64  OUTAGE
+  2026-06-13T12:19:00       0       0.5       0.2   3.7    1.3      1     3.89  OUTAGE
+  2026-06-13T12:34:00       2      36.1      18.1  20.3   26.1     13    20.71  Normal
+  2026-06-13T12:35:00       2      35.0      18.5  16.0   25.7     16    21.86  Normal
+
+  Summary (PCI_12):
+    Total rows   : 51
+    Fault rows   : 20
+    DL brate normal mean : 36.3 Mbps
+    DL brate fault  mean : 0.5 Mbps
+    SNR    normal mean   : 22.36 dB
+    SNR    fault  mean   : 3.31 dB
+    NACKs  normal mean   : 11.7
+    NACKs  fault  mean   : 0.9
+
+
+  -- PCI_8  (TDD)  —  SLOW SNR DRIFT FAULT  [13:00 - 14:00] --
+
+  Simulated gradual interference accumulation on TDD cell.
+    PUSCH SNR degrades linearly: 22 dB → 8 dB over 60 min.
+    DL MCS follows SNR downward: 18 → 7.
+    DL throughput degrades ~55% by end of window.
+    ** Static KPI thresholds miss this for the first 30-40 min. **
+    Detected only by Trend-Regression and CUSUM detectors.
+
+  Timestamp               UEs  DL(Mbps)  UL(Mbps)   MCS   PRB%  NACKs  SNR(dB)  Label
+  ---------------------- ---- --------- --------- ----- ------ ------ --------  --------------
+  2026-06-13T12:45:00       3     495.9      33.6  19.1   26.5      9    18.04  Normal
+  2026-06-13T12:46:00       2     376.7      31.4  18.8   28.8      0    23.55  Normal
+  2026-06-13T12:47:00       2     423.6      33.7  18.2   32.3     13    18.38  Normal
+    ... fault begins ...                                                          
+  2026-06-13T13:00:00       2     457.3      34.7  16.4   29.9      0    21.32  DRIFT(0%)
+    ... fault begins ...                                                          
+  2026-06-13T13:01:00       2     499.7      29.7  21.2   25.9      3    22.31  DRIFT(2%)
+    ... fault begins ...                                                          
+  2026-06-13T13:02:00       3     309.3      31.1  17.0   21.9     15    20.20  DRIFT(3%)
+    ... fault begins ...                                                          
+  2026-06-13T13:03:00       2     383.2      38.4  17.1   25.8     16    21.91  DRIFT(5%)
+    ... fault begins ...                                                          
+  2026-06-13T13:04:00       2     503.6      34.3  17.5   30.4      0    21.02  DRIFT(7%)
+    ... fault begins ...                                                          
+  2026-06-13T13:05:00       3     466.0      33.6  18.1   20.4     16    21.96  DRIFT(8%)
+    ... fault begins ...                                                          
+  2026-06-13T13:06:00       2     413.9      22.3  16.4   20.1     10    22.82  DRIFT(10%)
+    ... fault begins ...                                                          
+  2026-06-13T13:07:00       2     449.0      22.5  16.1   21.4      8    21.55  DRIFT(12%)
+    ... fault begins ...                                                          
+  2026-06-13T13:08:00       2     344.6      19.8  17.5   26.3     14    19.86  DRIFT(13%)
+    ... fault begins ...                                                          
+  2026-06-13T13:09:00       2     448.5      29.1  18.5   21.9      4    17.74  DRIFT(15%)
+    ... fault begins ...                                                          
+  2026-06-13T13:10:00       2     331.7      30.6  17.9   30.1      0    22.40  DRIFT(17%)
+    ... fault begins ...                                                          
+  2026-06-13T13:11:00       1     375.5      26.1  15.5   27.1      4    23.34  DRIFT(18%)
+    ... fault begins ...                                                          
+  2026-06-13T13:12:00       2     417.1      24.5  14.2   21.1     11    17.23  DRIFT(20%)
+    ... fault begins ...                                                          
+  2026-06-13T13:13:00       2     305.2      24.8  15.4   26.9     12    19.28  DRIFT(22%)
+    ... fault begins ...                                                          
+  2026-06-13T13:14:00       3     292.7      27.9  19.0   23.8      8    17.59  DRIFT(23%)
+    ... fault begins ...                                                          
+  2026-06-13T13:15:00       2     202.4      23.9  18.1   28.3     11    18.04  DRIFT(25%)
+    ... fault begins ...                                                          
+  2026-06-13T13:16:00       2     389.8      27.0  14.8   32.4      8    19.29  DRIFT(27%)
+    ... fault begins ...                                                          
+  2026-06-13T13:17:00       2     298.0      32.0  16.3   15.2      9    18.64  DRIFT(28%)
+    ... fault begins ...                                                          
+  2026-06-13T13:18:00       2     295.9      24.5  17.2   12.7      0    19.06  DRIFT(30%)
+    ... fault begins ...                                                          
+  2026-06-13T13:19:00       2     323.4      32.5  15.4   25.4     14    17.84  DRIFT(32%)
+  2026-06-13T12:58:00       2     363.0      23.2  17.8   24.8      5    20.39  Normal
+  2026-06-13T12:59:00       3     478.2      26.3  15.9   29.5      6    24.07  Normal
+  ... (41 more fault rows in CSV) ...
+
+  Summary (PCI_8):
+    Total rows   : 76
+    Fault rows   : 61
+    DL brate normal mean : 435.3 Mbps
+    DL brate fault  mean : 265.8 Mbps
+    SNR    normal mean   : 22.32 dB
+    SNR    fault  mean   : 15.00 dB
+    NACKs  normal mean   : 7.4
+    NACKs  fault  mean   : 7.8
+
+========================================================================
+  Detection Notes
+========================================================================
+
+  Fault          Cell     Key Signal                          Detectors
+  -------------- -------- ----------------------------------- ----------------------------------------
+  Congestion     PCI_3    PRB > 95%, NACK spike, MCS drop     Threshold · Peer-Comparison · Bollinger · CUSUM · IQR · Trend
+  Hard Outage    PCI_12   dl_brate ≈ 0, nof_ue = 0, SNR crash Threshold · Isolation Forest · OC-SVM · LOF · Elliptic Env · LSTM-AE
+  Slow Drift     PCI_8    SNR / MCS gradual decline           CUSUM · Trend-Regression  (static threshold MISSES for first 30 min)
+  Normal         PCI_1    No anomaly                          No detectors fire (baseline)
+
+========================================================================
+  Files Generated
+========================================================================
+  du_cu_stats_sample.csv     — raw srsRAN format (parser-ready)
+  du_cu_stats_annotated.csv  — same + anomaly_label + cell_type columns
+  du_cu_stats_sample.txt     — this human-readable report
