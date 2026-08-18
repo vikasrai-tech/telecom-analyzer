@@ -54,10 +54,13 @@ def _new_event(
       KPI:   label, category, cell_id, value, unit
     """
     # ── Common fields ─────────────────────────────────────────────────
-    severity  = anomaly.get("severity", "Low")
-    detector  = anomaly.get("detector", "unknown")
-    evidence  = anomaly.get("evidence", "")
-    score     = float(anomaly.get("score", 0.0))
+    severity    = anomaly.get("severity", "Low")
+    detector    = anomaly.get("detector", "unknown")
+    evidence    = anomaly.get("evidence", "")
+    score       = float(anomaly.get("score", 0.0))
+    # Prefer the anomaly's own lead_time_h (e.g. predictor.py stamps the
+    # real forecast horizon on each item) over the caller-supplied default.
+    lead_time_h = anomaly.get("lead_time_h", lead_time_h)
 
     # ── Source-specific field extraction ─────────────────────────────
     if source == "pcap":
@@ -96,6 +99,44 @@ def _new_event(
         "correlation_confidence": 0.0,
         "raw_anomaly":            anomaly,
     }
+
+
+def event_timestamp(event: Dict[str, Any]) -> Optional[datetime]:
+    """Timestamp the underlying anomaly actually carries (e.g. a KPI row's
+    own reading time), or None if the source detector never recorded one
+    (PCAP and Stats anomalies today have no per-row timestamp). Deliberately
+    does NOT fall back to `created_at` (router ingestion time) — that's just
+    "whenever this file happened to be uploaded", and comparing it against
+    another source's real data timestamp produces a meaningless, usually-
+    failing time-window check. Callers treat None as "unknown time, don't
+    gate on it" (see _run_correlation). Always tz-aware when not None."""
+    raw = event.get("raw_anomaly", {}) or {}
+    for key in ("timestamp", "ts", "time"):
+        if raw.get(key):
+            try:
+                dt = datetime.fromisoformat(str(raw[key]).replace("Z", "+00:00"))
+            except Exception:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+    return None
+
+
+def _content_key(source: str, anomaly: Dict[str, Any], state: str, lead_time_h: float) -> str:
+    """Stable identity for a raw anomaly, used to dedupe repeat ingestion of
+    the same anomaly list (e.g. a Streamlit rerun re-ingesting the same
+    upload) without dropping genuinely distinct anomalies."""
+    parts = (
+        source, state, str(lead_time_h),
+        str(anomaly.get("cell_id", "")),
+        str(anomaly.get("category", anomaly.get("type", anomaly.get("label", "")))),
+        str(anomaly.get("metric", "")),
+        str(anomaly.get("value", "")),
+        str(anomaly.get("evidence", "")),
+        str(anomaly.get("detector", "")),
+    )
+    return "|".join(parts)
 
 
 def _correlation_key(event: Dict[str, Any]) -> str:
@@ -138,6 +179,7 @@ class EventRouter:
     def __init__(self, correlation_window_h: float = 1.0):
         self._events: List[Dict[str, Any]] = []
         self._correlation_window_h = correlation_window_h
+        self._seen_keys: set = set()
 
     # ── Ingest ────────────────────────────────────────────────────────
 
@@ -154,10 +196,18 @@ class EventRouter:
         """
         new_events = []
         for a in anomalies:
+            key = _content_key(source, a, state, lead_time_h)
+            if key in self._seen_keys:
+                continue
+            self._seen_keys.add(key)
             ev = _new_event(source, a, state=state, lead_time_h=lead_time_h)
             self._events.append(ev)
             new_events.append(ev)
-        logger.info(f"[router] Ingested {len(new_events)} events from source='{source}'")
+        skipped = len(anomalies) - len(new_events)
+        logger.info(
+            f"[router] Ingested {len(new_events)} events from source='{source}'"
+            + (f" ({skipped} duplicate(s) skipped)" if skipped else "")
+        )
         self._run_correlation()
         return new_events
 
@@ -187,17 +237,32 @@ class EventRouter:
             bucket_map[k].append(ev)
 
         for events_in_bucket in bucket_map.values():
-            sources = list({ev["source"] for ev in events_in_bucket})
-            if len(sources) < 2:
-                # Reset if previously correlated (e.g., after re-ingest)
-                for ev in events_in_bucket:
+            timestamps = {id(ev): event_timestamp(ev) for ev in events_in_bucket}
+            for ev in events_in_bucket:
+                t0 = timestamps[id(ev)]
+                if t0 is None:
+                    # No usable timestamp — fall back to whole-bucket grouping.
+                    window_events = events_in_bucket
+                else:
+                    window_events = [
+                        other for other in events_in_bucket
+                        if other is ev or (
+                            # Only gate on time when BOTH sides have a real
+                            # timestamp to compare; an `other` with no
+                            # timestamp of its own can't be excluded by time.
+                            timestamps[id(other)] is None
+                            or abs((timestamps[id(other)] - t0).total_seconds())
+                                <= self._correlation_window_h * 3600
+                        )
+                    ]
+                sources = list({e["source"] for e in window_events})
+                if len(sources) < 2:
+                    # Reset if previously correlated (e.g., after re-ingest)
                     ev["correlated_sources"]     = []
                     ev["correlation_confidence"] = 0.0
-                continue
-            confidence = round(len(sources) / 3.0, 2)
-            for ev in events_in_bucket:
-                ev["correlated_sources"]     = [s for s in sources if s != ev["source"]]
-                ev["correlation_confidence"] = confidence
+                else:
+                    ev["correlated_sources"]     = [s for s in sources if s != ev["source"]]
+                    ev["correlation_confidence"] = round(len(sources) / 3.0, 2)
 
     # ── Queries ───────────────────────────────────────────────────────
 
@@ -273,6 +338,7 @@ class EventRouter:
 
     def clear(self) -> None:
         self._events = []
+        self._seen_keys = set()
 
 
 # ── Module-level convenience ──────────────────────────────────────────

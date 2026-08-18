@@ -2,7 +2,12 @@
 KPI Detector — anomaly detection on gNB KPI time-series data.
 
 Six detection layers:
-  1. Threshold violations  — per-row check against warning/critical levels
+  1. Threshold violations  — per-row check against warning/critical levels.
+                             Throughput KPIs (DL/UL Mbps) are evaluated as
+                             % of configured cell capacity so that FDD and TDD
+                             cells with different peak throughputs receive
+                             proportionally equivalent thresholds. Raw Mbps
+                             values are preserved for reporting.
   2. Peer comparison       — cells significantly below fleet average (z-score)
   3. Trend analysis        — KPIs degrading over time (linear regression slope)
   4. IQR outlier           — robust fence-based outlier (Tukey method)
@@ -80,17 +85,140 @@ def _anomaly(kpi: str, cell: str, gnb: str, ts: str,
 
 
 # ═════════════════════════════════════════════════════════════════════
+# PRB_DL sustained-duration constants
+# ═════════════════════════════════════════════════════════════════════
+#
+# DATA BASIS (kpi_64ue_6hr.csv, 16 cells, 5760 rows)
+# ---------------------------------------------------
+# Normal cells: max consecutive minutes PRB_DL > 80% = 2 min (71 runs of 1 min,
+#               6 runs of 2 min, ZERO runs ≥ 3 min across all 13 normal cells)
+# PCI_3 congestion fault: 38 consecutive minutes > 80%
+# Normal cells: zero crossings above 90% (max PRB_DL = 87.5%)
+#
+# A minimum-sustained-duration filter of 5 minutes eliminates ALL normal FP while
+# preserving PCI_3 detection (38 min >> 5 min).  Telecom NOC practice: congestion
+# alarms require sustained violation, not instantaneous spikes.
+#
+_PRB_DL_KPI = "PRB_Utilization_DL_%"
+_PRB_DL_SUSTAINED_WARN_MIN: int = 5  # consecutive 1-min samples > 80% → Warning
+_PRB_DL_SUSTAINED_CRIT_MIN: int = 3  # consecutive 1-min samples > 90% → Critical
+
+
+def _maybe_emit_prb_run(
+    run: List[Dict[str, Any]],
+    out: List[Dict[str, Any]],
+) -> None:
+    """Emit one anomaly for a sustained PRB_DL run that meets minimum duration."""
+    n         = len(run)
+    has_crit  = any(h["sev"] == "Critical" for h in run)
+    meta      = get_meta(_PRB_DL_KPI)
+    unit      = meta.get("unit", "%")
+
+    if has_crit and n >= _PRB_DL_SUSTAINED_CRIT_MIN:
+        sev     = "Critical"
+        min_req = _PRB_DL_SUSTAINED_CRIT_MIN
+        thr_val = meta.get("critical", 90)
+    elif n >= _PRB_DL_SUSTAINED_WARN_MIN:
+        sev     = "High"
+        min_req = _PRB_DL_SUSTAINED_WARN_MIN
+        thr_val = meta.get("warning", 80)
+    else:
+        return  # too short — normal diurnal spike, suppressed
+
+    trigger  = run[min_req - 1]   # the row that completes the minimum window
+    peak_val = max(h["val"] for h in run)
+    ev = (
+        f"{meta.get('label', _PRB_DL_KPI)}={peak_val:.1f}{unit} sustained "
+        f"> {thr_val}{unit} for {n} consecutive minute(s) "
+        f"(min required: {min_req}; "
+        f"data: normal cells max 2 min, this run={n} min)"
+    )
+    a = _anomaly(
+        _PRB_DL_KPI, trigger["cell"], trigger["gnb"], trigger["ts"],
+        trigger["val"], sev, "Threshold", ev,
+    )
+    a["sustained_minutes"] = n
+    a["peak_prb_dl"]       = round(peak_val, 2)
+    out.append(a)
+
+
+def _prb_dl_sustained_anomalies(
+    raw_hits: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Convert raw PRB_DL threshold crossings into sustained-duration anomalies.
+
+    Groups hits by cell, sorts by timestamp, walks consecutive runs (gap ≤ 90 s),
+    emits one anomaly per qualifying run via _maybe_emit_prb_run().
+    """
+    if not raw_hits:
+        return []
+
+    from collections import defaultdict
+    by_cell: Dict[str, List] = defaultdict(list)
+    for h in raw_hits:
+        by_cell[h["cell"]].append(h)
+
+    result: List[Dict[str, Any]] = []
+    for hits in by_cell.values():
+        try:
+            hits.sort(key=lambda h: pd.to_datetime(h["ts"], errors="coerce"))
+        except Exception:
+            hits.sort(key=lambda h: str(h["ts"]))
+
+        run: List[Dict] = [hits[0]]
+        for i in range(1, len(hits)):
+            try:
+                prev_ts = pd.to_datetime(hits[i - 1]["ts"], errors="coerce")
+                curr_ts = pd.to_datetime(hits[i]["ts"],     errors="coerce")
+                gap_s   = (curr_ts - prev_ts).total_seconds()
+            except Exception:
+                gap_s = 999
+
+            if gap_s <= 90:       # ≤ 90 s = consecutive 1-min sample
+                run.append(hits[i])
+            else:
+                _maybe_emit_prb_run(run, result)
+                run = [hits[i]]
+        _maybe_emit_prb_run(run, result)
+
+    return result
+
+
+# ═════════════════════════════════════════════════════════════════════
 # 1. Threshold Violation Detector
 # ═════════════════════════════════════════════════════════════════════
 
 def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Check every row against warning/critical thresholds."""
-    records   = parsed_kpi.get("df_records", [])
-    kpi_cols  = parsed_kpi.get("kpi_columns", [])
-    ts_col    = parsed_kpi.get("timestamp_col", "Timestamp")
-    cell_col  = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col   = parsed_kpi.get("gnb_col",  "gNB_ID")
-    anomalies = []
+    """
+    Check every row against warning/critical thresholds.
+
+    For DL/UL throughput KPIs, capacity-aware normalization is applied:
+        normalized_pct = (observed_Mbps / cell_capacity_Mbps) * 100
+    Threshold comparison uses the normalized % value so that FDD and TDD
+    cells with different peak capacities receive proportionally equivalent
+    treatment. Raw Mbps is preserved in the anomaly dict for reporting.
+
+    For all other KPIs, the original behaviour is unchanged.
+    """
+    from src.detection.throughput_normalizer import (
+        build_capacity_map,
+        normalize_throughput,
+        normalized_severity,
+        is_throughput_kpi,
+        load_aware_ul_severity,
+    )
+
+    records      = parsed_kpi.get("df_records", [])
+    kpi_cols     = parsed_kpi.get("kpi_columns", [])
+    ts_col       = parsed_kpi.get("timestamp_col", "Timestamp")
+    cell_col     = parsed_kpi.get("cell_col", "Cell_ID")
+    gnb_col      = parsed_kpi.get("gnb_col",  "gNB_ID")
+    anomalies    = []
+    prb_dl_raw: List[Dict[str, Any]] = []  # collected for sustained-duration post-processing
+
+    # Build capacity map once from all records (O(n) single pass)
+    capacity_map = build_capacity_map(records, cell_col=cell_col)
 
     for row in records:
         cell = str(row.get(cell_col, "?"))
@@ -101,11 +229,78 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
             val = row.get(kpi)
             if val is None or not isinstance(val, (int, float)):
                 continue
+
+            # ── Capacity-normalized path for throughput KPIs ────────────
+            if is_throughput_kpi(kpi):
+                norm = normalize_throughput(kpi, float(val), cell, capacity_map)
+                if norm is not None:
+                    cap  = norm["capacity_mbps"]
+                    npct = norm["normalized_pct"]
+
+                    if norm["direction"] == "ul":
+                        # ── Load-aware UL path ───────────────────────────────
+                        # PRB_Utilization_UL_% is the load signal — same row,
+                        # cell-specific, timestamp-aligned, no new signals needed.
+                        prb_raw = row.get("PRB_Utilization_UL_%")
+                        prb_ul  = (
+                            float(prb_raw)
+                            if isinstance(prb_raw, (int, float)) else None
+                        )
+                        sev, load_note = load_aware_ul_severity(npct, prb_ul)
+                        if not sev:
+                            continue
+                        ev = (
+                            f"{get_meta(kpi).get('label', kpi)}="
+                            f"{val:.2f} Mbps ({npct:.1f}% of {cap:.0f} Mbps capacity); "
+                            f"{load_note}"
+                        )
+                        a = _anomaly(kpi, cell, gnb, ts, val, sev, "Threshold", ev)
+                        a["normalized_pct"]  = npct
+                        a["capacity_mbps"]   = cap
+                        a["normalized_unit"] = norm["normalized_unit"]
+                        a["prb_ul_pct"]      = prb_ul
+                        a["load_aware"]      = True
+                        anomalies.append(a)
+                        continue
+
+                    # ── DL / other direction: fixed normalized threshold ──────
+                    sev = normalized_severity(npct, norm["direction"])
+                    if not sev:
+                        continue
+                    t      = norm["thresholds"]
+                    thresh = t["critical"] if sev == "Critical" else t["warning"]
+                    ev = (
+                        f"{get_meta(kpi).get('label', kpi)}="
+                        f"{val:.2f} Mbps ({npct:.1f}% of {cap:.0f} Mbps capacity) "
+                        f"< {'critical' if sev == 'Critical' else 'warning'} "
+                        f"threshold {thresh:.2f}% of capacity"
+                    )
+                    a = _anomaly(kpi, cell, gnb, ts, val, sev, "Threshold", ev)
+                    a["normalized_pct"]  = npct
+                    a["capacity_mbps"]   = cap
+                    a["normalized_unit"] = norm["normalized_unit"]
+                    anomalies.append(a)
+                    continue
+                # Fall through to raw-Mbps path if capacity unknown
+
+            # ── Original raw-value path (all non-throughput KPIs, or
+            #    throughput KPIs where capacity is unavailable) ─────────
             meta      = get_meta(kpi)
             direction = meta.get("direction", "higher_better")
             sev       = _severity(val, meta, direction)
             if not sev:
                 continue
+
+            # ── PRB_DL: collect for sustained-duration post-processing ──
+            # Normal cells never sustain > 80 % for > 2 consecutive min.
+            # Genuine congestion (PCI_3) sustains 38 min.  Minimum window
+            # of 5 min eliminates all normal FP with zero additional FN.
+            if kpi == _PRB_DL_KPI:
+                prb_dl_raw.append({
+                    "cell": cell, "gnb": gnb, "ts": ts,
+                    "val": float(val), "sev": sev,
+                })
+                continue  # do NOT emit immediately
 
             warn = meta.get("warning")
             crit = meta.get("critical")
@@ -122,7 +317,13 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
             anomalies.append(_anomaly(kpi, cell, gnb, ts, val, sev,
                                       "Threshold", ev))
 
-    logger.info(f"Threshold violations: {len(anomalies)}")
+    # Apply sustained-duration filter to PRB_DL hits
+    sustained = _prb_dl_sustained_anomalies(prb_dl_raw)
+    anomalies.extend(sustained)
+    logger.info(
+        f"Threshold violations: {len(anomalies)} "
+        f"(PRB_DL raw={len(prb_dl_raw)} → sustained={len(sustained)})"
+    )
     return anomalies
 
 

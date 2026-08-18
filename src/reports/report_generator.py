@@ -1,8 +1,8 @@
 """
-Report generator — exports anomaly detection results to CSV, XLSX, PDF, or HTML.
+Report generator — exports anomaly detection results to CSV, XLSX, DOCX, PDF, or HTML.
 
 Usage:
-    from src.reports.report_generator import generate_csv, generate_xlsx, generate_pdf, generate_html
+    from src.reports.report_generator import generate_csv, generate_xlsx, generate_docx, generate_pdf, generate_html
 
 Each function accepts:
     sections      : list of {"title": str, "df": pd.DataFrame, "notes": str (optional)}
@@ -150,8 +150,11 @@ def generate_pdf(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
             story.append(Spacer(1, 0.2 * cm))
             continue
 
-        # Truncate long text cells to keep the table readable
-        display_df = df.copy().astype(str).map(lambda x: x[:120] if len(x) > 120 else x)
+        # Truncate long text cells to keep the table readable. astype(str)
+        # doesn't reliably coerce every cell to `str` on all pandas
+        # versions (e.g. NaN in some columns survives as float), so the
+        # lambda coerces defensively rather than trusting astype alone.
+        display_df = df.copy().astype(str).map(lambda x: str(x)[:120] if len(str(x)) > 120 else str(x))
 
         col_headers = list(display_df.columns)
         data_rows   = display_df.values.tolist()
@@ -185,6 +188,81 @@ def generate_pdf(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
         story.append(Spacer(1, 0.4 * cm))
 
     doc.build(story)
+    return buf.getvalue()
+
+
+# ── DOCX ──────────────────────────────────────────────────────────────────────
+
+def generate_docx(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
+    from docx import Document
+    from docx.enum.section import WD_ORIENT
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.shared import Pt, RGBColor
+
+    HEADER_BLUE = RGBColor(0x1F, 0x4E, 0x79)
+
+    def _shade_cell(cell, hex_color: str) -> None:
+        shd = cell._tc.get_or_add_tcPr()
+        el = shd.makeelement(qn("w:shd"), {qn("w:fill"): hex_color})
+        shd.append(el)
+
+    doc = Document()
+    section = doc.sections[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width, section.page_height = section.page_height, section.page_width
+    section.left_margin = Pt(28)
+    section.right_margin = Pt(28)
+
+    title = doc.add_heading("Telecom Analyzer — Anomaly Detection Report", level=1)
+    title.runs[0].font.color.rgb = HEADER_BLUE
+
+    gen_p = doc.add_paragraph()
+    gen_p.add_run(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}").italic = True
+    for k, v in meta.items():
+        p = doc.add_paragraph()
+        p.add_run(f"{k}: ").bold = True
+        p.add_run(str(v))
+
+    for sec in sections:
+        doc.add_heading(sec["title"], level=2)
+        if sec.get("notes"):
+            note_p = doc.add_paragraph()
+            note_p.add_run(sec["notes"]).italic = True
+
+        df: Optional[pd.DataFrame] = sec.get("df")
+        if df is None or df.empty:
+            doc.add_paragraph("No data.")
+            continue
+
+        display_df = df.copy().astype(str).map(lambda x: str(x)[:200] if len(str(x)) > 200 else str(x))
+        cols = list(display_df.columns)
+
+        table = doc.add_table(rows=1, cols=len(cols))
+        table.style = "Table Grid"
+        hdr_cells = table.rows[0].cells
+        for i, col in enumerate(cols):
+            hdr_cells[i].text = str(col)
+            for p in hdr_cells[i].paragraphs:
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                for run in p.runs:
+                    run.bold = True
+                    run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+                    run.font.size = Pt(8)
+            _shade_cell(hdr_cells[i], "1F4E79")
+
+        for _, row in display_df.iterrows():
+            cells = table.add_row().cells
+            for i, col in enumerate(cols):
+                cells[i].text = str(row[col])
+                for p in cells[i].paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(8)
+
+        doc.add_paragraph()
+
+    buf = io.BytesIO()
+    doc.save(buf)
     return buf.getvalue()
 
 

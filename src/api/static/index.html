@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5G Telecom Analyzer — Unified Network Diagnostics</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <!-- Chart.js for interactive plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- ── Top Navbar ─────────────────────────────────────────── -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="radar-logo">
+          <span class="radar-icon">📡</span>
+        </div>
+        <div class="brand-text">
+          <h1>Unified Telecom Analyzer</h1>
+          <span>5G Protocol & KPI Anomaly AI Framework</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn-theme-toggle" @click="toggleTheme">
+          {{ theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode' }}
+        </button>
+
+        <div class="status-badge" :style="{ borderColor: health.status === 'ok' ? '#059669' : '#d97706' }">
+          <span class="status-dot" :style="{ backgroundColor: health.status === 'ok' ? '#059669' : '#d97706' }"></span>
+          Backend: {{ health.status === 'ok' ? 'Online' : 'Connecting...' }}
+          <span v-if="health.llm" style="margin-left: 6px; font-size: 0.78rem; opacity: 0.8">
+             | Ollama: {{ health.llm.running ? 'Connected (' + health.llm.model + ')' : 'Rule-Fallback' }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Main Content Container ─────────────────────────────── -->
+    <main class="main-content">
+
+      <!-- ── Session Active Multi-Job Bar ──────────────────────── -->
+      <div v-if="sessionJobs.length > 0" class="jobs-bar">
+        <div class="job-chips">
+          <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Active Session Telemetry Jobs:</span>
+          <span v-for="job in sessionJobs" :key="job.id" class="job-chip">
+            📄 {{ job.pipeline.toUpperCase() }}: {{ job.fileName }} ({{ job.anomalyCount }} anomalies)
+            <button class="job-chip-remove" title="Remove this file" @click="removeJob(job.id)">✕</button>
+          </span>
+        </div>
+
+        <button class="btn-correlate" @click="runCorrelation" :disabled="isCorrelating">
+          🔗 {{ isCorrelating ? 'Correlating Data...' : 'Correlate Cross-Source Data' }}
+        </button>
+      </div>
+      
+      <!-- ── Tab Navigation ──────────────────────────────────── -->
+      <nav class="tab-navigation">
+        <button class="tab-btn" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+          🚀 Overview Dashboard
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'protocols' }" @click="activeTab = 'protocols'">
+          📶 5G Protocol Explorer
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'kpi' }" @click="activeTab = 'kpi'">
+          📈 KPI & Detectors
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'correlation' }" @click="activeTab = 'correlation'">
+          🔗 Cross-Source Correlation
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'rag' }" @click="activeTab = 'rag'">
+          🤖 RAG Root Cause AI
+        </button>
+      </nav>
+
+      <!-- ── File Drag & Drop Zone (Batch Multi-File Enabled) ───── -->
+      <div 
+        class="upload-card" 
+        :class="{ dragging: isDragging }"
+        @dragover.prevent="isDragging = true"
+        @dragleave.prevent="isDragging = false"
+        @drop.prevent="handleDrop"
+        @click="$refs.fileInput.click()"
+      >
+        <input type="file" ref="fileInput" multiple style="display: none" @change="handleFileSelect" accept=".pcap,.pcapng,.xlsx,.xls,.csv,.parquet">
+        <div class="upload-icon">📁</div>
+        <h3>Drop Multiple PCAP, DU/CU Stats, & KPI Files Together Here</h3>
+        <p>Multi-select or drop PCAP traces + KPI files at once. System will process all files and run automatic cross-source correlation!</p>
+        <div class="file-tags">
+          <span class="file-tag">.PCAP / .PCAPNG</span>
+          <span class="file-tag">.XLSX / .CSV</span>
+          <span class="file-tag">.PARQUET</span>
+          <span class="file-tag" style="background: rgba(124, 58, 237, 0.15); border-color: var(--accent-purple); color: var(--accent-purple);">⚡ Multi-File Batch Allowed</span>
+        </div>
+      </div>
+
+      <!-- ── Multi-Step Upload & Processing Progress Bar ──────── -->
+      <div v-if="progressState.active" class="progress-card">
+        <!-- 3-Step Header -->
+        <div class="step-indicator-wrapper">
+          <div class="step-box" :class="{ 'step-active': progressState.step === 1, 'step-completed': progressState.step > 1 }">
+            <div class="step-number">{{ progressState.step > 1 ? '✓' : '1' }}</div>
+            <div class="step-title">Step 1: Uploading File</div>
+          </div>
+
+          <div class="step-box" :class="{ 'step-active': progressState.step === 2, 'step-completed': progressState.step > 2 }">
+            <div class="step-number">{{ progressState.step > 2 ? '✓' : '2' }}</div>
+            <div class="step-title">Step 2: Processing & 18-ML Ensemble</div>
+          </div>
+
+          <div class="step-box" :class="{ 'step-active': progressState.step === 3 }">
+            <div class="step-number">3</div>
+            <div class="step-title">Step 3: Complete</div>
+          </div>
+        </div>
+
+        <!-- Progress Details & MB Tracker -->
+        <div class="progress-details">
+          <div class="progress-info-row">
+            <span>{{ progressState.statusText }}</span>
+            <span class="file-size-badge">
+              {{ progressState.loadedMB }} MB / {{ progressState.totalMB }} MB ({{ progressState.percent }}%)
+            </span>
+          </div>
+
+          <!-- Animated Progress Bar Track -->
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" :style="{ width: progressState.percent + '%' }"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Analysis View Content ────────────────────────────── -->
+      <div v-if="analysisResult && !progressState.active">
+
+        <!-- ── Executive Summary Metric Cards ──────────────────── -->
+        <div class="metrics-grid">
+          <div class="metric-card success">
+            <div class="metric-header">
+              <span class="metric-title">Parsed Telemetry</span>
+              <span class="metric-icon">📊</span>
+            </div>
+            <div class="metric-val">
+              {{ analysisResult.summary?.packets_parsed || analysisResult.summary?.records_parsed || '100+' }}
+            </div>
+            <div class="metric-sub">
+              {{ analysisResult.summary?.procedures_detected ? analysisResult.summary.procedures_detected + ' Procedures' : 'Time-series Records' }}
+            </div>
+          </div>
+
+          <div class="metric-card critical">
+            <div class="metric-header">
+              <span class="metric-title">Critical Anomalies</span>
+              <span class="metric-icon">🔴</span>
+            </div>
+            <div class="metric-val">{{ criticalCount }}</div>
+            <div class="metric-sub">Immediate Network Impact</div>
+          </div>
+
+          <div class="metric-card high">
+            <div class="metric-header">
+              <span class="metric-title">High Anomalies</span>
+              <span class="metric-icon">🟠</span>
+            </div>
+            <div class="metric-val">{{ highCount }}</div>
+            <div class="metric-sub">Sub-optimal Performance</div>
+          </div>
+
+          <div class="metric-card prediction">
+            <div class="metric-header">
+              <span class="metric-title">4h Forecast Anomalies</span>
+              <span class="metric-icon">🔮</span>
+            </div>
+            <div class="metric-val">{{ predictedList.length }}</div>
+            <div class="metric-sub">Prophet / LSTM Forecasts</div>
+          </div>
+        </div>
+
+        <!-- ── TAB 1: OVERVIEW DASHBOARD & CHARTS ──────────────── -->
+        <section v-if="activeTab === 'dashboard'">
+          
+          <!-- ── Visual Charts Presentation Grid ──────────────── -->
+          <div class="charts-grid">
+            <!-- Chart 1: Anomaly Severity Distribution -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <span class="chart-title">🚨 Anomaly Severity Breakdown</span>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="severityChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 2: 5G Protocol Stack Distribution -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <span class="chart-title">📡 5G Protocol Signaling Distribution</span>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="protocolChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 3: Anomaly Type Breakdown -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <span class="chart-title">🔍 Anomaly Type Breakdown</span>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="anomalyTypeChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 4: Time-Series KPI Performance Trend -->
+            <div class="chart-card" style="grid-column: 1 / -1;">
+              <div class="chart-header">
+                <span class="chart-title">📈 Key KPI Performance & Throughput Trends</span>
+              </div>
+              <div class="chart-container-box" style="height: 300px;">
+                <canvas id="kpiTrendChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 5: KPI Explorer — gNB/cell filters + multi-metric charts -->
+            <div class="chart-card" style="grid-column: 1 / -1;" v-if="kpiFilterOptions.metrics.length > 0">
+              <div class="chart-header">
+                <span class="chart-title">🔎 KPI Explorer — Filter & Compare</span>
+              </div>
+
+              <div class="kpi-filter-row">
+                <div class="kpi-filter-group" v-if="kpiFilterOptions.gnbs.length > 0">
+                  <label>gNB <button class="kpi-select-all-btn" @click="selectAllGnbs">select all</button></label>
+                  <select multiple v-model="selectedGnbs" @change="loadKpiSeries" class="kpi-multiselect" :size="Math.min(6, Math.max(3, kpiFilterOptions.gnbs.length))">
+                    <option v-for="g in kpiFilterOptions.gnbs" :key="g" :value="g">{{ g }}</option>
+                  </select>
+                </div>
+
+                <div class="kpi-filter-group">
+                  <label>Cell / PCI <button class="kpi-select-all-btn" @click="selectAllCells">select all</button></label>
+                  <select multiple v-model="selectedCells" @change="loadKpiSeries" class="kpi-multiselect" :size="Math.min(6, Math.max(3, kpiFilterOptions.cells.length))">
+                    <option v-for="c in kpiFilterOptions.cells" :key="c" :value="c">{{ c }}</option>
+                  </select>
+                </div>
+
+                <div class="kpi-filter-group kpi-filter-group-wide">
+                  <label>Metrics ({{ selectedMetrics.length }} of {{ kpiFilterOptions.metrics.length }} selected) <button class="kpi-select-all-btn" @click="selectAllMetrics">select all</button></label>
+                  <select multiple v-model="selectedMetrics" @change="loadKpiSeries" class="kpi-multiselect" size="6">
+                    <option v-for="m in kpiFilterOptions.metrics" :key="m" :value="m">{{ m }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div v-if="kpiSeriesLoading" style="text-align: center; padding: 1rem; color: var(--text-muted);">Loading charts…</div>
+
+              <div class="kpi-explorer-grid">
+                <div v-for="(metric, idx) in selectedMetrics" :key="metric" class="kpi-mini-chart-card">
+                  <span class="kpi-mini-chart-title">{{ metric }}</span>
+                  <div class="chart-container-box" style="height: 220px;">
+                    <canvas :id="'kpiChart_' + idx"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Export Report ─────────────────────────────────── -->
+          <div class="export-bar" v-if="analysisResult?.job_id">
+            <span class="export-bar-label">📥 Export Report:</span>
+            <button class="btn-export" @click="exportReport('docx')">📝 Word (.docx)</button>
+            <button class="btn-export" @click="exportReport('xlsx')">📊 Excel (.xlsx)</button>
+            <button class="btn-export" @click="exportReport('pdf')">📑 PDF</button>
+            <button class="btn-export" @click="exportReport('csv')">📄 CSV</button>
+            <button class="btn-export" @click="exportReport('html')">🌐 HTML</button>
+          </div>
+
+          <!-- ── Anomaly Table ─────────────────────────────────── -->
+          <div class="table-container">
+            <div class="table-header">
+              <h2>Detected Network Anomalies</h2>
+              <input type="text" class="search-input" placeholder="🔍 Search anomalies..." v-model="searchQuery">
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Anomaly Type</th>
+                  <th>Layer</th>
+                  <th>Detection Method</th>
+                  <th>Evidence Rationale</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="anom in filteredAnomalies" :key="anom.id">
+                  <td>
+                    <span :class="['badge', 'badge-' + (anom.severity || 'low').toLowerCase()]">
+                      {{ anom.severity }}
+                    </span>
+                  </td>
+                  <td style="font-weight: 600;">{{ anom.type }}</td>
+                  <td><span class="badge badge-spec">{{ anom.layer || '3GPP' }}</span></td>
+                  <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent-cyan);">
+                    {{ anom.detector || '18-Ensemble' }}
+                  </td>
+                  <td style="color: var(--text-muted); max-width: 320px;">{{ anom.evidence }}</td>
+                  <td>
+                    <button class="btn-sample" style="padding: 4px 10px; font-size: 0.78rem;" @click="selectedAnomaly = anom; activeTab = 'rag'">
+                      Explain AI 🤖
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ── TAB 2: 5G PROTOCOL EXPLORER ─────────────────────── -->
+        <section v-if="activeTab === 'protocols'">
+          <div class="table-container">
+            <div class="table-header">
+              <h2>5G Protocol Signaling Stack</h2>
+              <div style="display: flex; gap: 8px;">
+                <button 
+                  v-for="prot in ['ALL', 'NAS', 'NGAP', 'RRC', 'F1AP', 'E1AP', 'XnAP']"
+                  :key="prot"
+                  class="btn-sample"
+                  :style="{ background: protocolFilter === prot ? 'var(--accent-cyan)' : 'transparent', color: protocolFilter === prot ? '#fff' : 'var(--accent-cyan)' }"
+                  @click="protocolFilter = prot"
+                >
+                  {{ prot }}
+                </button>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Layer</th>
+                  <th>UE / Cell ID</th>
+                  <th>Procedure Name</th>
+                  <th>Status</th>
+                  <th>Cause Code</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(proc, idx) in filteredProcedures" :key="proc.name + '-' + proc.timestamp + '-' + idx">
+                  <td style="font-family: var(--font-mono); white-space: nowrap;">{{ formatFullTimestamp(proc.timestamp) }}</td>
+                  <td><span class="badge badge-spec">{{ proc.layer }}</span></td>
+                  <td style="font-weight: 500;">{{ proc.ue_id || '—' }}</td>
+                  <td style="font-weight: 600;">{{ proc.name }}</td>
+                  <td>
+                    <span :class="['badge', proc.status === 'Success' ? 'badge-clean' : proc.status === 'Requested' ? 'badge-spec' : 'badge-critical']">
+                      {{ proc.status }}
+                    </span>
+                  </td>
+                  <td style="color: var(--accent-amber); font-family: var(--font-mono); font-size: 0.82rem;">
+                    {{ proc.cause || '—' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ── TAB 3: KPI & FORECASTING ────────────────────────── -->
+        <section v-if="activeTab === 'kpi'">
+          <div class="table-container">
+            <div class="table-header">
+              <h2>🔮 4-Hour Predictive Network Forecasts</h2>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Lead Time</th>
+                  <th>Predicted Anomaly</th>
+                  <th>Cell / Entity</th>
+                  <th>Predicted Time</th>
+                  <th>Model</th>
+                  <th>Predicted Severity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(pred, idx) in predictedList" :key="pred.cell_id + '-' + pred.label + '-' + idx">
+                  <td><span class="badge badge-high">+{{ pred.lead_time_h || 4 }} Hours</span></td>
+                  <td style="font-weight: 600; color: var(--accent-amber);">{{ pred.label || pred.category }}</td>
+                  <td><code>{{ pred.cell_id }}</code></td>
+                  <td>{{ predictedClockTime(pred.lead_time_h) }}</td>
+                  <td><span class="badge badge-spec">{{ (pred.detector || 'Prediction').replace('Prediction (', '').replace(')', '') }}</span></td>
+                  <td>
+                    <span :class="['badge', pred.severity === 'Critical' ? 'badge-critical' : pred.severity === 'High' ? 'badge-high' : 'badge-spec']">
+                      {{ pred.severity || '—' }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="predictedList.length === 0">
+                  <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                    No future anomaly spikes forecasted for the next 4 hours.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ── TAB 4: CROSS-SOURCE CORRELATION ─────────────────── -->
+        <section v-if="activeTab === 'correlation'">
+          <div v-if="correlationData" class="correlation-card">
+            <div class="correlation-header">
+              <div>
+                <h2 style="color: var(--accent-purple); font-size: 1.3rem;">🔗 Cross-Source Correlated Events</h2>
+                <p style="color: var(--text-muted); font-size: 0.88rem;">Matching signaling failures and KPI degradation on same cell ID & 300s window</p>
+              </div>
+              <span class="badge-correlated">
+                Confirmed across {{ sessionJobs.length }} Data Source(s)
+              </span>
+            </div>
+
+            <!-- Correlated Root Causes List -->
+            <div v-for="(rc, idx) in correlationData.root_causes" :key="idx" style="margin-bottom: 1.5rem; padding: 1.25rem; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <strong style="color: var(--accent-cyan); font-size: 1.05rem;">Group #{{ idx + 1 }}: Cell {{ rc.cell_id || '—' }}</strong>
+                <span class="badge badge-high">{{ Math.round((rc.confidence || 0) * 100) }}% Confidence</span>
+              </div>
+              <p style="color: var(--text-main); font-size: 0.92rem; margin-bottom: 0.75rem;">
+                {{ rc.root_cause }}
+              </p>
+              <p v-if="rc.recommended_action" style="color: var(--text-main); font-size: 0.88rem; margin-bottom: 0.75rem;">
+                <strong>Recommended action:</strong> {{ rc.recommended_action }}
+              </p>
+              <div style="font-size: 0.82rem; color: var(--text-dim); font-family: var(--font-mono);">
+                <span v-if="rc.causal_chain?.length">Causal chain: {{ rc.causal_chain.length }} contributing anomal{{ rc.causal_chain.length === 1 ? 'y' : 'ies' }}</span>
+                <span v-if="rc.citations?.length"> · Spec refs: {{ [...new Set(rc.citations.map(c => c.spec))].join(', ') }}</span>
+              </div>
+            </div>
+
+            <!-- Fallback / Empty Correlation state -->
+            <div v-if="!correlationData.root_causes || correlationData.root_causes.length === 0" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              Click <strong>"🔗 Correlate Cross-Source Data"</strong> in the top bar to run multi-job cross-source correlation analysis.
+            </div>
+          </div>
+          <div v-else style="text-align: center; padding: 3rem; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-glass);">
+            <h3>No Correlation Data Run Yet</h3>
+            <p style="color: var(--text-muted); margin-top: 0.5rem;">Upload both a PCAP and a KPI file, then click "🔗 Correlate Cross-Source Data" in the top active jobs bar.</p>
+          </div>
+        </section>
+
+        <!-- ── TAB 5: RAG ROOT CAUSE AI ASSISTANT ──────────────── -->
+        <section v-if="activeTab === 'rag'">
+          <div v-if="selectedAnomaly" class="rag-card">
+            <div class="rag-header">
+              <span style="font-size: 2rem;">🧠</span>
+              <div>
+                <h3>3GPP Spec-Grounded Root Cause Explanation</h3>
+                <span class="badge badge-spec">3GPP TS 24.501 / TS 38.413 Grounded</span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1rem; padding: 12px; background: rgba(2, 132, 199, 0.08); border-radius: 8px;">
+              <strong>Selected Issue:</strong> {{ selectedAnomaly.type }} (Severity: <span :class="'sev-' + selectedAnomaly.severity?.toLowerCase()">{{ selectedAnomaly.severity }}</span>)
+              <br>
+              <small style="color: var(--text-muted);">Detector Rationale: {{ selectedAnomaly.evidence }}</small>
+            </div>
+
+            <div class="rag-body">
+              {{ selectedAnomaly.rag_explanation || selectedAnomaly.recommendation || 'Analyzing root cause using 3GPP spec knowledge base...' }}
+            </div>
+
+            <div class="rag-actions">
+              <button class="btn-feedback" @click="sendFeedback('correct')">
+                👍 Confirm Anomaly (Train Retrainer)
+              </button>
+              <button class="btn-feedback" @click="sendFeedback('false_positive')">
+                👎 Report False Positive
+              </button>
+              <span v-if="feedbackStatus" style="color: var(--accent-emerald); font-size: 0.85rem; align-self: center;">
+                {{ feedbackStatus }}
+              </span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────────────── -->
+    <footer class="footer">
+      Unified Telecom Analyzer v1.0.0 — Multi-Modal 5G Anomaly Detection Framework
+    </footer>
+  </div>
+
+  <!-- Vue 3 & App Scripts -->
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

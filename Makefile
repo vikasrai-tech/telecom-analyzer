@@ -1,7 +1,8 @@
-.PHONY: help dev demo api test test-all retrain lint format clean
+.PHONY: help dev demo api web test test-all retrain lint format clean
 
 help:
 	@echo "Available targets:"
+	@echo "  make web       - Run modern Vue 3 Web UI + FastAPI REST server (port 8000)"
 	@echo "  make demo      - Run SIMPLE dashboard (easy view for demo)"
 	@echo "  make dev       - Run full technical dashboard"
 	@echo "  make api       - Run FastAPI REST server (port 8000)"
@@ -44,3 +45,22 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+
+# ── Research evaluation targets ───────────────────────────────────────
+evaluate:
+	python scripts/run_detection_benchmark.py
+
+benchmark-forecast:
+	python scripts/run_forecast_benchmark.py
+
+benchmark-rca:
+	python scripts/run_rca_evaluation.py
+
+benchmark-scale:
+	python scripts/run_scalability_benchmark.py
+
+benchmark-all:
+	python scripts/run_detection_benchmark.py && \
+	python scripts/run_forecast_benchmark.py && \
+	python scripts/run_rca_evaluation.py && \
+	python scripts/run_scalability_benchmark.py

@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.orchestrator.event_router import EventRouter
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,9 +24,15 @@ def run_pcap_pipeline(
     file_path: str,
     explain_top_n: int = 4,
     skip_llm: bool = False,
+    router: Optional[EventRouter] = None,
 ) -> Dict[str, Any]:
     """
     Parse PCAP → detect anomalies → LLM explain top anomalies.
+
+    `router`: pass a shared EventRouter to accumulate events across
+    multiple pipeline calls in one session (needed for cross-source
+    correlation — each call otherwise gets its own router). Defaults to a
+    fresh router, preserving old single-call behaviour.
 
     Returns
     -------
@@ -59,8 +67,7 @@ def run_pcap_pipeline(
             exp = explain_anomaly(a)
             explanations.append({"anomaly": a, "explanation": exp})
 
-    from src.orchestrator.event_router import EventRouter
-    router = EventRouter()
+    router = router or EventRouter()
     router.ingest(anomalies, source="pcap")
 
     duration = round(time.perf_counter() - t0, 2)
@@ -83,9 +90,20 @@ def run_kpi_pipeline(
     file_path: str,
     explain_top_n: int = 4,
     skip_llm: bool = False,
+    router: Optional[EventRouter] = None,
+    run_prediction: bool = False,
+    prediction_methods: Optional[List[str]] = None,
+    prediction_horizon_h: int = 4,
 ) -> Dict[str, Any]:
     """
     Parse KPI file → detect anomalies → LLM explain top anomalies.
+
+    `router`: pass a shared EventRouter to accumulate events across
+    multiple pipeline calls in one session (needed for cross-source
+    correlation). Defaults to a fresh router.
+    `run_prediction`: also run the Phase II forecasting layer
+    (src.detection.predictor.run_prediction) and route predicted
+    anomalies into the router with state="predicted".
 
     Returns
     -------
@@ -95,6 +113,7 @@ def run_kpi_pipeline(
       "by_detector":   {detector_name: [anomaly, ...]},
       "summary_table": list from kpi_summary_table(),
       "explanations":  [{anomaly, explanation}, ...],
+      "predictions":   {method: [predicted_anomaly, ...]} if run_prediction else {},
       "duration_s":    float,
     }
     """
@@ -141,9 +160,19 @@ def run_kpi_pipeline(
             exp = explain_anomaly(adapted)
             explanations.append({"anomaly": a, "explanation": exp})
 
-    from src.orchestrator.event_router import EventRouter
-    router = EventRouter()
+    router = router or EventRouter()
     router.ingest(anomalies, source="kpi")
+
+    predictions: Dict[str, List[Dict[str, Any]]] = {}
+    if run_prediction:
+        from src.detection.predictor import run_prediction as _run_prediction
+        logger.info("[pipeline] Running prediction layer...")
+        predictions = _run_prediction(
+            parsed, horizon_h=prediction_horizon_h, methods=prediction_methods,
+        )
+        all_predicted = [a for anoms in predictions.values() for a in anoms]
+        if all_predicted:
+            router.ingest_predicted(all_predicted, source="kpi", lead_time_h=prediction_horizon_h)
 
     duration = round(time.perf_counter() - t0, 2)
     logger.info(f"[pipeline] KPI pipeline done in {duration}s — {len(anomalies)} anomalies")
@@ -156,6 +185,7 @@ def run_kpi_pipeline(
         "by_detector":   by_detector,
         "summary_table": summary,
         "explanations":  explanations,
+        "predictions":   predictions,
         "events":        router.get_events(),
         "event_summary": router.summary(),
         "duration_s":    duration,
@@ -166,9 +196,19 @@ def run_stats_pipeline(
     file_path: str,
     explain_top_n: int = 4,
     skip_llm: bool = False,
+    router: Optional[EventRouter] = None,
+    run_prediction: bool = False,
+    prediction_methods: Optional[List[str]] = None,
+    prediction_horizon_h: int = 4,
 ) -> Dict[str, Any]:
     """
     Parse DU/CU stats file → detect L1/L2 anomalies → LLM explain top anomalies.
+
+    `router`: pass a shared EventRouter to accumulate events across
+    multiple pipeline calls in one session (needed for cross-source
+    correlation). Defaults to a fresh router.
+    `run_prediction`: also run the Phase II forecasting layer and route
+    predicted anomalies into the router with state="predicted".
 
     Returns
     -------
@@ -177,6 +217,7 @@ def run_stats_pipeline(
       "anomalies":    merged list from all 6 stats detectors,
       "by_detector":  {detector_name: [anomaly, ...]},
       "explanations": [{anomaly, explanation}, ...],
+      "predictions":  {method: [predicted_anomaly, ...]} if run_prediction else {},
       "duration_s":   float,
     }
     """
@@ -214,9 +255,19 @@ def run_stats_pipeline(
             exp = explain_anomaly(adapted)
             explanations.append({"anomaly": a, "explanation": exp})
 
-    from src.orchestrator.event_router import EventRouter
-    router = EventRouter()
+    router = router or EventRouter()
     router.ingest(anomalies, source="stats")
+
+    predictions: Dict[str, List[Dict[str, Any]]] = {}
+    if run_prediction:
+        from src.detection.predictor import run_prediction as _run_prediction
+        logger.info("[pipeline] Running prediction layer...")
+        predictions = _run_prediction(
+            parsed, horizon_h=prediction_horizon_h, methods=prediction_methods,
+        )
+        all_predicted = [a for anoms in predictions.values() for a in anoms]
+        if all_predicted:
+            router.ingest_predicted(all_predicted, source="stats", lead_time_h=prediction_horizon_h)
 
     duration = round(time.perf_counter() - t0, 2)
     logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies")
@@ -228,6 +279,7 @@ def run_stats_pipeline(
         "anomalies":    anomalies,
         "by_detector":  by_detector,
         "explanations": explanations,
+        "predictions":  predictions,
         "events":       router.get_events(),
         "event_summary":router.summary(),
         "duration_s":   duration,

@@ -32,10 +32,12 @@ from src.detection.kpi_detector import (
 from src.detection.stats_detector import (
     detect_stats_anomalies, detect_stats_anomalies_by_detector
 )
-from src.orchestrator.event_router import EventRouter
+from src.orchestrator.event_router import EventRouter, _correlation_key
 from src.detection.predictor import run_prediction
 from src.feedback.store import save_feedback, load_feedback, feedback_stats
 from src.llm.explainer import explain_anomaly, ollama_status
+from src.agent.react_agent import run_root_cause_agent
+from src.agent.tools import get_predictions_for_cell
 
 st.set_page_config(
     page_title="Unified Telecom Analyzer",
@@ -679,20 +681,23 @@ def render_feedback_button(event_id: str, source: str, anomaly_type: str,
             st.info("Marked uncertain.")
 
 
-def render_prediction_panel(parsed: Dict, source: str) -> None:
-    """Run prediction layer and show predicted anomalies."""
+def render_prediction_panel(parsed: Dict, source: str, router: "EventRouter") -> None:
+    """Run prediction layer and show predicted anomalies. Predicted events
+    are routed into the shared session router (not a throwaway one) so
+    they're visible to the Root Cause Agent tab across the session."""
     st.divider()
     st.subheader("🔮 Prediction Layer — Forecast Ahead (Phase II)")
-    st.caption("LSTM + Prophet: predicts anomalies up to 4h in advance · tagged state=predicted")
+    st.caption("Prophet + Holt-Winters + LSTM: predicts anomalies up to 4h in advance · tagged state=predicted")
 
-    with st.expander("📖 Why LSTM + Prophet? (reviewer rationale)", expanded=False):
+    with st.expander("📖 Why Prophet + Holt-Winters + LSTM? (reviewer rationale)", expanded=False):
         st.markdown("""
 | Method | Type | Why |
 |--------|------|-----|
 | **Prophet** | Bayesian structural time-series | Handles seasonality, trends, and missing data. Produces confidence intervals. Best for KPIs with daily/weekly patterns (PRB load, throughput). |
+| **Holt-Winters** | Exponential smoothing | Hand-configured (damped trend, optional seasonality) baseline — cheap, interpretable, good sanity check against Prophet. |
 | **LSTM** | Deep learning / sequence | Captures nonlinear dependencies between metrics. Better than Prophet when there's no clear seasonality — L1/L2 counters like HARQ NACK rate or BLER show abrupt non-seasonal shifts. |
 
-**Complementary:** Prophet catches slow degradation early; LSTM catches sudden pattern breaks.
+**Complementary:** Prophet/Holt-Winters catch slow degradation early; LSTM catches sudden pattern breaks.
 **Lead time:** Default 4h — gives NOC engineers time to act before threshold breach.
         """)
 
@@ -715,13 +720,13 @@ def render_prediction_panel(parsed: Dict, source: str) -> None:
         st.success(f"✅ No predicted anomalies in the next {horizon_h}h.")
         return
 
-    p1, p2, p3 = st.columns(3)
+    p1, p2, p3, p4 = st.columns(4)
     p1.metric("Predicted anomalies", len(all_predicted))
-    p2.metric("🔮 Prophet", len(pred_by_method.get("prophet", [])))
-    p3.metric("🧠 LSTM",    len(pred_by_method.get("lstm", [])))
+    p2.metric("🔮 Prophet",       len(pred_by_method.get("prophet", [])))
+    p3.metric("📈 Holt-Winters",  len(pred_by_method.get("holt_winters", [])))
+    p4.metric("🧠 LSTM",          len(pred_by_method.get("lstm", [])))
 
     SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
-    router = EventRouter()
     for method, anoms in pred_by_method.items():
         router.ingest_predicted(anoms, source=source, lead_time_h=horizon_h)
 
@@ -738,6 +743,214 @@ def render_prediction_panel(parsed: Dict, source: str) -> None:
             st.success(a["recommendation"])
             st.markdown(f"**State:** `predicted`  |  **Lead time:** `{horizon_h}h`  |  "
                         f"**Method:** `{a['method']}`")
+
+
+def render_root_cause_panel(router: "EventRouter") -> None:
+    """Root Cause Agent (Phase II) — reasons over cross-source correlated
+    events (accumulated in the shared session router across uploads) to
+    explain WHY an anomaly happened, not just what it is. Works with or
+    without Ollama running (rule-based fallback is always available)."""
+    st.header("🕵️ Root Cause Agent (Phase II)")
+    st.caption(
+        "Reasons over cross-source correlated anomalies (+ predictions) to explain "
+        "causal chains. Upload PCAP, KPI, and/or Stats files in the sidebar — all "
+        "three uploaders are always there, upload as many as you like — correlation "
+        "needs at least 2 sources flagging the same cell."
+    )
+
+    summary = router.summary()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total events", summary["total"])
+    c2.metric("Correlated",   summary["correlated"])
+    c3.metric("Predicted",    summary["predicted"])
+    c4.metric("Sources seen", sum(1 for v in summary["by_source"].values() if v > 0))
+
+    correlated = router.get_correlated(min_sources=2)
+    if not correlated:
+        st.info(
+            "No cross-source correlated events yet. Upload at least two different "
+            "file types flagging the same cell in this session (e.g. KPI + Stats, "
+            "or PCAP + KPI), then come back here."
+        )
+        return
+
+    groups: Dict[str, list] = {}
+    for ev in correlated:
+        groups.setdefault(_correlation_key(ev), []).append(ev)
+
+    ROLE_ICON = {"trigger": "🎯", "symptom": "🔻", "contributing_factor": "🔗"}
+
+    for key, group in groups.items():
+        cell_id = group[0]["cell_id"]
+        sources = sorted({e["source"] for e in group})
+        with st.expander(
+            f"📍 Cell {cell_id} — {len(group)} correlated events across {', '.join(sources)}",
+            expanded=True,
+        ):
+            if st.button("🔎 Investigate root cause", key=f"rca_btn_{key}"):
+                preds = get_predictions_for_cell(cell_id, router) if cell_id != "—" else []
+                with st.spinner("Running root-cause agent..."):
+                    st.session_state[f"rca_result_{key}"] = run_root_cause_agent(
+                        group, router, predictions=preds,
+                    )
+
+            result = st.session_state.get(f"rca_result_{key}")
+            if result:
+                st.success(f"**Source:** {result['source']}  |  **Confidence:** {result['confidence']:.0%}")
+                st.markdown(f"**Root cause:** {result['root_cause']}")
+                st.markdown("**Causal chain:**")
+                for hop in result["causal_chain"]:
+                    icon = ROLE_ICON.get(hop["role"], "•")
+                    st.markdown(f"{icon} **{hop['role'].replace('_', ' ').title()}** — {hop['explanation']}")
+                if result["citations"]:
+                    st.markdown("**3GPP citations:**")
+                    for c in result["citations"]:
+                        st.caption(f"[{c['spec']} §{c['section']}] {c['quote']}")
+                st.info(f"**Recommended action:** {result['recommended_action']}")
+
+
+def render_simple_mode(router: "EventRouter") -> None:
+    """Simple Mode — one uploader, auto-detects file type by extension
+    (.pcap/.pcapng -> PCAP, .xlsx/.xls -> KPI, .csv/.parquet -> tries Stats'
+    strict format auto-detection first, falls back to KPI), and shows one
+    consolidated results screen. No manual View-switching, no per-detector
+    jargon. Reuses the exact same parse/detect/ingest functions as Detailed
+    mode and writes into the same shared_router, so switching to Detailed
+    mode mid-session sees everything Simple mode already ingested."""
+    st.caption(
+        "🎯 **Simple mode** — drop your files below, get one summary. "
+        "Switch to 🔧 Detailed mode in the sidebar for full per-protocol "
+        "drill-down and reviewer rationale."
+    )
+
+    files = st.file_uploader(
+        "Upload PCAP / KPI / Stats files — any mix, any number",
+        type=["pcap", "pcapng", "csv", "xlsx", "xls", "parquet"],
+        accept_multiple_files=True,
+        key="simple_upload",
+    )
+
+    if "_simple_processed" not in st.session_state:
+        st.session_state["_simple_processed"] = {}
+    processed = st.session_state["_simple_processed"]
+
+    for f in files or []:
+        fp = f"{f.name}:{f.size}"
+        if fp in processed:
+            continue
+        suffix = f.name.split(".")[-1].lower()
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=f".{suffix}", delete=False) as tmp:
+                tmp.write(f.getvalue())
+                tmp_path = tmp.name
+
+            if suffix in ("pcap", "pcapng"):
+                kind, source = "PCAP", "pcap"
+                parsed = parse_pcap_real(tmp_path)
+                anomalies = merge_detector_results(detect_anomalies_by_detector(parsed))
+            elif suffix in ("xlsx", "xls"):
+                kind, source = "KPI", "kpi"
+                parsed = parse_kpi_file(tmp_path)
+                anomalies = detect_kpi_anomalies(parsed)
+            else:  # csv / parquet — ambiguous. parse_stats_file never
+                # raises (it falls back to a "generic" format for anything
+                # it doesn't recognize), so a plain try/except can't tell a
+                # real Stats file from a KPI file — it would silently
+                # misdetect every KPI CSV as an empty-result Stats file.
+                # Sniff the header against Stats' own srsRAN/OAI/NIST column
+                # fingerprints first; only trust "generic" if a KPI parse of
+                # the same header doesn't find any known KPI columns either.
+                from src.parsers.stats_parser import _detect_format as _stats_detect_format
+                if suffix == "parquet":
+                    _header_cols = pd.read_parquet(tmp_path).columns.tolist()
+                else:
+                    _header_cols = pd.read_csv(tmp_path, nrows=0).columns.tolist()
+
+                if _stats_detect_format(_header_cols) != "generic":
+                    kind, source = "DU/CU Stats", "stats"
+                    parsed = parse_stats_file(tmp_path)
+                    anomalies = detect_stats_anomalies(parsed)
+                else:
+                    parsed_kpi_probe = parse_kpi_file(tmp_path)
+                    if parsed_kpi_probe["kpi_columns"]:
+                        kind, source = "KPI", "kpi"
+                        parsed = parsed_kpi_probe
+                        anomalies = detect_kpi_anomalies(parsed)
+                    else:
+                        kind, source = "DU/CU Stats", "stats"
+                        parsed = parse_stats_file(tmp_path)
+                        anomalies = detect_stats_anomalies(parsed)
+
+            router.ingest(anomalies, source=source)
+            processed[fp] = {"name": f.name, "kind": kind, "count": len(anomalies), "ok": True}
+        except Exception as e:
+            processed[fp] = {"name": f.name, "kind": "?", "count": 0, "ok": False, "error": str(e)}
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    if processed:
+        for rec in processed.values():
+            if rec["ok"]:
+                st.success(f"✅ `{rec['name']}` — detected as **{rec['kind']}**, {rec['count']} anomalies found")
+            else:
+                st.error(f"❌ `{rec['name']}` — couldn't parse: {rec['error']}")
+
+    summary = router.summary()
+    if summary["total"] == 0:
+        st.info("👈 Upload at least one file to get started.")
+        return
+
+    st.divider()
+    st.subheader("📊 Summary")
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total events", summary["total"])
+    m2.metric("🚨 Critical",  summary["by_severity"]["Critical"])
+    m3.metric("🔴 High",      summary["by_severity"]["High"])
+    m4.metric("Correlated",   summary["correlated"])
+    m5.metric("Sources",      sum(1 for v in summary["by_source"].values() if v > 0))
+
+    sev_df = pd.DataFrame({
+        "Count": [summary["by_severity"][s] for s in ("Critical", "High", "Medium", "Low")],
+    }, index=["Critical", "High", "Medium", "Low"])
+    st.bar_chart(sev_df, height=200)
+
+    st.divider()
+    st.subheader("⚠️ Top Issues")
+    SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
+    top_events = router.get_events(min_severity="Medium")[:10]
+    if not top_events:
+        st.success("No Medium+ severity issues found.")
+    for ev in top_events:
+        icon = SEV_ICON.get(ev["severity"], "⚪")
+        cell = f" · cell {ev['cell_id']}" if ev["cell_id"] != "—" else ""
+        with st.expander(f"{icon} [{ev['severity']}] {ev['category']}{cell} — source: {ev['source'].upper()}"):
+            st.markdown(f"**Evidence:** {ev['evidence']}")
+            rec = (ev.get("raw_anomaly") or {}).get("recommendation")
+            if rec:
+                st.markdown(f"**Recommendation:** {rec}")
+
+    correlated = router.get_correlated(min_sources=2)
+    if correlated:
+        st.divider()
+        st.subheader("🕵️ Root Cause")
+        st.caption("Cross-source correlated anomalies, auto-analyzed below.")
+        _rc_fp = len(correlated)
+        if st.session_state.get("_simple_rc_fp") != _rc_fp:
+            from src.agent.react_agent import analyze_root_cause
+            with st.spinner("Running root-cause agent..."):
+                st.session_state["_simple_rc_result"] = analyze_root_cause(router)
+            st.session_state["_simple_rc_fp"] = _rc_fp
+        for rc in st.session_state.get("_simple_rc_result", []):
+            with st.expander(f"📍 Cell {rc['cell_id']} — {rc['root_cause'][:90]}", expanded=True):
+                st.markdown(f"**Root cause:** {rc['root_cause']}")
+                st.info(f"**Recommended action:** {rc['recommended_action']}")
+    else:
+        st.caption(
+            "💡 Upload a second file type flagging the same cell to unlock "
+            "root-cause analysis (e.g. KPI + Stats)."
+        )
 
 
 def render_feedback_history() -> None:
@@ -848,18 +1061,67 @@ st.caption(
 import uuid as _uuid
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = str(_uuid.uuid4())[:8]
+if "shared_router" not in st.session_state:
+    # One router persisted across Streamlit reruns for the whole browser
+    # session — previously each tab built its own router, so cross-source
+    # correlation (e.g. a PCAP handover failure + a KPI handover-rate dip
+    # on the same cell) never actually surfaced anywhere in the dashboard.
+    st.session_state["shared_router"] = EventRouter()
+shared_router: EventRouter = st.session_state["shared_router"]
+
+# ── Mode toggle ───────────────────────────────────────────────────────
+with st.sidebar:
+    ui_mode = st.radio(
+        "Mode",
+        ["🎯 Simple", "🔧 Detailed (Reviewer)"],
+        index=0,
+        key="ui_mode",
+        help="Simple: one uploader, one summary screen. Detailed: full "
+             "per-protocol drill-down, detector rationale, method comparisons.",
+    )
+    st.divider()
+
+if ui_mode == "🎯 Simple":
+    render_simple_mode(shared_router)
+    st.stop()
 
 # ── Sidebar ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Upload Data")
-    data_type = st.radio("Data type", ["PCAP", "DU/CU Stats", "KPI Time-series"])
+    st.caption(
+        "Upload any or all — no need to switch anything between files. "
+        "Correlation & the Root Cause Agent need 2+ sources flagging the same cell."
+    )
+    pcap_uploaded  = st.file_uploader("📡 PCAP file",       type=["pcap", "pcapng"],
+                                       key="up_pcap")
+    kpi_uploaded   = st.file_uploader("📊 KPI file",         type=["csv", "xlsx", "xls", "parquet"],
+                                       key="up_kpi")
+    stats_uploaded = st.file_uploader("📶 DU/CU Stats file", type=["csv", "parquet"],
+                                       key="up_stats")
+    st.divider()
+
+    _uploads_by_type = {
+        "PCAP":            pcap_uploaded,
+        "DU/CU Stats":     stats_uploaded,
+        "KPI Time-series": kpi_uploaded,
+    }
+    _view_options = ["PCAP", "DU/CU Stats", "KPI Time-series", "Root Cause Agent (Phase II)"]
+    _n_sources = sum(f is not None for f in _uploads_by_type.values())
+    _default_view = (
+        "Root Cause Agent (Phase II)" if _n_sources >= 2 else
+        next((t for t, f in _uploads_by_type.items() if f is not None), "PCAP")
+    )
+    data_type = st.radio(
+        "View",
+        _view_options,
+        index=_view_options.index(_default_view),
+    )
     ext_map = {
         "PCAP":             ["pcap", "pcapng"],
         "DU/CU Stats":      ["csv", "parquet"],
         "KPI Time-series":  ["csv", "xlsx", "xls", "parquet"],
     }
-    uploaded = st.file_uploader(f"Upload {data_type} file",
-                               type=ext_map.get(data_type, ["pcap"]))
+    uploaded = _uploads_by_type.get(data_type)
     st.divider()
 
     st.subheader("Parser Status")
@@ -916,6 +1178,49 @@ with st.sidebar:
     st.divider()
     with st.expander("📋 Feedback History", expanded=False):
         render_feedback_history()
+
+# ── Background ingest: whichever source isn't the active View still gets
+#    parsed + detected + ingested into shared_router here, so uploading
+#    e.g. PCAP + KPI + Stats all at once populates cross-source correlation
+#    immediately, without needing to click through each View. The active
+#    View's own file is parsed+ingested by its section below as usual —
+#    skipped here to avoid ingesting it twice. Guarded by a name+size
+#    fingerprint so a plain widget rerun (e.g. clicking a chart) doesn't
+#    re-ingest and duplicate events on every interaction.
+_BG_DETECTORS = {
+    "PCAP":            ("pcap",  parse_pcap_real,  lambda p: merge_detector_results(detect_anomalies_by_detector(p))),
+    "KPI Time-series": ("kpi",   parse_kpi_file,   detect_kpi_anomalies),
+    "DU/CU Stats":     ("stats", parse_stats_file, detect_stats_anomalies),
+}
+for _bg_type, _bg_file in _uploads_by_type.items():
+    if _bg_type == data_type or _bg_file is None:
+        continue
+    _bg_fp = f"{_bg_file.name}:{_bg_file.size}"
+    if st.session_state.get(f"_bg_fp_{_bg_type}") == _bg_fp:
+        continue
+    _bg_source, _bg_parse_fn, _bg_detect_fn = _BG_DETECTORS[_bg_type]
+    _bg_tmp_path = None
+    try:
+        _bg_suffix = _bg_file.name.split(".")[-1].lower()
+        with tempfile.NamedTemporaryFile(suffix=f".{_bg_suffix}", delete=False) as _bg_tmp:
+            _bg_tmp.write(_bg_file.getvalue())
+            _bg_tmp_path = _bg_tmp.name
+        _bg_parsed    = _bg_parse_fn(_bg_tmp_path)
+        _bg_anomalies = _bg_detect_fn(_bg_parsed)
+        shared_router.ingest(_bg_anomalies, source=_bg_source)
+        st.session_state[f"_bg_fp_{_bg_type}"] = _bg_fp
+    except Exception as _bg_e:
+        st.sidebar.caption(f"⚠️ Background parse of {_bg_type} file failed: {_bg_e}")
+    finally:
+        if _bg_tmp_path and os.path.exists(_bg_tmp_path):
+            os.unlink(_bg_tmp_path)
+
+# ── Root Cause Agent mode (no file upload needed — reads the session's
+#    shared router, populated by whatever PCAP/KPI/Stats files were
+#    uploaded, in this same browser session, in any View) ────────────────
+if data_type == "Root Cause Agent (Phase II)":
+    render_root_cause_panel(shared_router)
+    st.stop()
 
 # ── No file yet ───────────────────────────────────────────────────────
 if uploaded is None:
@@ -1316,13 +1621,13 @@ if is_kpi and parsed_kpi:
         figures=_kpi_figures, anomaly_cards=_kpi_anomaly_cards,
     )
 
-    # ── Prediction Layer ──────────────────────────────────────────────
-    render_prediction_panel(_kpi_data, source="kpi")
-
     # ── Event Router ─────────────────────────────────────────────────
-    kpi_router = EventRouter()
-    kpi_router.ingest(kpi_anomalies, source="kpi")
-    render_event_log(kpi_router)
+    shared_router.ingest(kpi_anomalies, source="kpi")
+
+    # ── Prediction Layer ──────────────────────────────────────────────
+    render_prediction_panel(_kpi_data, source="kpi", router=shared_router)
+
+    render_event_log(shared_router)
 
     st.stop()  # KPI path ends here
 
@@ -1627,13 +1932,13 @@ if is_stats and parsed_stats:
         figures=_stats_figures, anomaly_cards=_stats_anomaly_cards,
     )
 
-    # ── Prediction Layer ──────────────────────────────────────────────
-    render_prediction_panel(parsed_stats, source="stats")
-
     # ── Event Router ─────────────────────────────────────────────────
-    stats_router = EventRouter()
-    stats_router.ingest(stats_anomalies, source="stats")
-    render_event_log(stats_router)
+    shared_router.ingest(stats_anomalies, source="stats")
+
+    # ── Prediction Layer ──────────────────────────────────────────────
+    render_prediction_panel(parsed_stats, source="stats", router=shared_router)
+
+    render_event_log(shared_router)
 
     st.stop()  # Stats path ends here
 
@@ -2002,6 +2307,5 @@ else:
 
 # ── Event Router — PCAP path ──────────────────────────────────────────
 if parsed is not None and anomalies:
-    pcap_router = EventRouter()
-    pcap_router.ingest(anomalies, source="pcap")
-    render_event_log(pcap_router)
+    shared_router.ingest(anomalies, source="pcap")
+    render_event_log(shared_router)

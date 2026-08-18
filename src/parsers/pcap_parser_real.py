@@ -1,13 +1,16 @@
 """
 Real PCAP Parser — Unified Telecom Analyzer
 ============================================
-Full 3GPP stack:
+3GPP-aligned 6-interface protocol parsing:
   TS 24.501  — NAS  (5GMM + 5GSM)       discriminator 0x7e
   TS 38.413  — NGAP (N2: gNB ↔ AMF)     discriminator 0x3a
   TS 38.331  — RRC  (Uu: UE ↔ gNB)      discriminator 0x2b
   TS 38.473  — F1AP (F1: DU ↔ CU-CP)    discriminator 0x1a
   TS 38.463  — E1AP (E1: CU-CP ↔ CU-UP) discriminator 0x1b
   TS 38.423  — XnAP (Xn: gNB ↔ gNB)     discriminator 0x1c
+
+Note: Covers the 6 5G control-plane interfaces listed above (NAS/NGAP/RRC/F1AP/E1AP/XnAP).
+MAC/PHY layer parsing is out of scope (requires I/Q or layer-1 capture format, not PCAP).
 
 For real captures: pyshark dissects layers; full IE extraction via ie_extractor.
 For synthetic PCAP: raw UDP payload with single-byte protocol discriminator.
@@ -59,6 +62,11 @@ RRC_REQUEST  = 0x00
 RRC_COMPLETE = 0x01
 RRC_REJECT   = 0x02
 
+# IE names (as produced by ie_extractor's readable field map) that carry a
+# cell identity — only populated on real pyshark-dissected captures with the
+# IE present in that particular message; synthetic PCAPs never have this.
+CELL_ID_IE_KEYS = ("NR-CGI",)
+
 
 @dataclass
 class ProcedureRecord:
@@ -76,6 +84,7 @@ class ProcedureStats:
     failure: int = 0
     failure_causes: Dict[str, int] = field(default_factory=dict)
     layer: str = "NAS"
+    cell_id: Optional[str] = None
 
     @property
     def success_rate(self) -> float:
@@ -398,10 +407,23 @@ class PCAPParser:
         elif role in ('reject', 'failure'):
             self._record_failure(proc_name, tx_key, cause or 'unknown', layer, ies)
 
+    def _maybe_capture_cell_id(self, proc_name: str, ies: Dict[str, str]) -> None:
+        """Remember the first real cell identity IE (e.g. NR-CGI) seen for
+        this procedure type, so anomalies for it can be correlated by cell
+        against KPI/Stats data. Requires a real pyshark-dissected capture —
+        synthetic PCAPs carry no IEs and leave this unset."""
+        if self.stats[proc_name].cell_id:
+            return
+        for key in CELL_ID_IE_KEYS:
+            if ies.get(key):
+                self.stats[proc_name].cell_id = ies[key]
+                return
+
     def _record_request(self, proc_name: str, tx_key: str, timestamp: float,
                         ue_id: str, layer: str, ies: Dict[str, str]) -> None:
         self.stats[proc_name].attempts += 1
         self.stats[proc_name].layer = layer
+        self._maybe_capture_cell_id(proc_name, ies)
         self.pending[tx_key] = ProcedureRecord(
             procedure_type=proc_name, transaction_key=tx_key,
             start_time=timestamp, ue_id=ue_id, layer=layer,
@@ -417,6 +439,7 @@ class PCAPParser:
             rec = self.pending[tx_key]
             self.stats[proc_name].success += 1
             self.stats[proc_name].layer = layer
+            self._maybe_capture_cell_id(proc_name, ies)
             self.message_log.append(
                 build_message_event(layer, proc_name, 'response', rec.ue_id or 'unknown',
                                     rec.start_time, ies)
@@ -430,6 +453,7 @@ class PCAPParser:
             rec = self.pending[tx_key]
             self.stats[proc_name].failure += 1
             self.stats[proc_name].layer = layer
+            self._maybe_capture_cell_id(proc_name, ies)
             causes = self.stats[proc_name].failure_causes
             causes[cause] = causes.get(cause, 0) + 1
             ie_with_cause = dict(ies)
@@ -469,6 +493,7 @@ class PCAPParser:
                 "success_rate":   stats.success_rate,
                 "failure_causes": dict(stats.failure_causes),
                 "layer":          stats.layer,
+                "cell_id":        stats.cell_id or "—",
             }
 
         # Per-layer event counts

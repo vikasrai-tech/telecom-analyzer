@@ -100,6 +100,7 @@ def _build_anomaly(
         "evidence":       evidence,
         "procedure":      proc_name,
         "layer":          stats.get("layer", "?"),
+        "cell_id":        stats.get("cell_id", "—"),
         "failure_causes": stats.get("failure_causes", {}),
         "recommendation": rec,
     }
@@ -299,6 +300,7 @@ class StatisticalDetector:
                     ),
                     "procedure":      upstream,
                     "layer":          up.get("layer", "?"),
+                    "cell_id":        up.get("cell_id", "—"),
                     "failure_causes": up.get("failure_causes", {}),
                     "recommendation": (
                         f"Investigate {upstream} failures first; "
@@ -426,6 +428,7 @@ class LSTMAutoencoderDetector:
                 ),
                 "procedure":      proc_name,
                 "layer":          m.get("layer", "?"),
+                "cell_id":        stats.get("cell_id", "—"),
                 "failure_causes": stats.get("failure_causes", {}),
                 "recommendation": (
                     LAYER_RECOMMENDATIONS.get(m.get("layer", ""), "")
