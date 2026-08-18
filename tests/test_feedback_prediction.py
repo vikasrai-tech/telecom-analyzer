@@ -133,14 +133,51 @@ def test_lstm_returns_list():
         assert "LSTM" in a["detector"]
 
 
-def test_run_prediction_both_methods():
+def test_holt_winters_returns_list():
+    from src.detection.predictor import forecast_holt_winters
+    parsed = _make_parsed_kpi()
+    result = forecast_holt_winters(parsed, horizon_h=2)
+    assert isinstance(result, list)
+    for a in result:
+        assert a["state"]       == "predicted"
+        assert a["lead_time_h"] == 2
+        assert "Holt-Winters" in a["detector"]
+
+
+def test_lstm_direct_multihorizon_not_collapsing():
+    """Regression guard: the LSTM must predict the horizon in one forward
+    pass (direct multi-horizon head), not autoregressively — an
+    autoregressive forecast on a noisy/flat series collapses toward a
+    single repeated value, while a direct multi-horizon forecast on a
+    rising-trend series should keep tracking the trend across the horizon
+    instead of flattening out."""
+    from src.detection.predictor import _LSTMForecaster
+    import numpy as np
+
+    rng = np.random.default_rng(1)
+    series = np.array([10.0 + 0.5 * i for i in range(80)]) + rng.normal(0, 0.2, 80)
+
+    forecaster = _LSTMForecaster(lookback=12, epochs=60)
+    forecaster.fit(series, horizon=6)
+    forecast = forecaster.predict(series, horizon=6)
+
+    assert forecast.shape == (6,)
+    # A direct multi-horizon forecast of a monotonic trend should not
+    # collapse to a near-constant value across the horizon.
+    assert forecast.max() - forecast.min() > 0.05
+    assert forecaster.val_mae is not None
+
+
+def test_run_prediction_all_methods():
     from src.detection.predictor import run_prediction
     parsed  = _make_parsed_kpi()
     results = run_prediction(parsed, horizon_h=2)
-    assert "prophet" in results
-    assert "lstm"    in results
-    assert isinstance(results["prophet"], list)
-    assert isinstance(results["lstm"],    list)
+    assert "prophet"      in results
+    assert "holt_winters" in results
+    assert "lstm"         in results
+    assert isinstance(results["prophet"],      list)
+    assert isinstance(results["holt_winters"], list)
+    assert isinstance(results["lstm"],         list)
 
 
 def test_run_prediction_select_method():

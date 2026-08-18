@@ -185,3 +185,69 @@ def test_get_by_cell():
     cell_events = router.get_by_cell("PCI_3")
     assert len(cell_events) > 0
     assert all(e["cell_id"] == "PCI_3" for e in cell_events)
+
+
+# ── Shared router across pipeline calls (Milestone 3) ──────────────────
+# run_pcap_pipeline/run_kpi_pipeline/run_stats_pipeline each used to build
+# their own fresh EventRouter, so cross-source correlation never actually
+# happened across pcap+kpi+stats in one analysis session. They now accept
+# an optional shared `router` param — this verifies that sharing one
+# across two pipeline calls lets same-cell correlation fire, using
+# KPI_ANOMS/STATS_ANOMS (both already tagged cell_id="PCI_3" above).
+
+def test_shared_router_across_kpi_and_stats_pipelines(monkeypatch):
+    import src.parsers.kpi_parser as kpi_parser_mod
+    import src.parsers.stats_parser as stats_parser_mod
+    import src.detection.kpi_detector as kpi_detector_mod
+    import src.detection.stats_detector as stats_detector_mod
+
+    monkeypatch.setattr(kpi_parser_mod, "parse_kpi_file", lambda path: {"df_records": []})
+    monkeypatch.setattr(kpi_detector_mod, "detect_kpi_anomalies_by_detector",
+                         lambda parsed: {"Threshold": KPI_ANOMS})
+    monkeypatch.setattr(kpi_detector_mod, "kpi_summary_table", lambda parsed: {})
+
+    monkeypatch.setattr(stats_parser_mod, "parse_stats_file", lambda path: {"df_records": []})
+    monkeypatch.setattr(stats_detector_mod, "detect_stats_anomalies_by_detector",
+                         lambda parsed: {"Threshold": STATS_ANOMS})
+    monkeypatch.setattr(stats_detector_mod, "detect_stats_anomalies", lambda parsed: STATS_ANOMS)
+
+    from src.orchestrator.pipeline import run_kpi_pipeline, run_stats_pipeline
+
+    router = EventRouter()
+    run_kpi_pipeline("dummy.csv", skip_llm=True, router=router)
+    result2 = run_stats_pipeline("dummy.csv", skip_llm=True, router=router)
+
+    sources = {e["source"] for e in router.get_events()}
+    assert {"kpi", "stats"}.issubset(sources)
+
+    correlated = router.get_correlated(min_sources=2)
+    assert correlated, "expected same-cell KPI+Stats events to correlate across the shared router"
+    # the second pipeline call's returned events reflect the full shared-router state
+    assert len(result2["events"]) == len(router.get_events())
+
+
+def test_unshared_router_defaults_dont_cross_correlate(monkeypatch):
+    """Regression guard: without passing `router=`, each pipeline call
+    still gets its own fresh router (old behaviour preserved)."""
+    import src.parsers.kpi_parser as kpi_parser_mod
+    import src.parsers.stats_parser as stats_parser_mod
+    import src.detection.kpi_detector as kpi_detector_mod
+    import src.detection.stats_detector as stats_detector_mod
+
+    monkeypatch.setattr(kpi_parser_mod, "parse_kpi_file", lambda path: {"df_records": []})
+    monkeypatch.setattr(kpi_detector_mod, "detect_kpi_anomalies_by_detector",
+                         lambda parsed: {"Threshold": KPI_ANOMS})
+    monkeypatch.setattr(kpi_detector_mod, "kpi_summary_table", lambda parsed: {})
+
+    monkeypatch.setattr(stats_parser_mod, "parse_stats_file", lambda path: {"df_records": []})
+    monkeypatch.setattr(stats_detector_mod, "detect_stats_anomalies_by_detector",
+                         lambda parsed: {"Threshold": STATS_ANOMS})
+    monkeypatch.setattr(stats_detector_mod, "detect_stats_anomalies", lambda parsed: STATS_ANOMS)
+
+    from src.orchestrator.pipeline import run_kpi_pipeline, run_stats_pipeline
+
+    kpi_result   = run_kpi_pipeline("dummy.csv", skip_llm=True)
+    stats_result = run_stats_pipeline("dummy.csv", skip_llm=True)
+
+    assert all(not e["correlated_sources"] for e in kpi_result["events"])
+    assert all(not e["correlated_sources"] for e in stats_result["events"])
