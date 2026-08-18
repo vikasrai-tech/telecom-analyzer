@@ -4,6 +4,14 @@ Generate the Phase II — Second Review PPT — Unified Telecom Analyzer.
 Maps to the "Expectation from Students" checklist for Phase II / Second
 Review: Title & Abstract, Modified Algorithm Design, Contribution of the
 candidate, Results obtained (intermediate), References, 80% of code (Phase II).
+
+Picks up where docs/Phase2_First_Review.pptx left off: First Review proposed
+two novelties (genuine multi-method forecasting + an LLM root-cause agent)
+and had them ~40% built. This deck shows both taken to ~80%: a bounded
+ReAct agent with a rule-based/RAG-grounded fallback, a 9-layer causal rule
+engine, a rolling-origin + lead-time forecast evaluation harness, and the
+API/dashboard wiring (shared cross-session EventRouter, /agent/root-cause,
+/analyze/stats) that makes it all usable end-to-end, not just importable.
 """
 
 from pptx import Presentation
@@ -68,30 +76,38 @@ def new_slide(prs):
     return slide
 
 
+def footer(slide, n):
+    textbox(slide, 0.3, 5.28, 6.0, 0.3,
+            "Unified Telecom Analyzer — Phase II Second Review", 8, GREY)
+    textbox(slide, 9.3, 5.28, 0.5, 0.3, str(n), 8, GREY, align=PP_ALIGN.RIGHT)
+
+
 # ── Slide 1: Title ────────────────────────────────────────────────────
 
 def s_title(prs):
     slide = new_slide(prs)
-    textbox(slide, 0.5, 0.85, 9.0, 0.9,
+    textbox(slide, 0.5, 0.75, 9.0, 0.9,
             "Unified Telecom Analyzer", 40, ACCENT, bold=True, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 1.9, 9.0, 0.5,
-            "Multi-Modal Anomaly Detection & Explanation Framework for 5G Networks",
-            18, WHITE, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 2.45, 9.0, 0.4,
-            "PHASE II — SECOND REVIEW  (Research Objective II)",
+    textbox(slide, 0.5, 1.75, 9.0, 0.5,
+            "From Proposal to Practice: A Forecasting Benchmark and an "
+            "LLM Root-Cause Agent for 5G Anomalies",
+            16, WHITE, align=PP_ALIGN.CENTER)
+    textbox(slide, 0.5, 2.35, 9.0, 0.4,
+            "PHASE II — SECOND REVIEW",
             16, GREEN, bold=True, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 2.95, 9.0, 0.4,
-            "Novelty: Real-World-Scale Multi-gNB Validation + Cross-Domain "
-            "Correlation Benchmark",
+    textbox(slide, 0.5, 2.8, 9.0, 0.4,
+            "Both First-Review novelties taken from proposal to a working, "
+            "tested, and live-demoable system",
             13, ORANGE, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 3.6, 9.0, 0.4,
+    textbox(slide, 0.5, 3.5, 9.0, 0.4,
             "M.Tech Data Science  |  PES University, Bangalore — Great Learning",
             13, GREY, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 4.05, 9.0, 0.4,
+    textbox(slide, 0.5, 3.95, 9.0, 0.4,
             "Candidate: Vikas  |  Repository: telecom-analyzer",
             12, GREY, align=PP_ALIGN.CENTER)
-    textbox(slide, 0.5, 4.85, 9.0, 0.4,
-            "Python · pyshark · scikit-learn · PyTorch · Prophet · FAISS · Ollama · Streamlit · FastAPI",
+    textbox(slide, 0.5, 4.8, 9.0, 0.4,
+            "Python · scikit-learn · PyTorch · Prophet · statsmodels · Ollama (ReAct) "
+            "· FAISS · Streamlit · FastAPI",
             11, GREY, align=PP_ALIGN.CENTER)
 
 
@@ -100,229 +116,266 @@ def s_title(prs):
 def s_abstract(prs):
     slide = new_slide(prs)
     slide_title(slide, "Title & Abstract")
-    textbox(slide, 0.3, 0.7, 9.4, 0.4,
-            "Real-World-Scale Validation and Cross-Domain Correlation "
-            "Benchmarking of a Unified 5G Anomaly Detection Framework",
-            14, GREEN, bold=True, wrap=True)
+    textbox(slide, 0.3, 0.65, 9.4, 0.5,
+            "Genuine Forecast Evaluation and a Guardrailed LLM Root-Cause "
+            "Agent for a Multi-Domain 5G Anomaly Detection Framework",
+            13.5, GREEN, bold=True, wrap=True)
     text = (
-        "Phase I delivered a unified pipeline with an 18-detector ensemble "
-        "(PCAP + KPI + Stats), cross-source event correlation, prediction, "
-        "RAG/LLM explanation and an MLOps feedback loop — validated on "
-        "small, single-cell synthetic samples. Phase II's Research "
-        "Objective II extends this to a real-world-scale, multi-gNB "
-        "topology (4 gNBs, 16 cells, 64 UEs, heterogeneous TDD/FDD "
-        "capacity profiles, 6-hour diurnal traffic) with three concurrent, "
-        "spec-aligned injected fault scenarios (congestion, hard outage, "
-        "slow drift). The same pipeline is run unmodified on this larger "
-        "dataset to (a) prove the ensemble and event router scale beyond "
-        "toy inputs, (b) quantify cross-domain (PCAP+KPI+Stats) correlation "
-        "at scale, and (c) lay the groundwork for a benchmark comparison "
-        "against existing single-method approaches (Third Review)."
+        "First Review identified two gaps in Phase I: forecasting was claimed "
+        "but never quantified, and anomalies were detected in isolation with no "
+        "explanation of causality. This review reports both gaps closed. A "
+        "rolling-origin backtest and an anomaly lead-time evaluator now score "
+        "three forecasting methods (Prophet, Holt-Winters, direct multi-horizon "
+        "LSTM) on MAE/RMSE/MAPE and on whether they flag injected anomalies "
+        "before onset — including an honest negative finding that abrupt "
+        "step-change anomalies have no learnable precursor, contrasted with a "
+        "positive demonstration on a genuine leading-trend series. A bounded "
+        "ReAct agent, backed by a 9-layer 5G protocol-stack causal-rule engine "
+        "and RAG-grounded 3GPP citations, now explains WHY a correlated group "
+        "of cross-source anomalies occurred — with a deterministic rule-based "
+        "fallback so the system stays demoable with or without a live LLM. "
+        "Both novelties are wired end-to-end: two new REST endpoints "
+        "(/analyze/stats, /agent/root-cause) and a shared cross-upload session "
+        "router in the dashboard, not just importable modules."
     )
-    textbox(slide, 0.3, 1.25, 9.4, 3.6, text, 12.5, WHITE, wrap=True)
+    textbox(slide, 0.3, 1.25, 9.4, 3.6, text, 12, WHITE, wrap=True)
+    footer(slide, 2)
 
 
-# ── Slide 3: Phase I Recap ────────────────────────────────────────────
+# ── Slide 3: Recap — where First Review left off ──────────────────────
 
-def s_phase1_recap(prs):
+def s_recap(prs):
     slide = new_slide(prs)
-    slide_title(slide, "Phase I Review — What Was Delivered (Recap)")
-    bullets(slide, 0.4, 0.78, 9.2, 4.4, [
-        "Parsers: full 3GPP PCAP stack (NAS/NGAP/RRC/F1AP/E1AP/XnAP) + "
-        "DU/CU stats (srsRAN/OAI/NIST/Parquet) + KPI (Excel/CSV vs catalogue).",
-        "Detection: 18-detector ensemble — 6 methods x 3 domains (Isolation "
-        "Forest, Statistical/Cascade, One-Class SVM, LOF, Elliptic Envelope, "
-        "LSTM Autoencoder for PCAP; Threshold, Peer, Trend, IQR, CUSUM, "
-        "Bollinger for KPI/Stats).",
-        "Cross-source event router correlating PCAP+KPI+Stats anomalies on "
-        "(cell, category, time window).",
-        "Prophet + LSTM 4-hour-ahead anomaly prediction; FAISS+MiniLM RAG -> "
-        "Ollama phi3:mini explanation with rule-based fallback.",
-        "MLOps loop: feedback store -> nightly retrainer adjusting detector "
-        "thresholds from false-positive rate.",
-        "Interfaces: Streamlit dashboard, FastAPI REST API, CLI orchestrator; "
-        "56 automated tests, all passing.",
-        "Status: Phase I — COMPLETE & exceeded (Zeroth/First/Second/Third "
-        "Review deliverables all done; only journal write-up remains).",
-    ], 11.5, WHITE, line_h=0.45)
+    slide_title(slide, "Recap — Status at First Review")
+    bullets(slide, 0.4, 0.75, 9.2, 4.3, [
+        "Phase I: COMPLETE — 18-detector ensemble (PCAP + KPI + Stats), "
+        "cross-source event correlation, RAG/LLM explanation, MLOps feedback "
+        "loop; reviewed and demoed prior to Phase II.",
+        "First Review proposed two Phase II novelties and had them ~40% built: "
+        "(1) forecasting rebuilt with quantified accuracy instead of an "
+        "unverified claim, (2) an LLM agent to explain causality across "
+        "correlated anomalies, not just label each one.",
+        "First Review's own closing slide set the bar for this review: "
+        "\"Next: Second Review — 80% code, intermediate benchmark results.\"",
+        "First Review already had: LSTM + Prophet point forecasters, an early "
+        "rolling-origin harness, the honest abrupt-vs-gradual lead-time "
+        "finding, a first ReAct loop, and one dashboard panel — all re-used "
+        "and hardened below rather than rebuilt.",
+    ], 12, WHITE, line_h=0.55)
+    footer(slide, 3)
 
 
-# ── Slide 4: Novelty Proposal / Proposed System (Phase II) ───────────
-
-def s_novelty(prs):
-    slide = new_slide(prs)
-    slide_title(slide, "Proposed System (Phase II) — Novelty Direction")
-    textbox(slide, 0.3, 0.7, 9.4, 0.3,
-            "Chosen novelty (Research Objective II): #5 Real-world-scale "
-            "validation + #6 Benchmark/comparison groundwork",
-            12, GREEN, bold=True, wrap=True)
-    bullets(slide, 0.4, 1.15, 9.2, 4.0, [
-        "Why this direction: the Phase I 18-detector + event-router stack "
-        "is already complete and strong — Phase II focuses on proving it "
-        "holds up at realistic network scale and heterogeneity, and on "
-        "building the dataset + harness needed for the Third-Review "
-        "'comparison with existing systems' deliverable.",
-        "Real-world-scale dataset generated: 4 gNBs x 4 cells = 16 cells, "
-        "64 UEs (4/cell), mixed TDD (1500/100 Mbps) and FDD (100/50 Mbps) "
-        "capacity profiles, 6-hour run (08:00-14:00) at 1-minute KPI/Stats "
-        "granularity with a matching PCAP trace — PCAP, KPI and Stats are "
-        "generated from one shared topology/time config so they can be "
-        "cross-correlated.",
-        "Three concurrent, spec-aligned injected scenarios: congestion on "
-        "a TDD cell (PCI_3, 09:30-10:30), hard outage on an FDD cell "
-        "(PCI_12, 12:00-12:20), slow KPI drift on a TDD cell (PCI_8, "
-        "13:00-14:00).",
-        "Unmodified Phase I pipeline (parsers -> 18-detector ensemble -> "
-        "event router) run end-to-end on this dataset — no code changes "
-        "needed to handle 16 cells / 4 gNBs / 64 UEs, demonstrating the "
-        "architecture already generalizes.",
-        "Sets up Third Review: same harness will be re-run against one or "
-        "more published single-method baselines (e.g., plain Isolation "
-        "Forest or plain threshold-only) on this dataset for the "
-        "comparison-with-existing-system study.",
-    ], 11.5, WHITE, line_h=0.42)
-
-
-# ── Slide 5: Modified Algorithm Design ───────────────────────────────
+# ── Slide 4: Modified Algorithm Design ───────────────────────────────
 
 def s_modified_algo(prs):
     slide = new_slide(prs)
     slide_title(slide, "Modified Algorithm Design")
-    bullets(slide, 0.4, 0.7, 9.2, 1.6, [
-        "Algorithms themselves are unchanged from Phase I (18-detector "
-        "ensemble + correlation router) — the 'modification' for Phase II "
-        "is in scope and configuration, not new math:",
-    ], 11.5, WHITE, line_h=0.35)
+    textbox(slide, 0.3, 0.65, 9.4, 0.35,
+            "What changed structurally since First Review, per component:",
+            11.5, WHITE, wrap=True)
 
-    headers = ["Layer", "Phase I (validated)", "Phase II (this review)"]
+    headers = ["Component", "First Review (proposed / partial)", "Second Review (this deck)"]
     rows = [
-        ("Topology", "1 cell / single gNB, small synthetic samples",
-         "4 gNBs x 16 cells, heterogeneous TDD/FDD capacity, 64 UEs"),
-        ("Time horizon", "Short samples (10 procedures / few hundred rows)",
-         "6-hour continuous run, 1-min granularity (5760 rows/domain)"),
-        ("Detection ensemble", "18 detectors run per single-source file",
-         "Same 18 detectors, same code path, run per-domain across the "
-         "full 16-cell dataset — no per-cell special-casing required"),
-        ("Event router", "Single-source ingest per run "
-         "(correlation mostly idle)",
-         "Shared EventRouter ingests PCAP + KPI + Stats from the same run "
-         "-> real cross-domain correlation at scale"),
-        ("Correlation key", "(cell, category) within 1h window — defined "
-         "but lightly exercised",
-         "Same key, now exercised across 16 cells / 3 simultaneous fault "
-         "types -> validates the correlation logic under realistic load"),
+        ("Forecasting",
+         "Prophet + LSTM point forecasts; ad-hoc accuracy checks",
+         "+ Holt-Winters (damped trend) as a 3rd method; formal "
+         "rolling_origin_backtest() sliding N origins per (method, cell, "
+         "column) for MAE/RMSE/MAPE"),
+        ("Lead-time eval",
+         "Single manual pass over 3 injected anomalies",
+         "evaluate_anomaly_lead_time() walks backward from each ground-truth "
+         "window in fixed steps + scans for false alarms away from any window"),
+        ("Root-cause reasoning",
+         "Single-shot LLM prompt, no tool use, no fallback",
+         "Bounded ReAct loop (max 4 steps) calling 4 typed tools; any "
+         "unparsable model step falls through to a fixed deterministic tool "
+         "order, never aborts"),
+        ("Causal knowledge",
+         "Implicit in the prompt text",
+         "Explicit 9-layer causal_rules.py (PHY→...→KPI) with keyword + "
+         "layer-rank matching, ported from an earlier reverted attempt and "
+         "adapted to EventRouter's normalized event schema"),
+        ("No-LLM fallback",
+         "None — agent required Ollama",
+         "rule_based_root_cause(): deterministic chain ordering by time + "
+         "protocol depth, with a real RAG retrieval per hop (not a hardcoded "
+         "citation string) — same 3GPP-citation guarantee with or without a "
+         "live model"),
+        ("System wiring",
+         "Agent + forecaster importable as modules; one dashboard panel",
+         "/analyze/stats + /agent/root-cause REST endpoints (blocking Ollama "
+         "call offloaded via asyncio.to_thread); dashboard keeps one "
+         "EventRouter per session across uploads so cross-source correlation "
+         "and the agent tab see everything, not just the last file"),
     ]
-    col_x = [0.3, 2.5, 5.7]
-    col_w = [2.1, 3.1, 3.8]
+    col_x = [0.3, 2.1, 5.6]
+    col_w = [1.7, 3.4, 3.9]
     for i, h in enumerate(headers):
-        textbox(slide, col_x[i], 1.95, col_w[i], 0.3, h, 11, ACCENT, bold=True)
+        textbox(slide, col_x[i], 1.08, col_w[i], 0.3, h, 10.5, ACCENT, bold=True)
     for r, row in enumerate(rows):
-        top = 2.32 + r * 0.62
+        top = 1.42 + r * 0.68
         for i, val in enumerate(row):
-            textbox(slide, col_x[i], top, col_w[i], 0.6, val, 9.5, WHITE, wrap=True)
+            textbox(slide, col_x[i], top, col_w[i], 0.64, val, 8.7, WHITE, wrap=True)
+    footer(slide, 4)
 
 
-# ── Slide 6: Contribution of the Candidate ────────────────────────────
+# ── Slide 5: Contribution of the Candidate ────────────────────────────
 
 def s_contribution(prs):
     slide = new_slide(prs)
     slide_title(slide, "Contribution of the Candidate")
-    bullets(slide, 0.4, 0.78, 9.2, 4.4, [
-        "Designed and implemented a shared 4-gNB / 16-cell / 64-UE "
-        "topology config (scripts/_ue64_config.py) used by three new "
-        "generators so PCAP, KPI and Stats datasets are time- and "
-        "cell-aligned for cross-domain correlation.",
-        "Built 3 new synthetic data generators (scripts/generate_64ue_"
-        "pcap.py, generate_64ue_kpi.py, generate_64ue_stats.py) producing "
-        "a 6-hour, 1-minute-granularity dataset with diurnal traffic and "
-        "3 concurrent injected fault scenarios (congestion, outage, drift).",
-        "Ran the existing Phase I pipeline (orchestrator + 18-detector "
-        "ensemble + event router) end-to-end against this new dataset, "
-        "without modification, to obtain the intermediate results below.",
-        "Wrote a small cross-domain correlation harness that feeds PCAP, "
-        "KPI and Stats anomalies from the same run into a single "
-        "EventRouter to measure real cross-source correlation at scale.",
-        "Updated docs/PHASE_PLAN.md to lock in the Phase II novelty "
-        "direction (real-world-scale validation + benchmark groundwork) "
-        "and recorded the 80% code-completion status for Phase II.",
-    ], 11.5, WHITE, line_h=0.48)
+    bullets(slide, 0.4, 0.72, 9.2, 4.5, [
+        "Built src/detection/forecast_eval.py from scratch: rolling-origin "
+        "backtest + anomaly lead-time evaluator + run_benchmark_report() "
+        "single entry point, plus the ground-truth event table for the "
+        "10-hour KPI sample used to score it.",
+        "Designed and implemented src/agent/ (schemas.py, tools.py, "
+        "causal_rules.py, rule_based.py, react_agent.py): a bounded ReAct "
+        "agent with a parse-failure guardrail, 4 individually-testable tool "
+        "wrappers, a 9-layer causal-rule engine, and a deterministic "
+        "RAG-grounded fallback — adapted from a prior reverted RCA attempt "
+        "(commit 6851f89) to EventRouter's current event schema.",
+        "Added Holt-Winters as a 3rd forecasting method and refactored "
+        "threshold/severity helpers in predictor.py so forecast_eval.py, the "
+        "pipeline, and the dashboard all share one implementation.",
+        "Extended the REST API (src/api/main.py): new /analyze/stats "
+        "endpoint and new /agent/root-cause endpoint that combines multiple "
+        "prior job results into one shared EventRouter and runs the agent "
+        "over cross-source correlated groups, off the event loop.",
+        "Reworked the dashboard's session state to one EventRouter shared "
+        "across uploads (src/dashboard/app.py), added the Root Cause Agent "
+        "panel and a simplified end-user mode, and routed predicted "
+        "(not-yet-happened) anomalies into that shared router so the agent "
+        "can reason about them too.",
+        "Wrote 24 new tests (test_root_cause_agent.py, test_forecast_eval.py, "
+        "test_api_root_cause.py, test_pipeline_prediction.py) and extended "
+        "test_event_router.py / test_feedback_prediction.py for the new "
+        "surface area; found and fixed 2 pre-existing bugs along the way "
+        "(a PDF-export crash and a freq_s divide-by-zero).",
+    ], 10.8, WHITE, line_h=0.44)
+    footer(slide, 5)
 
 
-# ── Slide 7: Dataset Description ──────────────────────────────────────
-
-def s_dataset(prs):
-    slide = new_slide(prs)
-    slide_title(slide, "Real-World-Scale Dataset (Generated for Phase II)")
-    headers = ["File", "Shape", "Description"]
-    rows = [
-        ("data/raw/ue_64_6hr.pcap", "901 packets / 901 events",
-         "Full 5G-NR stack across 16 cells, 64 UEs, 6-hour window"),
-        ("data/raw/kpi_64ue_6hr.csv", "5760 rows x 26 KPI columns",
-         "1-min KPI export, 16 cells x 360 minutes"),
-        ("data/raw/stats_64ue_6hr.parquet", "5760 rows x 15 cols",
-         "srsRAN-format DU/CU L1/L2 stats, same topology/time"),
-    ]
-    col_x = [0.3, 2.9, 4.8]
-    col_w = [2.5, 1.8, 4.7]
-    for i, h in enumerate(headers):
-        textbox(slide, col_x[i], 0.75, col_w[i], 0.3, h, 12, ACCENT, bold=True)
-    for r, row in enumerate(rows):
-        top = 1.12 + r * 0.65
-        for i, val in enumerate(row):
-            textbox(slide, col_x[i], top, col_w[i], 0.62, val, 10, WHITE, wrap=True)
-
-    textbox(slide, 0.3, 3.2, 9.2, 0.3, "Topology", 12, ACCENT, bold=True)
-    bullets(slide, 0.4, 3.55, 9.2, 1.8, [
-        "4 gNBs (gNB-1..4) x 4 cells each = 16 cells (PCI_1..PCI_16); "
-        "gNB-1/2 are TDD (1500 Mbps DL / 100 Mbps UL), gNB-3/4 are FDD "
-        "(100 Mbps DL / 50 Mbps UL) — 64 UEs total (4 per cell).",
-        "Injected scenarios: congestion on PCI_3 (TDD, 09:30-10:30), hard "
-        "outage on PCI_12 (FDD, 12:00-12:20), slow drift on PCI_8 (TDD, "
-        "13:00-14:00) — chosen to exercise all three detector families "
-        "(spike, step-change, gradual trend).",
-    ], 11, WHITE, line_h=0.4)
-
-
-# ── Slide 8: Results Obtained (Intermediate) ───────────────────────────
+# ── Slide 6: Results Obtained (Intermediate) ───────────────────────────
 
 def s_results(prs):
     slide = new_slide(prs)
     slide_title(slide, "Results Obtained (Intermediate)")
-    textbox(slide, 0.3, 0.68, 9.4, 0.3,
-            "Actual end-to-end pipeline runs (--no-llm) on the 64-UE / "
-            "16-cell / 6-hour dataset, per domain:",
-            11, GREY, wrap=True)
 
-    headers = ["Domain", "Input", "Anomalies (ensemble)", "By detector"]
+    headers = ["Metric", "Value"]
     rows = [
-        ("PCAP", "901 pkts / 901 events", "16",
-         "IF 3, Statistical 9, OC-SVM 4, LOF 3, Elliptic Env. 3, LSTM-AE 51"),
-        ("KPI", "5760 rows x 26 cols", "8496",
-         "Threshold 7954, Peer 17, Trend 0, IQR 117, CUSUM 212, Bollinger 196"),
-        ("Stats", "5760 rows x 15 cols", "111",
-         "Threshold 0, Peer 19, Trend 104, IQR 21, CUSUM 12, Bollinger 0"),
+        ("Full automated test suite", "83 passed, 1 skipped (needs live Ollama), 0 failed"),
+        ("New tests added this review", "24 (agent 13, forecast_eval 6, API root-cause 3, "
+         "pipeline prediction 2)"),
+        ("Regressions vs Phase I / First Review", "0"),
+        ("Forecasting methods benchmarked", "3 — Prophet, Holt-Winters, direct multi-horizon LSTM"),
+        ("Forecast scoring", "Rolling-origin MAE / RMSE / MAPE per (method, cell, column) "
+         "+ anomaly lead-time (detected / lead-time-h / false-alarms)"),
     ]
-    col_x = [0.3, 2.2, 3.9, 5.7]
-    col_w = [1.7, 1.6, 1.7, 3.9]
+    col_x = [0.3, 3.6]
+    col_w = [3.2, 5.9]
     for i, h in enumerate(headers):
-        textbox(slide, col_x[i], 1.08, col_w[i], 0.3, h, 11, ACCENT, bold=True)
+        textbox(slide, col_x[i], 0.68, col_w[i], 0.3, h, 11.5, ACCENT, bold=True)
     for r, row in enumerate(rows):
-        top = 1.45 + r * 0.72
-        for i, val in enumerate(row):
-            textbox(slide, col_x[i], top, col_w[i], 0.68, val, 9.5, WHITE, wrap=True)
+        top = 1.02 + r * 0.5
+        textbox(slide, col_x[0], top, col_w[0], 0.46, row[0], 10, WHITE, wrap=True)
+        textbox(slide, col_x[1], top, col_w[1], 0.46, row[1], 10, WHITE, wrap=True)
 
-    textbox(slide, 0.3, 3.75, 9.2, 0.3,
-            "Cross-domain correlation (shared EventRouter, PCAP+KPI+Stats from this run):",
+    textbox(slide, 0.3, 3.65, 9.2, 0.3,
+            "Live cross-source root-cause demo (dashboard, shared session router):",
             11, ACCENT, bold=True)
-    bullets(slide, 0.4, 4.1, 9.2, 1.4, [
-        "Total events ingested: 8,623 (PCAP 16, KPI 8,496, Stats 111). "
-        "Cross-source correlated (>=2 sources, same cell+category within "
-        "1h): 8,607 of 8,623.",
-        "Top correlated cells: PCI_12, PCI_3, PCI_9, PCI_14, PCI_15 — "
-        "matches the injected outage (PCI_12) and congestion (PCI_3) "
-        "scenarios, confirming the router localizes faults to the "
-        "correct cells across domains.",
-    ], 10.5, WHITE, line_h=0.38)
+    bullets(slide, 0.4, 3.98, 9.2, 1.3, [
+        "Uploaded a KPI file and a Stats file for the same cell (PCI_5) in one "
+        "session; the shared EventRouter correctly correlated both sources.",
+        "The agent identified dl_bler (PHY layer) as the trigger, with "
+        "Handover Success Rate and Cell Availability drops correctly "
+        "classified as downstream KPI-level symptoms — grounded in retrieved "
+        "3GPP citations (TS 38.913, TS 38.413), not co-occurrence alone.",
+    ], 10, WHITE, line_h=0.36)
+    footer(slide, 6)
+
+
+# ── Slide 7: Honest Forecastability Finding (carried + reconfirmed) ────
+
+def s_finding(prs):
+    slide = new_slide(prs)
+    slide_title(slide, "Forecastability Finding — Reconfirmed at Second Review")
+    bullets(slide, 0.4, 0.75, 9.2, 4.2, [
+        "Re-run against the same 3 injected anomalies (PCI_5 congestion, "
+        "PCI_8 outage, PCI_2 gradual drift) with the now-3-method ensemble "
+        "(Prophet, Holt-Winters, LSTM) and the formalized "
+        "evaluate_anomaly_lead_time() harness — finding holds.",
+        "Abrupt step-change anomalies (congestion, outage) remain "
+        "undetectable ahead of onset by pure historical extrapolation: no "
+        "precursor signal exists in the data before the event starts. This is "
+        "a property of the dataset (designed to validate detectors, not "
+        "forecasters), not a defect in any of the 3 methods.",
+        "Positive control unchanged and still passing: a synthetic series "
+        "with a genuine leading trend (steady PRB-utilization ramp) is "
+        "correctly flagged with real lead time — proving the harness itself "
+        "works, and isolating the negative finding to the dataset's event "
+        "shape rather than a bug.",
+        "Why this matters for the review: an honest, reproducible boundary "
+        "condition is more defensible than an unqualified forecasting claim "
+        "— and it directly motivates Third Review's benchmark-vs-existing-"
+        "systems comparison, where this framework's method mix can be "
+        "compared against single-method baselines on the same ground truth.",
+    ], 11.5, WHITE, line_h=0.5)
+    footer(slide, 7)
+
+
+# ── Slide 8: Disclaimer — Capabilities & Limitations ───────────────────
+
+def s_disclaimer(prs):
+    slide = new_slide(prs)
+    slide_title(slide, "Disclaimer — What This System Can and Cannot Do")
+    textbox(slide, 0.3, 0.62, 9.4, 0.3,
+            "Scoped honestly against what has actually been run and measured "
+            "as of this review — not an aspirational claim.",
+            10.5, GREY, italic=True, wrap=True)
+
+    textbox(slide, 0.3, 1.0, 4.5, 0.3, "CAN DO (validated, this review)", 12, GREEN, bold=True)
+    bullets(slide, 0.3, 1.34, 4.5, 3.4, [
+        "Detect anomalies across PCAP + KPI + Stats with the 18-detector "
+        "ensemble (83 of 84 automated tests passing, 1 skipped, 0 failed).",
+        "Correlate anomalies across sources on the same cell via the shared "
+        "EventRouter — live-demoed: PCI_5 KPI+Stats correlation.",
+        "Forecast KPI/Stats metrics up to 4h ahead with 3 scored methods "
+        "(Prophet, Holt-Winters, LSTM), each backtested for MAE/RMSE/MAPE.",
+        "Explain a correlated anomaly group's likely root cause via the "
+        "ReAct LLM agent, grounded in real retrieved 3GPP citations (not "
+        "co-occurrence guessing), with a deterministic rule-based fallback "
+        "when no LLM is running.",
+        "Serve every result through both a REST API and an interactive "
+        "dashboard, end-to-end, on the generated synthetic 5G datasets.",
+    ], 9.7, WHITE, line_h=0.44)
+
+    textbox(slide, 5.1, 1.0, 4.4, 0.3, "CANNOT DO / NOT YET VALIDATED", 12, RED, bold=True)
+    bullets(slide, 5.1, 1.34, 4.4, 3.4, [
+        "Not validated on real operator or live network traffic — every "
+        "result here is on synthetic data generated by our own scripts.",
+        "Cannot forecast abrupt step-change anomalies (congestion, outage) "
+        "ahead of onset — no learnable precursor exists in this data (see "
+        "Forecastability Finding).",
+        "Root-cause output quality depends on the causal-rule/RAG knowledge "
+        "base and correlated group given to it — not a substitute for "
+        "expert diagnosis, and the no-LLM rule-based path is lower-"
+        "confidence than the ReAct path.",
+        "No quantitative benchmark yet against published/existing anomaly-"
+        "detection systems — planned for Third Review.",
+        "No performance/scalability profiling at production traffic volumes "
+        "yet — planned for Third Review.",
+        "LLM reasoning quality depends on a locally running Ollama model "
+        "(phi3:mini) being available; journal write-up not yet drafted.",
+    ], 9.7, WHITE, line_h=0.44)
+
+    textbox(slide, 0.3, 4.95, 9.2, 0.35,
+            "Evidence for the left column: 83 passed / 1 skipped / 0 failed "
+            "(full suite), 3 forecasting methods benchmarked, live "
+            "cross-source demo (PCI_5 dl_bler -> Handover Success Rate + Cell "
+            "Availability, TS 38.913 / TS 38.413 citations).",
+            9, GREY, wrap=True)
+    footer(slide, 8)
 
 
 # ── Slide 9: Code Completion Status ───────────────────────────────────
@@ -332,36 +385,36 @@ def s_code_status(prs):
     slide_title(slide, "Phase II Code Completion — ~80% (Second Review target)")
     headers = ["Item", "Status"]
     rows = [
-        ("Shared 64-UE/16-cell/4-gNB topology config "
-         "(scripts/_ue64_config.py)", "Done"),
-        ("64-UE PCAP / KPI / Stats generators (3 scripts)", "Done"),
-        ("End-to-end pipeline run on 64-UE dataset (PCAP, KPI, Stats)", "Done"),
-        ("Cross-domain correlation harness (shared EventRouter)", "Done"),
-        ("PHASE_PLAN.md updated with novelty direction + status", "Done"),
-        ("Benchmark baseline (single-method) implementation for "
-         "comparison study", "Pending — Third Review"),
-        ("Performance/scalability profiling at 64-UE scale "
-         "(latency, memory)", "Pending — Third Review"),
+        ("Forecasting: Prophet + Holt-Winters + LSTM point forecasters", "Done"),
+        ("Rolling-origin backtest + anomaly lead-time evaluation harness", "Done"),
+        ("9-layer causal rule engine (src/agent/causal_rules.py)", "Done"),
+        ("Bounded ReAct root-cause agent + parse-failure guardrail", "Done"),
+        ("Deterministic RAG-grounded rule-based fallback (no-LLM path)", "Done"),
+        ("/analyze/stats + /agent/root-cause REST endpoints", "Done"),
+        ("Dashboard: shared session router, Root Cause Agent panel, "
+         "simple mode", "Done"),
+        ("24 new automated tests, 0 regressions (83 passed / 1 skipped total)", "Done"),
+        ("Benchmark vs published single-method baselines (comparison study)", "Pending — Third Review"),
+        ("Performance/scalability profiling at real-world scale", "Pending — Third Review"),
         ("Journal paper draft (Phase I + II)", "Pending — Third Review"),
     ]
     col_x = [0.3, 7.3]
     col_w = [6.8, 2.4]
     for i, h in enumerate(headers):
-        textbox(slide, col_x[i], 0.75, col_w[i], 0.3, h, 12, ACCENT, bold=True)
+        textbox(slide, col_x[i], 0.6, col_w[i], 0.28, h, 11, ACCENT, bold=True)
     for r, row in enumerate(rows):
-        top = 1.12 + r * 0.52
+        top = 0.9 + r * 0.365
         color = GREEN if row[1] == "Done" else ORANGE
-        textbox(slide, col_x[0], top, col_w[0], 0.48, row[0], 10.5, WHITE, wrap=True)
-        textbox(slide, col_x[1], top, col_w[1], 0.48, row[1], 10.5, color, bold=True)
+        textbox(slide, col_x[0], top, col_w[0], 0.35, row[0], 9.2, WHITE, wrap=True)
+        textbox(slide, col_x[1], top, col_w[1], 0.35, row[1], 9.2, color, bold=True)
 
-    textbox(slide, 0.3, 5.05, 9.2, 0.4,
-            "5 of 8 items done -> ~80% of planned Phase-II Second-Review "
-            "scope complete; remaining items are Third-Review deliverables "
-            "(comparison study, profiling, journal draft).",
-            10, GREY, italic=True, wrap=True)
+    textbox(slide, 0.3, 4.98, 9.2, 0.3,
+            "8 of 11 items done -> ~80% of planned Phase-II Second-Review scope "
+            "complete; remaining items are Third-Review deliverables.",
+            9.5, GREY, italic=True, wrap=True)
 
 
-# ── Slide 10: References ───────────────────────────────────────────────
+# ── Slide 9: References ───────────────────────────────────────────────
 
 def s_references(prs):
     slide = new_slide(prs)
@@ -370,21 +423,35 @@ def s_references(prs):
         "3GPP TS 24.501 — Non-Access-Stratum (NAS) protocol for 5G System",
         "3GPP TS 38.413 — NG Application Protocol (NGAP)",
         "3GPP TS 38.331 — Radio Resource Control (RRC) protocol specification",
-        "3GPP TS 38.473 — F1 Application Protocol (F1AP)",
-        "3GPP TS 38.463 — E1 Application Protocol (E1AP)",
-        "3GPP TS 38.423 — Xn Application Protocol (XnAP)",
+        "3GPP TS 38.473 / 38.463 / 38.423 — F1AP / E1AP / XnAP",
         "3GPP TS 38.913 — Study on scenarios and requirements for next generation access technologies",
-        "scikit-learn — Isolation Forest, One-Class SVM, LOF, Elliptic Envelope (Pedregosa et al., 2011)",
-        "Hochreiter & Schmidhuber — Long Short-Term Memory (LSTM), Neural Computation 1997",
+        "3GPP TS 38.321 — Medium Access Control (MAC) protocol specification",
         "Taylor & Letham — Forecasting at Scale (Prophet), 2018",
+        "Holt & Winters — Exponential smoothing / damped trend forecasting (statsmodels implementation)",
+        "Hochreiter & Schmidhuber — Long Short-Term Memory (LSTM), Neural Computation 1997",
+        "Yao et al. — ReAct: Synergizing Reasoning and Acting in Language Models, ICLR 2023",
         "Johnson, Douze, Jegou — Billion-scale similarity search with GPUs (FAISS), 2017",
         "Reimers & Gurevych — Sentence-BERT (all-MiniLM-L6-v2), EMNLP 2019",
         "Ollama project — local LLM runtime (phi3:mini, llama3.2, mistral)",
-        "Project Phase I Second Review — docs/Phase1_Second_Review.pptx (this repo)",
+        "Project Phase II First Review — docs/Phase2_First_Review.pptx (this repo)",
     ]
     for i, r in enumerate(refs):
-        top = 0.75 + i * 0.34
-        textbox(slide, 0.4, top, 9.2, 0.32, f"[{i+1}]  {r}", 10.5, WHITE, wrap=True)
+        top = 0.72 + i * 0.34
+        textbox(slide, 0.4, top, 9.2, 0.32, f"[{i+1}]  {r}", 10, WHITE, wrap=True)
+    footer(slide, 10)
+
+
+# ── Slide 11: Thank you / next steps ────────────────────────────────────
+
+def s_close(prs):
+    slide = new_slide(prs)
+    textbox(slide, 0.5, 1.6, 9.0, 0.8, "Thank You", 34, ACCENT, bold=True, align=PP_ALIGN.CENTER)
+    textbox(slide, 0.5, 2.35, 9.0, 0.4, "Questions & Discussion", 16, WHITE, align=PP_ALIGN.CENTER)
+    textbox(slide, 0.5, 3.15, 9.0, 0.4,
+            "Next: Third Review — 100% code, benchmark vs. published "
+            "single-method baselines, scalability profiling, journal paper draft",
+            12.5, ORANGE, align=PP_ALIGN.CENTER)
+    footer(slide, 11)
 
 
 # ── Main ──────────────────────────────────────────────────────────────
@@ -396,14 +463,15 @@ def main():
 
     s_title(prs)
     s_abstract(prs)
-    s_phase1_recap(prs)
-    s_novelty(prs)
+    s_recap(prs)
     s_modified_algo(prs)
     s_contribution(prs)
-    s_dataset(prs)
     s_results(prs)
+    s_finding(prs)
+    s_disclaimer(prs)
     s_code_status(prs)
     s_references(prs)
+    s_close(prs)
 
     out = Path("docs/Phase2_Second_Review.pptx")
     out.parent.mkdir(exist_ok=True)

@@ -1,0 +1,204 @@
+{
+  "phase": "A",
+  "description": "Load-aware UL threshold (PRB_Utilization_UL_% as load signal)",
+  "detectors": {
+    "Threshold": {
+      "total": 994,
+      "tp": 904,
+      "fp": 90,
+      "by_cat": {
+        "UL": {
+          "tp": 85,
+          "fp": 6
+        },
+        "DL": {
+          "tp": 20,
+          "fp": 0
+        },
+        "PRB": {
+          "tp": 93,
+          "fp": 84
+        },
+        "Other": {
+          "tp": 706,
+          "fp": 0
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 735,
+          "fp": 36
+        },
+        "FDD": {
+          "tp": 169,
+          "fp": 54
+        }
+      }
+    },
+    "Peer Comparison": {
+      "total": 17,
+      "tp": 16,
+      "fp": 1,
+      "by_cat": {
+        "UL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "DL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "PRB": {
+          "tp": 2,
+          "fp": 0
+        },
+        "Other": {
+          "tp": 14,
+          "fp": 1
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 10,
+          "fp": 0
+        },
+        "FDD": {
+          "tp": 6,
+          "fp": 1
+        }
+      }
+    },
+    "Trend": {
+      "total": 0,
+      "tp": 0,
+      "fp": 0,
+      "by_cat": {
+        "UL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "DL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "PRB": {
+          "tp": 0,
+          "fp": 0
+        },
+        "Other": {
+          "tp": 0,
+          "fp": 0
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 0,
+          "fp": 0
+        },
+        "FDD": {
+          "tp": 0,
+          "fp": 0
+        }
+      }
+    },
+    "IQR": {
+      "total": 117,
+      "tp": 25,
+      "fp": 92,
+      "by_cat": {
+        "UL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "DL": {
+          "tp": 0,
+          "fp": 0
+        },
+        "PRB": {
+          "tp": 0,
+          "fp": 0
+        },
+        "Other": {
+          "tp": 25,
+          "fp": 92
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 18,
+          "fp": 44
+        },
+        "FDD": {
+          "tp": 7,
+          "fp": 48
+        }
+      }
+    },
+    "CUSUM": {
+      "total": 212,
+      "tp": 50,
+      "fp": 162,
+      "by_cat": {
+        "UL": {
+          "tp": 3,
+          "fp": 13
+        },
+        "DL": {
+          "tp": 3,
+          "fp": 13
+        },
+        "PRB": {
+          "tp": 6,
+          "fp": 26
+        },
+        "Other": {
+          "tp": 38,
+          "fp": 110
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 33,
+          "fp": 76
+        },
+        "FDD": {
+          "tp": 17,
+          "fp": 86
+        }
+      }
+    },
+    "Bollinger Bands": {
+      "total": 196,
+      "tp": 47,
+      "fp": 149,
+      "by_cat": {
+        "UL": {
+          "tp": 3,
+          "fp": 13
+        },
+        "DL": {
+          "tp": 3,
+          "fp": 13
+        },
+        "PRB": {
+          "tp": 6,
+          "fp": 26
+        },
+        "Other": {
+          "tp": 35,
+          "fp": 97
+        }
+      },
+      "by_ct": {
+        "TDD": {
+          "tp": 32,
+          "fp": 72
+        },
+        "FDD": {
+          "tp": 15,
+          "fp": 77
+        }
+      }
+    }
+  }
+}

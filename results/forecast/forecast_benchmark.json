@@ -1,0 +1,4172 @@
+{
+  "forecast_accuracy": [
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Cell_Availability_%",
+      "mae": 0.0219,
+      "rmse": 0.0266,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "RRC_Connection_Attempts",
+      "mae": 96.4717,
+      "rmse": 131.8664,
+      "mape": 18.32,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5189,
+      "rmse": 0.6191,
+      "mape": 32.05,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0783,
+      "rmse": 0.0903,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 35.9238,
+      "rmse": 48.143,
+      "mape": 24.87,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 39.1379,
+      "rmse": 50.6875,
+      "mape": 21.95,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1188,
+      "rmse": 0.1491,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1567,
+      "rmse": 0.2017,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0563,
+      "rmse": 0.0698,
+      "mape": 48.85,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Handover_Attempts",
+      "mae": 13.3703,
+      "rmse": 17.647,
+      "mape": 26.84,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2354,
+      "rmse": 0.298,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2252,
+      "rmse": 0.2806,
+      "mape": 0.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2402,
+      "rmse": 0.3001,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2354,
+      "rmse": 0.2949,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.3568,
+      "rmse": 0.4498,
+      "mape": 0.36,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 9.9647,
+      "rmse": 13.1758,
+      "mape": 16.47,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 11.3542,
+      "rmse": 14.1491,
+      "mape": 24.0,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "DL_Throughput_Mbps",
+      "mae": 86.7837,
+      "rmse": 115.152,
+      "mape": 26.01,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "UL_Throughput_Mbps",
+      "mae": 24.6099,
+      "rmse": 32.3639,
+      "mape": 19.78,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Total_Traffic_GB",
+      "mae": 0.6716,
+      "rmse": 0.9132,
+      "mape": 20.18,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2125,
+      "rmse": 0.2714,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_1",
+      "column": "Latency_ms",
+      "mae": 1.9026,
+      "rmse": 2.3689,
+      "mape": 15.48,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Cell_Availability_%",
+      "mae": 0.0252,
+      "rmse": 0.0317,
+      "mape": 0.03,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "RRC_Connection_Attempts",
+      "mae": 112.4539,
+      "rmse": 147.6071,
+      "mape": 20.85,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5253,
+      "rmse": 0.6291,
+      "mape": 40.42,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0798,
+      "rmse": 0.0917,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 29.7768,
+      "rmse": 39.3018,
+      "mape": 21.19,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 43.9139,
+      "rmse": 57.5132,
+      "mape": 24.74,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1207,
+      "rmse": 0.1532,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1956,
+      "rmse": 0.2484,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0559,
+      "rmse": 0.0685,
+      "mape": 102.19,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Handover_Attempts",
+      "mae": 11.1094,
+      "rmse": 14.7332,
+      "mape": 22.92,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2654,
+      "rmse": 0.3311,
+      "mape": 0.27,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2031,
+      "rmse": 0.2492,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2333,
+      "rmse": 0.2922,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2254,
+      "rmse": 0.2885,
+      "mape": 0.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2725,
+      "rmse": 0.3462,
+      "mape": 0.28,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 14.7588,
+      "rmse": 18.2764,
+      "mape": 25.18,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 9.2855,
+      "rmse": 12.7378,
+      "mape": 20.87,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "DL_Throughput_Mbps",
+      "mae": 84.6842,
+      "rmse": 109.1272,
+      "mape": 25.36,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "UL_Throughput_Mbps",
+      "mae": 19.591,
+      "rmse": 25.7589,
+      "mape": 16.17,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Total_Traffic_GB",
+      "mae": 0.7481,
+      "rmse": 0.9781,
+      "mape": 21.92,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1973,
+      "rmse": 0.2424,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_10",
+      "column": "Latency_ms",
+      "mae": 2.2134,
+      "rmse": 2.719,
+      "mape": 17.76,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Cell_Availability_%",
+      "mae": 0.0258,
+      "rmse": 0.0331,
+      "mape": 0.03,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "RRC_Connection_Attempts",
+      "mae": 101.2292,
+      "rmse": 132.2808,
+      "mape": 18.92,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5436,
+      "rmse": 0.6116,
+      "mape": 39.89,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0833,
+      "rmse": 0.0894,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 32.8246,
+      "rmse": 44.7949,
+      "mape": 23.71,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 47.8383,
+      "rmse": 63.0853,
+      "mape": 27.03,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.118,
+      "rmse": 0.147,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1542,
+      "rmse": 0.1934,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0553,
+      "rmse": 0.068,
+      "mape": 70.47,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Handover_Attempts",
+      "mae": 11.3982,
+      "rmse": 15.7019,
+      "mape": 24.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.9884,
+      "rmse": 2.6736,
+      "mape": 1.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2073,
+      "rmse": 0.2622,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.6364,
+      "rmse": 1.4527,
+      "mape": 0.67,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2483,
+      "rmse": 0.3099,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2824,
+      "rmse": 0.3475,
+      "mape": 0.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 12.5667,
+      "rmse": 15.4498,
+      "mape": 21.39,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.5759,
+      "rmse": 13.9226,
+      "mape": 23.74,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "DL_Throughput_Mbps",
+      "mae": 77.5248,
+      "rmse": 102.0023,
+      "mape": 23.61,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "UL_Throughput_Mbps",
+      "mae": 25.6106,
+      "rmse": 32.4196,
+      "mape": 20.72,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Total_Traffic_GB",
+      "mae": 0.7427,
+      "rmse": 0.9894,
+      "mape": 22.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.229,
+      "rmse": 0.2834,
+      "mape": 0.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_2",
+      "column": "Latency_ms",
+      "mae": 2.5231,
+      "rmse": 3.8865,
+      "mape": 16.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Cell_Availability_%",
+      "mae": 0.0246,
+      "rmse": 0.0301,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "RRC_Connection_Attempts",
+      "mae": 97.6889,
+      "rmse": 132.857,
+      "mape": 18.45,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5882,
+      "rmse": 0.7126,
+      "mape": 41.81,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0845,
+      "rmse": 0.0978,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 35.0347,
+      "rmse": 45.8172,
+      "mape": 24.99,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 46.3593,
+      "rmse": 61.6993,
+      "mape": 26.11,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1194,
+      "rmse": 0.1506,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1656,
+      "rmse": 0.2054,
+      "mape": 0.17,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0543,
+      "rmse": 0.0695,
+      "mape": 147.31,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Handover_Attempts",
+      "mae": 13.2351,
+      "rmse": 17.1159,
+      "mape": 26.65,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2473,
+      "rmse": 0.3156,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2083,
+      "rmse": 0.2616,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2611,
+      "rmse": 0.3289,
+      "mape": 0.26,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2461,
+      "rmse": 0.3081,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2855,
+      "rmse": 0.3551,
+      "mape": 0.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 10.8121,
+      "rmse": 13.7033,
+      "mape": 18.57,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.4802,
+      "rmse": 13.4268,
+      "mape": 22.05,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "DL_Throughput_Mbps",
+      "mae": 86.3046,
+      "rmse": 113.4291,
+      "mape": 26.44,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "UL_Throughput_Mbps",
+      "mae": 24.425,
+      "rmse": 33.4616,
+      "mape": 20.37,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Total_Traffic_GB",
+      "mae": 0.7923,
+      "rmse": 1.0567,
+      "mape": 23.7,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2142,
+      "rmse": 0.2714,
+      "mape": 0.22,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_3",
+      "column": "Latency_ms",
+      "mae": 2.0962,
+      "rmse": 2.586,
+      "mape": 17.09,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Cell_Availability_%",
+      "mae": 0.0207,
+      "rmse": 0.0248,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "RRC_Connection_Attempts",
+      "mae": 112.552,
+      "rmse": 149.1539,
+      "mape": 21.32,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5344,
+      "rmse": 0.6267,
+      "mape": 43.43,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0854,
+      "rmse": 0.1007,
+      "mape": 0.09,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 32.7864,
+      "rmse": 45.3543,
+      "mape": 24.13,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 42.5444,
+      "rmse": 57.012,
+      "mape": 24.32,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1263,
+      "rmse": 0.1589,
+      "mape": 0.13,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1601,
+      "rmse": 0.1966,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0584,
+      "rmse": 0.0739,
+      "mape": 61.87,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Handover_Attempts",
+      "mae": 12.1445,
+      "rmse": 16.0211,
+      "mape": 25.6,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2473,
+      "rmse": 0.3118,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2085,
+      "rmse": 0.2562,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2418,
+      "rmse": 0.3045,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2421,
+      "rmse": 0.3028,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.3006,
+      "rmse": 0.3732,
+      "mape": 0.31,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 9.8234,
+      "rmse": 12.9699,
+      "mape": 17.18,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.4283,
+      "rmse": 13.3894,
+      "mape": 22.35,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "DL_Throughput_Mbps",
+      "mae": 81.386,
+      "rmse": 107.3433,
+      "mape": 24.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "UL_Throughput_Mbps",
+      "mae": 30.3264,
+      "rmse": 37.5464,
+      "mape": 23.75,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Total_Traffic_GB",
+      "mae": 0.7355,
+      "rmse": 0.969,
+      "mape": 21.18,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1901,
+      "rmse": 0.2426,
+      "mape": 0.19,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_4",
+      "column": "Latency_ms",
+      "mae": 2.078,
+      "rmse": 2.5409,
+      "mape": 16.42,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Cell_Availability_%",
+      "mae": 0.0238,
+      "rmse": 0.0291,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "RRC_Connection_Attempts",
+      "mae": 103.7259,
+      "rmse": 140.9237,
+      "mape": 19.66,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "RRC_Connection_Rejects",
+      "mae": 24.0167,
+      "rmse": 43.6164,
+      "mape": 1009.46,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "RRC_Success_Rate_%",
+      "mae": 3.3067,
+      "rmse": 5.9932,
+      "mape": 3.53,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 34.0672,
+      "rmse": 45.134,
+      "mape": 24.49,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 49.258,
+      "rmse": 63.566,
+      "mape": 27.53,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Registration_Success_Rate_%",
+      "mae": 2.1087,
+      "rmse": 3.7174,
+      "mape": 2.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 2.7435,
+      "rmse": 4.8007,
+      "mape": 2.88,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 1.141,
+      "rmse": 2.0033,
+      "mape": 714.92,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Handover_Attempts",
+      "mae": 11.6761,
+      "rmse": 16.2214,
+      "mape": 24.97,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Handover_Success_Rate_%",
+      "mae": 4.7988,
+      "rmse": 8.5253,
+      "mape": 5.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 4.9168,
+      "rmse": 8.9604,
+      "mape": 5.27,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 3.7969,
+      "rmse": 6.6635,
+      "mape": 4.14,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2792,
+      "rmse": 0.3616,
+      "mape": 0.28,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2701,
+      "rmse": 0.3433,
+      "mape": 0.28,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 19.197,
+      "rmse": 26.7303,
+      "mape": 31.38,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 13.7564,
+      "rmse": 18.3824,
+      "mape": 27.01,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "DL_Throughput_Mbps",
+      "mae": 151.9693,
+      "rmse": 197.4635,
+      "mape": 72.86,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "UL_Throughput_Mbps",
+      "mae": 49.4505,
+      "rmse": 63.311,
+      "mape": 57.32,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Total_Traffic_GB",
+      "mae": 1.4875,
+      "rmse": 1.9465,
+      "mape": 67.69,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1982,
+      "rmse": 0.2504,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_5",
+      "column": "Latency_ms",
+      "mae": 8.1172,
+      "rmse": 12.8664,
+      "mape": 49.48,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Cell_Availability_%",
+      "mae": 0.0215,
+      "rmse": 0.0257,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "RRC_Connection_Attempts",
+      "mae": 97.624,
+      "rmse": 133.8653,
+      "mape": 18.49,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5085,
+      "rmse": 0.5964,
+      "mape": 42.71,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0812,
+      "rmse": 0.0942,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 34.8163,
+      "rmse": 44.6871,
+      "mape": 23.51,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 44.593,
+      "rmse": 56.6198,
+      "mape": 23.53,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1242,
+      "rmse": 0.1537,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1698,
+      "rmse": 0.2115,
+      "mape": 0.17,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0609,
+      "rmse": 0.0766,
+      "mape": 54.74,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Handover_Attempts",
+      "mae": 13.4175,
+      "rmse": 17.7702,
+      "mape": 27.38,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2487,
+      "rmse": 0.3126,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2022,
+      "rmse": 0.2523,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2265,
+      "rmse": 0.2851,
+      "mape": 0.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2442,
+      "rmse": 0.307,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2868,
+      "rmse": 0.3604,
+      "mape": 0.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 10.4788,
+      "rmse": 14.1178,
+      "mape": 17.55,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.408,
+      "rmse": 13.5102,
+      "mape": 22.6,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "DL_Throughput_Mbps",
+      "mae": 84.2859,
+      "rmse": 111.6853,
+      "mape": 24.77,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "UL_Throughput_Mbps",
+      "mae": 25.3179,
+      "rmse": 32.2989,
+      "mape": 20.33,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Total_Traffic_GB",
+      "mae": 0.6697,
+      "rmse": 0.8941,
+      "mape": 19.53,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2078,
+      "rmse": 0.2612,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_6",
+      "column": "Latency_ms",
+      "mae": 1.9007,
+      "rmse": 2.3911,
+      "mape": 15.59,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Cell_Availability_%",
+      "mae": 0.0225,
+      "rmse": 0.0272,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "RRC_Connection_Attempts",
+      "mae": 88.5556,
+      "rmse": 130.5271,
+      "mape": 17.45,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5439,
+      "rmse": 0.6179,
+      "mape": 36.61,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0848,
+      "rmse": 0.0944,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 31.7798,
+      "rmse": 41.7709,
+      "mape": 22.53,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 49.6645,
+      "rmse": 61.7709,
+      "mape": 26.55,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1239,
+      "rmse": 0.1554,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1584,
+      "rmse": 0.1964,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0585,
+      "rmse": 0.0718,
+      "mape": 90.81,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Handover_Attempts",
+      "mae": 11.4928,
+      "rmse": 15.0368,
+      "mape": 23.56,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2496,
+      "rmse": 0.3153,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2159,
+      "rmse": 0.2669,
+      "mape": 0.22,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2408,
+      "rmse": 0.305,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2334,
+      "rmse": 0.2967,
+      "mape": 0.24,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2723,
+      "rmse": 0.3446,
+      "mape": 0.28,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 15.0664,
+      "rmse": 18.4802,
+      "mape": 25.44,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 9.4694,
+      "rmse": 12.3073,
+      "mape": 20.17,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "DL_Throughput_Mbps",
+      "mae": 77.3777,
+      "rmse": 100.2399,
+      "mape": 22.73,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "UL_Throughput_Mbps",
+      "mae": 24.9568,
+      "rmse": 31.9798,
+      "mape": 19.98,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Total_Traffic_GB",
+      "mae": 0.7088,
+      "rmse": 0.923,
+      "mape": 20.33,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.195,
+      "rmse": 0.2434,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_7",
+      "column": "Latency_ms",
+      "mae": 1.9353,
+      "rmse": 2.4813,
+      "mape": 16.33,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Cell_Availability_%",
+      "mae": 1.4233,
+      "rmse": 6.9573,
+      "mape": 2.18,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "RRC_Connection_Attempts",
+      "mae": 84.5644,
+      "rmse": 119.1492,
+      "mape": 16.51,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.4976,
+      "rmse": 0.5842,
+      "mape": 32.99,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0803,
+      "rmse": 0.0909,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 30.4144,
+      "rmse": 41.0516,
+      "mape": 21.64,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 39.1334,
+      "rmse": 52.5996,
+      "mape": 21.95,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1242,
+      "rmse": 0.1561,
+      "mape": 0.12,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1613,
+      "rmse": 0.2038,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 1.0893,
+      "rmse": 5.1098,
+      "mape": 94.77,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Handover_Attempts",
+      "mae": 11.7609,
+      "rmse": 15.8057,
+      "mape": 24.38,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Handover_Success_Rate_%",
+      "mae": 2.3523,
+      "rmse": 10.4205,
+      "mape": 4.77,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2012,
+      "rmse": 0.2487,
+      "mape": 0.2,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2504,
+      "rmse": 0.3112,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 2.3195,
+      "rmse": 10.2039,
+      "mape": 4.61,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 2.2881,
+      "rmse": 9.9867,
+      "mape": 4.45,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 12.875,
+      "rmse": 20.9344,
+      "mape": 627.92,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 12.1712,
+      "rmse": 17.9569,
+      "mape": 173.36,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "DL_Throughput_Mbps",
+      "mae": 94.9227,
+      "rmse": 144.3809,
+      "mape": 1437.41,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "UL_Throughput_Mbps",
+      "mae": 28.7977,
+      "rmse": 44.4933,
+      "mape": 1469.36,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Total_Traffic_GB",
+      "mae": 0.8502,
+      "rmse": 1.3406,
+      "mape": 1205.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "RACH_Success_Rate_%",
+      "mae": 1.5325,
+      "rmse": 6.6583,
+      "mape": 2.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_8",
+      "column": "Latency_ms",
+      "mae": 1.7002,
+      "rmse": 2.1227,
+      "mape": 13.51,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Cell_Availability_%",
+      "mae": 0.0242,
+      "rmse": 0.0294,
+      "mape": 0.02,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "RRC_Connection_Attempts",
+      "mae": 104.0862,
+      "rmse": 142.2219,
+      "mape": 19.75,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5251,
+      "rmse": 0.6431,
+      "mape": 34.75,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0801,
+      "rmse": 0.0943,
+      "mape": 0.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 32.0108,
+      "rmse": 43.2407,
+      "mape": 22.54,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 44.142,
+      "rmse": 59.4929,
+      "mape": 24.89,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.134,
+      "rmse": 0.168,
+      "mape": 0.13,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1593,
+      "rmse": 0.2017,
+      "mape": 0.16,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0555,
+      "rmse": 0.0689,
+      "mape": 98.17,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Handover_Attempts",
+      "mae": 11.2104,
+      "rmse": 15.4699,
+      "mape": 23.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2581,
+      "rmse": 0.3239,
+      "mape": 0.26,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2097,
+      "rmse": 0.2654,
+      "mape": 0.21,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2539,
+      "rmse": 0.3161,
+      "mape": 0.26,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2478,
+      "rmse": 0.3094,
+      "mape": 0.25,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2856,
+      "rmse": 0.3534,
+      "mape": 0.29,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 12.7075,
+      "rmse": 16.312,
+      "mape": 21.78,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 9.5205,
+      "rmse": 13.011,
+      "mape": 21.48,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "DL_Throughput_Mbps",
+      "mae": 70.279,
+      "rmse": 93.0709,
+      "mape": 21.42,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "UL_Throughput_Mbps",
+      "mae": 24.5912,
+      "rmse": 31.5038,
+      "mape": 20.08,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Total_Traffic_GB",
+      "mae": 0.6487,
+      "rmse": 0.8804,
+      "mape": 19.37,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2253,
+      "rmse": 0.2827,
+      "mape": 0.23,
+      "n_origins": 6
+    },
+    {
+      "method": "holt_winters",
+      "cell_id": "PCI_9",
+      "column": "Latency_ms",
+      "mae": 2.0373,
+      "rmse": 2.5176,
+      "mape": 16.35,
+      "n_origins": 6
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Cell_Availability_%",
+      "mae": 0.0213,
+      "rmse": 0.0256,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "RRC_Connection_Attempts",
+      "mae": 133.5215,
+      "rmse": 155.2729,
+      "mape": 27.82,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5419,
+      "rmse": 0.5641,
+      "mape": 55.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0901,
+      "rmse": 0.0928,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 45.8046,
+      "rmse": 52.5803,
+      "mape": 36.0,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 62.9941,
+      "rmse": 72.5469,
+      "mape": 39.28,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1141,
+      "rmse": 0.1449,
+      "mape": 0.11,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1484,
+      "rmse": 0.1905,
+      "mape": 0.15,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0545,
+      "rmse": 0.0683,
+      "mape": 47.7,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Handover_Attempts",
+      "mae": 15.115,
+      "rmse": 17.6838,
+      "mape": 35.74,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2321,
+      "rmse": 0.2947,
+      "mape": 0.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2196,
+      "rmse": 0.2765,
+      "mape": 0.22,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2268,
+      "rmse": 0.2892,
+      "mape": 0.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2271,
+      "rmse": 0.2841,
+      "mape": 0.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.3094,
+      "rmse": 0.3737,
+      "mape": 0.32,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 13.8999,
+      "rmse": 16.8183,
+      "mape": 26.79,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 12.2588,
+      "rmse": 14.3386,
+      "mape": 29.7,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "DL_Throughput_Mbps",
+      "mae": 127.0791,
+      "rmse": 147.3675,
+      "mape": 43.05,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "UL_Throughput_Mbps",
+      "mae": 29.0331,
+      "rmse": 33.9516,
+      "mape": 25.84,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Total_Traffic_GB",
+      "mae": 1.0798,
+      "rmse": 1.2492,
+      "mape": 35.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2133,
+      "rmse": 0.2753,
+      "mape": 0.22,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_1",
+      "column": "Latency_ms",
+      "mae": 1.9413,
+      "rmse": 2.3329,
+      "mape": 16.72,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Cell_Availability_%",
+      "mae": 0.0217,
+      "rmse": 0.0264,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "RRC_Connection_Attempts",
+      "mae": 137.3171,
+      "rmse": 158.4133,
+      "mape": 28.52,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5421,
+      "rmse": 0.5751,
+      "mape": 54.84,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0921,
+      "rmse": 0.0969,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 47.8678,
+      "rmse": 56.0642,
+      "mape": 38.92,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 67.5408,
+      "rmse": 79.3571,
+      "mape": 43.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.114,
+      "rmse": 0.1488,
+      "mape": 0.11,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1685,
+      "rmse": 0.2102,
+      "mape": 0.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0553,
+      "rmse": 0.0671,
+      "mape": 74.06,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Handover_Attempts",
+      "mae": 14.9034,
+      "rmse": 17.6862,
+      "mape": 35.38,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2468,
+      "rmse": 0.3045,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2113,
+      "rmse": 0.2624,
+      "mape": 0.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2448,
+      "rmse": 0.3039,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2157,
+      "rmse": 0.2785,
+      "mape": 0.22,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2593,
+      "rmse": 0.3356,
+      "mape": 0.26,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 13.0844,
+      "rmse": 15.5871,
+      "mape": 24.93,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 11.6191,
+      "rmse": 13.6717,
+      "mape": 27.39,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "DL_Throughput_Mbps",
+      "mae": 107.1717,
+      "rmse": 125.5204,
+      "mape": 35.95,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "UL_Throughput_Mbps",
+      "mae": 30.5395,
+      "rmse": 35.4125,
+      "mape": 26.89,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Total_Traffic_GB",
+      "mae": 0.8813,
+      "rmse": 1.0503,
+      "mape": 29.03,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2,
+      "rmse": 0.2459,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_10",
+      "column": "Latency_ms",
+      "mae": 1.9982,
+      "rmse": 2.4446,
+      "mape": 17.53,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Cell_Availability_%",
+      "mae": 0.0213,
+      "rmse": 0.0256,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "RRC_Connection_Attempts",
+      "mae": 171.7918,
+      "rmse": 197.8327,
+      "mape": 35.11,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5725,
+      "rmse": 0.6115,
+      "mape": 59.38,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0916,
+      "rmse": 0.0969,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 39.2767,
+      "rmse": 46.3982,
+      "mape": 31.78,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 53.9892,
+      "rmse": 64.4798,
+      "mape": 34.0,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1171,
+      "rmse": 0.1467,
+      "mape": 0.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1525,
+      "rmse": 0.1916,
+      "mape": 0.15,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0522,
+      "rmse": 0.0641,
+      "mape": 52.81,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Handover_Attempts",
+      "mae": 14.1081,
+      "rmse": 16.6965,
+      "mape": 32.85,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Handover_Success_Rate_%",
+      "mae": 2.4709,
+      "rmse": 4.5942,
+      "mape": 2.75,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.1993,
+      "rmse": 0.2519,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 1.412,
+      "rmse": 2.4777,
+      "mape": 1.5,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2462,
+      "rmse": 0.3115,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2773,
+      "rmse": 0.3371,
+      "mape": 0.28,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 15.5377,
+      "rmse": 18.2838,
+      "mape": 28.98,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 11.8241,
+      "rmse": 13.8984,
+      "mape": 28.63,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "DL_Throughput_Mbps",
+      "mae": 92.4146,
+      "rmse": 109.4612,
+      "mape": 32.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "UL_Throughput_Mbps",
+      "mae": 25.8779,
+      "rmse": 30.6735,
+      "mape": 23.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Total_Traffic_GB",
+      "mae": 0.942,
+      "rmse": 1.1082,
+      "mape": 31.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2257,
+      "rmse": 0.2824,
+      "mape": 0.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_2",
+      "column": "Latency_ms",
+      "mae": 4.0869,
+      "rmse": 6.3541,
+      "mape": 20.15,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Cell_Availability_%",
+      "mae": 0.0218,
+      "rmse": 0.0264,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "RRC_Connection_Attempts",
+      "mae": 155.9633,
+      "rmse": 180.2553,
+      "mape": 32.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5479,
+      "rmse": 0.5862,
+      "mape": 55.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0906,
+      "rmse": 0.0961,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 42.4511,
+      "rmse": 50.6303,
+      "mape": 34.56,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 55.0587,
+      "rmse": 65.1091,
+      "mape": 34.86,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1218,
+      "rmse": 0.1535,
+      "mape": 0.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.164,
+      "rmse": 0.2017,
+      "mape": 0.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0522,
+      "rmse": 0.0689,
+      "mape": 66.16,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Handover_Attempts",
+      "mae": 15.0579,
+      "rmse": 18.1185,
+      "mape": 36.13,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2406,
+      "rmse": 0.3041,
+      "mape": 0.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2113,
+      "rmse": 0.2638,
+      "mape": 0.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2539,
+      "rmse": 0.3171,
+      "mape": 0.26,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2407,
+      "rmse": 0.3029,
+      "mape": 0.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2636,
+      "rmse": 0.324,
+      "mape": 0.27,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 14.5741,
+      "rmse": 17.0754,
+      "mape": 27.34,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 11.2655,
+      "rmse": 13.2625,
+      "mape": 26.59,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "DL_Throughput_Mbps",
+      "mae": 97.4988,
+      "rmse": 115.3425,
+      "mape": 33.58,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "UL_Throughput_Mbps",
+      "mae": 25.3565,
+      "rmse": 29.9021,
+      "mape": 22.75,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Total_Traffic_GB",
+      "mae": 0.9084,
+      "rmse": 1.0702,
+      "mape": 29.92,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1986,
+      "rmse": 0.2494,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_3",
+      "column": "Latency_ms",
+      "mae": 1.8478,
+      "rmse": 2.2687,
+      "mape": 15.75,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Cell_Availability_%",
+      "mae": 0.0208,
+      "rmse": 0.025,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "RRC_Connection_Attempts",
+      "mae": 147.7536,
+      "rmse": 172.4242,
+      "mape": 30.95,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5365,
+      "rmse": 0.5753,
+      "mape": 56.1,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0884,
+      "rmse": 0.0925,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 46.996,
+      "rmse": 55.7802,
+      "mape": 38.15,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 51.1073,
+      "rmse": 60.6051,
+      "mape": 31.66,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1303,
+      "rmse": 0.1612,
+      "mape": 0.13,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1652,
+      "rmse": 0.2043,
+      "mape": 0.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0526,
+      "rmse": 0.0659,
+      "mape": 62.91,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Handover_Attempts",
+      "mae": 16.6038,
+      "rmse": 19.4597,
+      "mape": 38.47,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2418,
+      "rmse": 0.3054,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2129,
+      "rmse": 0.2585,
+      "mape": 0.22,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2409,
+      "rmse": 0.3068,
+      "mape": 0.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2419,
+      "rmse": 0.3037,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2742,
+      "rmse": 0.3378,
+      "mape": 0.28,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 13.2579,
+      "rmse": 15.6972,
+      "mape": 25.07,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 9.9626,
+      "rmse": 12.1324,
+      "mape": 24.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "DL_Throughput_Mbps",
+      "mae": 102.7547,
+      "rmse": 122.2319,
+      "mape": 35.69,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "UL_Throughput_Mbps",
+      "mae": 30.0756,
+      "rmse": 35.8616,
+      "mape": 26.8,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Total_Traffic_GB",
+      "mae": 1.1539,
+      "rmse": 1.3309,
+      "mape": 37.14,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1954,
+      "rmse": 0.2479,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_4",
+      "column": "Latency_ms",
+      "mae": 2.172,
+      "rmse": 2.609,
+      "mape": 18.64,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Cell_Availability_%",
+      "mae": 0.0226,
+      "rmse": 0.0272,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "RRC_Connection_Attempts",
+      "mae": 150.4788,
+      "rmse": 177.3561,
+      "mape": 31.53,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "RRC_Connection_Rejects",
+      "mae": 11.5223,
+      "rmse": 23.1135,
+      "mape": 298.69,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "RRC_Success_Rate_%",
+      "mae": 1.578,
+      "rmse": 3.203,
+      "mape": 1.67,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 47.8575,
+      "rmse": 55.9213,
+      "mape": 38.49,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 53.3305,
+      "rmse": 63.7736,
+      "mape": 33.89,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Registration_Success_Rate_%",
+      "mae": 1.0113,
+      "rmse": 2.0092,
+      "mape": 1.05,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 1.1878,
+      "rmse": 2.3835,
+      "mape": 1.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.5702,
+      "rmse": 1.0741,
+      "mape": 398.84,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Handover_Attempts",
+      "mae": 15.4794,
+      "rmse": 18.1916,
+      "mape": 36.9,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Handover_Success_Rate_%",
+      "mae": 2.3452,
+      "rmse": 4.2828,
+      "mape": 2.55,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 2.1113,
+      "rmse": 3.5949,
+      "mape": 2.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 1.8929,
+      "rmse": 3.6005,
+      "mape": 2.04,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2409,
+      "rmse": 0.3032,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2788,
+      "rmse": 0.3552,
+      "mape": 0.28,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 12.7211,
+      "rmse": 16.3362,
+      "mape": 23.86,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 11.3981,
+      "rmse": 14.4348,
+      "mape": 26.54,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "DL_Throughput_Mbps",
+      "mae": 97.3579,
+      "rmse": 114.5474,
+      "mape": 33.39,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "UL_Throughput_Mbps",
+      "mae": 30.0793,
+      "rmse": 34.9189,
+      "mape": 28.43,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Total_Traffic_GB",
+      "mae": 0.9765,
+      "rmse": 1.1432,
+      "mape": 32.9,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.199,
+      "rmse": 0.2474,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_5",
+      "column": "Latency_ms",
+      "mae": 4.3496,
+      "rmse": 6.9206,
+      "mape": 33.42,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Cell_Availability_%",
+      "mae": 0.021,
+      "rmse": 0.025,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "RRC_Connection_Attempts",
+      "mae": 164.5295,
+      "rmse": 190.2611,
+      "mape": 33.99,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5471,
+      "rmse": 0.578,
+      "mape": 63.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0889,
+      "rmse": 0.0932,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 43.5776,
+      "rmse": 50.8523,
+      "mape": 34.37,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 58.2702,
+      "rmse": 67.9231,
+      "mape": 36.49,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1257,
+      "rmse": 0.1561,
+      "mape": 0.13,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.163,
+      "rmse": 0.2037,
+      "mape": 0.16,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0526,
+      "rmse": 0.0661,
+      "mape": 55.5,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Handover_Attempts",
+      "mae": 15.8708,
+      "rmse": 18.6819,
+      "mape": 37.67,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2518,
+      "rmse": 0.316,
+      "mape": 0.26,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2051,
+      "rmse": 0.2536,
+      "mape": 0.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2251,
+      "rmse": 0.2832,
+      "mape": 0.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2456,
+      "rmse": 0.3071,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2742,
+      "rmse": 0.3481,
+      "mape": 0.28,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 14.8851,
+      "rmse": 17.2696,
+      "mape": 27.48,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.2911,
+      "rmse": 12.3191,
+      "mape": 24.98,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "DL_Throughput_Mbps",
+      "mae": 112.6836,
+      "rmse": 132.4614,
+      "mape": 38.77,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "UL_Throughput_Mbps",
+      "mae": 26.7876,
+      "rmse": 32.4239,
+      "mape": 23.85,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Total_Traffic_GB",
+      "mae": 0.9257,
+      "rmse": 1.0827,
+      "mape": 29.94,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1977,
+      "rmse": 0.2531,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_6",
+      "column": "Latency_ms",
+      "mae": 1.8007,
+      "rmse": 2.2196,
+      "mape": 15.57,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Cell_Availability_%",
+      "mae": 0.0221,
+      "rmse": 0.0267,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "RRC_Connection_Attempts",
+      "mae": 161.3604,
+      "rmse": 185.6155,
+      "mape": 33.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5627,
+      "rmse": 0.6047,
+      "mape": 63.88,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.091,
+      "rmse": 0.0965,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 41.8884,
+      "rmse": 49.4061,
+      "mape": 33.99,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 62.4614,
+      "rmse": 72.1225,
+      "mape": 38.49,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1235,
+      "rmse": 0.1527,
+      "mape": 0.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1648,
+      "rmse": 0.2013,
+      "mape": 0.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0598,
+      "rmse": 0.0732,
+      "mape": 83.49,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Handover_Attempts",
+      "mae": 17.8878,
+      "rmse": 20.7625,
+      "mape": 41.29,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2452,
+      "rmse": 0.3091,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2022,
+      "rmse": 0.2493,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2449,
+      "rmse": 0.3124,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2401,
+      "rmse": 0.3003,
+      "mape": 0.24,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2835,
+      "rmse": 0.3593,
+      "mape": 0.29,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 14.2686,
+      "rmse": 16.8306,
+      "mape": 26.68,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 10.4463,
+      "rmse": 12.4417,
+      "mape": 24.84,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "DL_Throughput_Mbps",
+      "mae": 115.1284,
+      "rmse": 134.679,
+      "mape": 38.81,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "UL_Throughput_Mbps",
+      "mae": 29.7638,
+      "rmse": 35.3024,
+      "mape": 26.39,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Total_Traffic_GB",
+      "mae": 1.1006,
+      "rmse": 1.2775,
+      "mape": 35.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.1974,
+      "rmse": 0.2421,
+      "mape": 0.2,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_7",
+      "column": "Latency_ms",
+      "mae": 1.9844,
+      "rmse": 2.4407,
+      "mape": 17.8,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Cell_Availability_%",
+      "mae": 2.821,
+      "rmse": 9.8394,
+      "mape": 4.34,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "RRC_Connection_Attempts",
+      "mae": 130.1125,
+      "rmse": 150.9179,
+      "mape": 27.0,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5477,
+      "rmse": 0.5693,
+      "mape": 56.57,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0876,
+      "rmse": 0.0907,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 37.8067,
+      "rmse": 44.9346,
+      "mape": 30.74,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 56.1087,
+      "rmse": 66.441,
+      "mape": 35.77,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1208,
+      "rmse": 0.151,
+      "mape": 0.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1617,
+      "rmse": 0.2077,
+      "mape": 0.16,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 2.1194,
+      "rmse": 7.2261,
+      "mape": 75.51,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Handover_Attempts",
+      "mae": 14.4468,
+      "rmse": 17.1183,
+      "mape": 34.13,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Handover_Success_Rate_%",
+      "mae": 4.4587,
+      "rmse": 14.7277,
+      "mape": 9.29,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2033,
+      "rmse": 0.2557,
+      "mape": 0.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2471,
+      "rmse": 0.3103,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 4.3548,
+      "rmse": 14.4207,
+      "mape": 8.93,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 4.2945,
+      "rmse": 14.1094,
+      "mape": 8.61,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 17.7917,
+      "rmse": 23.1642,
+      "mape": 941.9,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 14.8868,
+      "rmse": 19.0225,
+      "mape": 256.56,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "DL_Throughput_Mbps",
+      "mae": 134.3053,
+      "rmse": 162.0804,
+      "mape": 2027.77,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "UL_Throughput_Mbps",
+      "mae": 46.3179,
+      "rmse": 56.2804,
+      "mape": 2318.79,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Total_Traffic_GB",
+      "mae": 1.1741,
+      "rmse": 1.483,
+      "mape": 1760.27,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "RACH_Success_Rate_%",
+      "mae": 2.8713,
+      "rmse": 9.4129,
+      "mape": 4.26,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_8",
+      "column": "Latency_ms",
+      "mae": 1.9413,
+      "rmse": 2.3398,
+      "mape": 16.47,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Cell_Availability_%",
+      "mae": 0.0219,
+      "rmse": 0.0263,
+      "mape": 0.02,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "RRC_Connection_Attempts",
+      "mae": 134.0293,
+      "rmse": 155.6318,
+      "mape": 28.1,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "RRC_Connection_Rejects",
+      "mae": 0.5435,
+      "rmse": 0.582,
+      "mape": 55.89,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "RRC_Success_Rate_%",
+      "mae": 0.0936,
+      "rmse": 0.0983,
+      "mape": 0.09,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Avg_RRC_Connected_Users",
+      "mae": 39.8983,
+      "rmse": 46.7839,
+      "mape": 31.59,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Peak_RRC_Connected_Users",
+      "mae": 49.2087,
+      "rmse": 57.5341,
+      "mape": 30.15,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Registration_Success_Rate_%",
+      "mae": 0.1157,
+      "rmse": 0.1444,
+      "mape": 0.12,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "PDU_Session_Success_Rate_%",
+      "mae": 0.1644,
+      "rmse": 0.2106,
+      "mape": 0.17,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "RRC_Drop_Rate_%",
+      "mae": 0.0569,
+      "rmse": 0.0711,
+      "mape": 152.38,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Handover_Attempts",
+      "mae": 15.3939,
+      "rmse": 18.0593,
+      "mape": 35.66,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Handover_Success_Rate_%",
+      "mae": 0.2467,
+      "rmse": 0.3069,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Xn_HO_Prep_Success_Rate_%",
+      "mae": 0.2064,
+      "rmse": 0.2595,
+      "mape": 0.21,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Xn_HO_Exec_Success_Rate_%",
+      "mae": 0.2487,
+      "rmse": 0.3074,
+      "mape": 0.25,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "NG_HO_Prep_Success_Rate_%",
+      "mae": 0.2309,
+      "rmse": 0.2877,
+      "mape": 0.23,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "NG_HO_Exec_Success_Rate_%",
+      "mae": 0.2885,
+      "rmse": 0.3577,
+      "mape": 0.29,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "PRB_Utilization_DL_%",
+      "mae": 13.7947,
+      "rmse": 16.0032,
+      "mape": 25.81,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "PRB_Utilization_UL_%",
+      "mae": 12.5003,
+      "rmse": 14.6273,
+      "mape": 29.93,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "DL_Throughput_Mbps",
+      "mae": 98.6333,
+      "rmse": 116.6888,
+      "mape": 34.39,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "UL_Throughput_Mbps",
+      "mae": 31.5275,
+      "rmse": 37.3567,
+      "mape": 28.79,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Total_Traffic_GB",
+      "mae": 1.1134,
+      "rmse": 1.2865,
+      "mape": 36.04,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "RACH_Success_Rate_%",
+      "mae": 0.2169,
+      "rmse": 0.267,
+      "mape": 0.22,
+      "n_origins": 2
+    },
+    {
+      "method": "lstm",
+      "cell_id": "PCI_9",
+      "column": "Latency_ms",
+      "mae": 2.0179,
+      "rmse": 2.4532,
+      "mape": 17.89,
+      "n_origins": 2
+    }
+  ],
+  "lead_time": [
+    {
+      "method": "prophet",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "prophet",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "DL_Throughput_Mbps",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "prophet",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "Cell_Availability_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "prophet",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "RACH_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "prophet",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "prophet",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Latency_ms",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "DL_Throughput_Mbps",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "Cell_Availability_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "RACH_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "holt_winters",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Latency_ms",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "congestion",
+      "cell_id": "PCI_5",
+      "column": "DL_Throughput_Mbps",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "Cell_Availability_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "outage",
+      "cell_id": "PCI_8",
+      "column": "RACH_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Handover_Success_Rate_%",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "injected_event": "drift",
+      "cell_id": "PCI_2",
+      "column": "Latency_ms",
+      "detected": false,
+      "lead_time_h": null,
+      "false_alarms": 0
+    }
+  ],
+  "summary_table": [
+    {
+      "method": "holt_winters",
+      "n_series": 220,
+      "avg_mae": 15.5443,
+      "avg_rmse": 21.038,
+      "avg_mape": 45.67,
+      "lead_time_detected": 0,
+      "lead_time_total": 6,
+      "total_false_alarms": 0
+    },
+    {
+      "method": "lstm",
+      "n_series": 220,
+      "avg_mae": 19.9918,
+      "avg_rmse": 23.7772,
+      "avg_mape": 55.29,
+      "lead_time_detected": 0,
+      "lead_time_total": 6,
+      "total_false_alarms": 0
+    }
+  ],
+  "method_summary": {
+    "holt_winters": {
+      "mae": 15.5443,
+      "rmse": 21.038,
+      "mape": 45.67
+    },
+    "lstm": {
+      "mae": 19.9918,
+      "rmse": 23.7772,
+      "mape": 55.29
+    }
+  },
+  "config": {
+    "methods": [
+      "prophet",
+      "holt_winters",
+      "lstm"
+    ],
+    "horizon_h": 4,
+    "n_origins": 8,
+    "dataset": "kpi_10hr_sample.csv"
+  }
+}

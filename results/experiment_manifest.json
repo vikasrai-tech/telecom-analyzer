@@ -1,0 +1,59 @@
+{
+  "project": "Unified Telecom Analyzer \u2014 Research Validation",
+  "generated_at": "2026-08-15T06:10:20.391468+00:00",
+  "git_commit": "543012e",
+  "python_version": "3.13.13",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "random_seed": 42,
+  "library_versions": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "scikit-learn": "1.8.0",
+    "torch": "2.12.0",
+    "statsmodels": "0.14.6",
+    "faiss": "unknown",
+    "sentence-transformers": "5.5.1",
+    "fastapi": "0.136.3"
+  },
+  "experiments": {
+    "detection_benchmark": {
+      "command": "python scripts/run_detection_benchmark.py",
+      "result_files": [
+        "results/detection/detection_metrics.json",
+        "results/detection/detection_metrics.csv",
+        "results/correlation/correlation_metrics.json"
+      ],
+      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv",
+      "n_fault_scenarios": 3
+    },
+    "forecast_benchmark": {
+      "command": "python scripts/run_forecast_benchmark.py",
+      "result_files": [
+        "results/forecast/forecast_benchmark.json",
+        "results/forecast/forecast_summary.csv"
+      ],
+      "dataset": "kpi_10hr_sample.csv",
+      "note": "Prophet not installed in environment \u2014 holt_winters and lstm only"
+    },
+    "rca_evaluation": {
+      "command": "python scripts/run_rca_evaluation.py",
+      "result_files": [
+        "results/rca/rca_metrics.json"
+      ],
+      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv",
+      "n_fault_cells": 3
+    },
+    "scalability_benchmark": {
+      "command": "python scripts/run_scalability_benchmark.py",
+      "result_files": [
+        "results/scalability/scalability_results.json"
+      ],
+      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv + ue_64_6hr.pcap"
+    }
+  },
+  "scalability": {
+    "script": "run_scalability_benchmark.py",
+    "random_seed": 42,
+    "results_file": "/mnt/e/telecom-analyzer/results/scalability/scalability_results.json"
+  }
+}

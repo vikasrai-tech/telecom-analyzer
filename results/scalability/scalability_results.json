@@ -1,0 +1,112 @@
+{
+  "random_seed": 42,
+  "dataset": {
+    "kpi_file": "kpi_64ue_6hr.csv",
+    "stats_file": "stats_64ue_6hr.csv",
+    "pcap_file": "ue_64_6hr.pcap"
+  },
+  "pipeline_stages": {
+    "pcap_parse": {
+      "latency_s": 5.8553,
+      "peak_mb": 1.15,
+      "status": "ok"
+    },
+    "pcap_detect": {
+      "latency_s": null,
+      "peak_mb": null,
+      "status": "skipped (no pcap_parsed)"
+    },
+    "kpi_parse": {
+      "latency_s": 1.9081,
+      "peak_mb": 11.08,
+      "status": "ok",
+      "rows": 5760
+    },
+    "kpi_detect": {
+      "latency_s": 77.5616,
+      "peak_mb": 12.81,
+      "status": "ok"
+    },
+    "stats_parse": {
+      "latency_s": 2.2485,
+      "peak_mb": 11.4,
+      "status": "ok",
+      "rows": 5760
+    },
+    "stats_detect": {
+      "latency_s": 7.4307,
+      "peak_mb": 5.53,
+      "status": "ok"
+    },
+    "correlation": {
+      "latency_s": 121.4377,
+      "peak_mb": 8.32,
+      "status": "ok",
+      "total_events": 8245,
+      "correlated_events": 8245
+    }
+  },
+  "cell_scaling": {
+    "4": {
+      "n_rows": 1440,
+      "latency_mean": 21.997,
+      "latency_runs": [
+        19.212,
+        19.334,
+        27.445
+      ],
+      "memory_mean_mb": 5.7,
+      "memory_runs": [
+        5.7,
+        5.7,
+        5.7
+      ]
+    },
+    "8": {
+      "n_rows": 2880,
+      "latency_mean": 33.244,
+      "latency_runs": [
+        30.918,
+        22.422,
+        46.391
+      ],
+      "memory_mean_mb": 11.7,
+      "memory_runs": [
+        11.7,
+        11.7,
+        11.7
+      ]
+    },
+    "12": {
+      "n_rows": 4320,
+      "latency_mean": 110.388,
+      "latency_runs": [
+        92.56,
+        137.545,
+        101.06
+      ],
+      "memory_mean_mb": 16.6,
+      "memory_runs": [
+        16.6,
+        16.6,
+        16.6
+      ]
+    },
+    "16": {
+      "n_rows": 5760,
+      "latency_mean": 100.613,
+      "latency_runs": [
+        96.429,
+        107.927,
+        97.481
+      ],
+      "memory_mean_mb": 21.4,
+      "memory_runs": [
+        21.4,
+        21.4,
+        21.4
+      ]
+    }
+  },
+  "memory_note": "Memory measured with tracemalloc per stage. Peak is the stage's own allocation peak, not cumulative. Reported in MB. The 1.2 GB figure cited in earlier PPT slides was incorrect \u2014 actual measured peak for KPI-only pipeline is ~21 MB."
+}

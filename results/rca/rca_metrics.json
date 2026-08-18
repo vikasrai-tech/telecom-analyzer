@@ -1,0 +1,96 @@
+{
+  "dataset": {
+    "kpi_file": "kpi_64ue_6hr.csv",
+    "stats_file": "stats_64ue_6hr.csv",
+    "kpi_rows": 5760,
+    "stats_rows": 5760
+  },
+  "rca_method": "rule_based_root_cause() \u2014 deterministic, no LLM",
+  "random_seed": 42,
+  "n_fault_cells": 3,
+  "n_success": 3,
+  "success_rate": 1.0,
+  "results": [
+    {
+      "cell_id": "PCI_3",
+      "fault_type": "congestion",
+      "description": "DL congestion \u2014 high PRB utilisation and RRC/throughput degradation",
+      "event_group_size": 5,
+      "rca_result": {
+        "root_cause": "Root cause: DL PRB Utilization at KPI (aggregate) on cell PCI_3. MAC/HARQ/PDCP layer errors causing throughput degradation and KPI drops. This appears to have propagated to 4 downstream anomaly(ies).",
+        "confidence": 0.82,
+        "recommended_action": "Check HARQ retransmission rate (>10% indicates poor link quality). Review DL/UL scheduling algorithm and PRB utilisation. Inspect PDCP discard timer and buffer status reports.",
+        "source": "rule-based (Ollama unavailable)",
+        "n_hops": 5,
+        "n_citations": 2
+      },
+      "keyword_match": {
+        "matched_keywords": [
+          "PRB",
+          "throughput",
+          "prb",
+          "utilization"
+        ],
+        "total_expected": 8,
+        "keyword_hit_rate": 0.5,
+        "any_match": true
+      },
+      "success": true,
+      "error": null
+    },
+    {
+      "cell_id": "PCI_12",
+      "fault_type": "outage",
+      "description": "Cell outage \u2014 Cell_Availability collapse, RACH/NGAP failures",
+      "event_group_size": 5,
+      "rca_result": {
+        "root_cause": "Root cause: Cell Availability at KPI (aggregate) on cell PCI_12. This appears to have propagated to 4 downstream anomaly(ies).",
+        "confidence": 0.4,
+        "recommended_action": "Investigate the lowest-layer anomaly in this correlated group first; it is the most likely root cause given standard 5G protocol-stack causality.",
+        "source": "rule-based (Ollama unavailable)",
+        "n_hops": 5,
+        "n_citations": 4
+      },
+      "keyword_match": {
+        "matched_keywords": [
+          "availability",
+          "RACH",
+          "cell",
+          "avail",
+          "rach"
+        ],
+        "total_expected": 7,
+        "keyword_hit_rate": 0.714,
+        "any_match": true
+      },
+      "success": true,
+      "error": null
+    },
+    {
+      "cell_id": "PCI_8",
+      "fault_type": "drift",
+      "description": "Slow drift \u2014 Handover success rate and latency gradually degrade",
+      "event_group_size": 5,
+      "rca_result": {
+        "root_cause": "Root cause: Overall 5G Handover Success Rate at KPI (aggregate) on cell PCI_8. XnAP/inter-gNB handover failure causing RRC release and NAS re-registration. This appears to have propagated to 4 downstream anomaly(ies).",
+        "confidence": 0.8,
+        "recommended_action": "Handover failure detected. Check: A3 event offset and TTT (too aggressive -> ping-pong, too conservative -> RLF). Xn interface SCTP connectivity. Target cell admission control configuration.",
+        "source": "rule-based (Ollama unavailable)",
+        "n_hops": 5,
+        "n_citations": 2
+      },
+      "keyword_match": {
+        "matched_keywords": [
+          "handover",
+          "ho"
+        ],
+        "total_expected": 6,
+        "keyword_hit_rate": 0.333,
+        "any_match": true
+      },
+      "success": true,
+      "error": null
+    }
+  ],
+  "evaluation_note": "Keyword match evaluates whether rule_based_root_cause() output contains expected diagnostic terms for each fault type. This tests whether the rule-based engine correctly identifies the causal layer and fault type, not whether it precisely mirrors any specific human-written diagnosis."
+}

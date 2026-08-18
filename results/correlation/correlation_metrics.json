@@ -1,0 +1,20 @@
+{
+  "metric_name": "cross_source_cluster_assignment_rate",
+  "note": "Fraction of ingested anomaly events assigned to a cross-source cell cluster. This is NOT correlation precision or recall \u2014 it reflects how many events share a cell_id with an event from another source domain (kpi, stats, or pcap). A high rate indicates multi-source agreement; it does not confirm that the correlated cluster is a true anomaly.",
+  "total_events": 4005,
+  "clustered_events": 4005,
+  "single_source_events": 0,
+  "assignment_rate_pct": 100.0,
+  "by_source": {
+    "kpi": {
+      "total": 3894,
+      "clustered": 3894,
+      "rate_pct": 100.0
+    },
+    "stats": {
+      "total": 111,
+      "clustered": 111,
+      "rate_pct": 100.0
+    }
+  }
+}

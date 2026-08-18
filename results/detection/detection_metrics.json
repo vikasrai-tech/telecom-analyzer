@@ -1,0 +1,257 @@
+{
+  "dataset": {
+    "kpi_file": "kpi_64ue_6hr.csv",
+    "stats_file": "stats_64ue_6hr.csv",
+    "kpi_rows": 5760,
+    "stats_rows": 5760,
+    "n_cells": 16,
+    "fault_cells": [
+      "PCI_12",
+      "PCI_3",
+      "PCI_8"
+    ],
+    "n_fault_scenarios": 3
+  },
+  "evaluation_type": "scenario-level / cell-level detection",
+  "random_seed": 42,
+  "methods": {
+    "threshold_only": {
+      "label": "Threshold \u2014 KPI only (any violation)",
+      "description": "Threshold detector only on KPI data. Flags any cell with \u22651 threshold violation. Note: FDD cells (PCI_9-16) generate ~727 threshold alerts vs ~163 for TDD normal cells due to dataset capacity calibration differences.",
+      "flagged_cells": [
+        "PCI_1",
+        "PCI_10",
+        "PCI_11",
+        "PCI_12",
+        "PCI_13",
+        "PCI_14",
+        "PCI_15",
+        "PCI_16",
+        "PCI_2",
+        "PCI_3",
+        "PCI_4",
+        "PCI_5",
+        "PCI_6",
+        "PCI_7",
+        "PCI_8",
+        "PCI_9"
+      ],
+      "metrics": {
+        "TP": 3,
+        "FP": 13,
+        "FN": 0,
+        "TN": 0,
+        "precision": 0.1875,
+        "recall": 1.0,
+        "f1": 0.3158,
+        "detected_fault_cells": [
+          "PCI_12",
+          "PCI_3",
+          "PCI_8"
+        ],
+        "missed_fault_cells": [],
+        "false_positive_cells": [
+          "PCI_1",
+          "PCI_10",
+          "PCI_11",
+          "PCI_13",
+          "PCI_14",
+          "PCI_15",
+          "PCI_16",
+          "PCI_2",
+          "PCI_4",
+          "PCI_5",
+          "PCI_6",
+          "PCI_7",
+          "PCI_9"
+        ],
+        "evaluation_note": "Scenario-level / cell-level detection. N=3 injected fault scenarios (congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic dataset. This is a dataset limitation \u2014 recall/precision should not be extrapolated to real-world deployments without additional validation."
+      }
+    },
+    "single_method_iqr": {
+      "label": "IQR \u2014 KPI only (distribution-based, any violation)",
+      "description": "IQR/Tukey-fence detector only on KPI data. Same FDD bias as Threshold.",
+      "flagged_cells": [
+        "PCI_1",
+        "PCI_10",
+        "PCI_11",
+        "PCI_12",
+        "PCI_13",
+        "PCI_14",
+        "PCI_15",
+        "PCI_16",
+        "PCI_2",
+        "PCI_3",
+        "PCI_4",
+        "PCI_5",
+        "PCI_6",
+        "PCI_7",
+        "PCI_8",
+        "PCI_9"
+      ],
+      "metrics": {
+        "TP": 3,
+        "FP": 13,
+        "FN": 0,
+        "TN": 0,
+        "precision": 0.1875,
+        "recall": 1.0,
+        "f1": 0.3158,
+        "detected_fault_cells": [
+          "PCI_12",
+          "PCI_3",
+          "PCI_8"
+        ],
+        "missed_fault_cells": [],
+        "false_positive_cells": [
+          "PCI_1",
+          "PCI_10",
+          "PCI_11",
+          "PCI_13",
+          "PCI_14",
+          "PCI_15",
+          "PCI_16",
+          "PCI_2",
+          "PCI_4",
+          "PCI_5",
+          "PCI_6",
+          "PCI_7",
+          "PCI_9"
+        ],
+        "evaluation_note": "Scenario-level / cell-level detection. N=3 injected fault scenarios (congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic dataset. This is a dataset limitation \u2014 recall/precision should not be extrapolated to real-world deployments without additional validation."
+      }
+    },
+    "full_ensemble": {
+      "label": "Full Ensemble \u2014 KPI+Stats (any violation)",
+      "description": "All 6 KPI + 6 Stats detectors; cell flagged if any detector fires.",
+      "flagged_cells": [
+        "PCI_1",
+        "PCI_10",
+        "PCI_11",
+        "PCI_12",
+        "PCI_13",
+        "PCI_14",
+        "PCI_15",
+        "PCI_16",
+        "PCI_2",
+        "PCI_3",
+        "PCI_4",
+        "PCI_5",
+        "PCI_6",
+        "PCI_7",
+        "PCI_8",
+        "PCI_9"
+      ],
+      "metrics": {
+        "TP": 3,
+        "FP": 13,
+        "FN": 0,
+        "TN": 0,
+        "precision": 0.1875,
+        "recall": 1.0,
+        "f1": 0.3158,
+        "detected_fault_cells": [
+          "PCI_12",
+          "PCI_3",
+          "PCI_8"
+        ],
+        "missed_fault_cells": [],
+        "false_positive_cells": [
+          "PCI_1",
+          "PCI_10",
+          "PCI_11",
+          "PCI_13",
+          "PCI_14",
+          "PCI_15",
+          "PCI_16",
+          "PCI_2",
+          "PCI_4",
+          "PCI_5",
+          "PCI_6",
+          "PCI_7",
+          "PCI_9"
+        ],
+        "evaluation_note": "Scenario-level / cell-level detection. N=3 injected fault scenarios (congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic dataset. This is a dataset limitation \u2014 recall/precision should not be extrapolated to real-world deployments without additional validation."
+      }
+    },
+    "ensemble_with_router": {
+      "label": "Ensemble + EventRouter (\u22652 source domains)",
+      "description": "Full ensemble (KPI + Stats) + EventRouter cross-source correlation. Cell qualifies only if \u22652 source domains (kpi AND stats) both flag it.",
+      "flagged_cells": [
+        "PCI_1",
+        "PCI_10",
+        "PCI_11",
+        "PCI_12",
+        "PCI_13",
+        "PCI_14",
+        "PCI_15",
+        "PCI_16",
+        "PCI_2",
+        "PCI_3",
+        "PCI_4",
+        "PCI_5",
+        "PCI_6",
+        "PCI_7",
+        "PCI_8",
+        "PCI_9"
+      ],
+      "metrics": {
+        "TP": 3,
+        "FP": 13,
+        "FN": 0,
+        "TN": 0,
+        "precision": 0.1875,
+        "recall": 1.0,
+        "f1": 0.3158,
+        "detected_fault_cells": [
+          "PCI_12",
+          "PCI_3",
+          "PCI_8"
+        ],
+        "missed_fault_cells": [],
+        "false_positive_cells": [
+          "PCI_1",
+          "PCI_10",
+          "PCI_11",
+          "PCI_13",
+          "PCI_14",
+          "PCI_15",
+          "PCI_16",
+          "PCI_2",
+          "PCI_4",
+          "PCI_5",
+          "PCI_6",
+          "PCI_7",
+          "PCI_9"
+        ],
+        "evaluation_note": "Scenario-level / cell-level detection. N=3 injected fault scenarios (congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic dataset. This is a dataset limitation \u2014 recall/precision should not be extrapolated to real-world deployments without additional validation."
+      }
+    },
+    "stats_count_threshold": {
+      "label": "Stats Count-Threshold (mean + 1.5\u03c3, data-driven)",
+      "description": "Flags cells whose total Stats anomaly count exceeds mean + 1.5*std across all cells. Threshold computed from data \u2014 no post-hoc label fitting. Stats domain is not affected by FDD/TDD capacity bias.",
+      "flagged_cells": [
+        "PCI_12",
+        "PCI_3",
+        "PCI_8"
+      ],
+      "metrics": {
+        "TP": 3,
+        "FP": 0,
+        "FN": 0,
+        "TN": 13,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "detected_fault_cells": [
+          "PCI_12",
+          "PCI_3",
+          "PCI_8"
+        ],
+        "missed_fault_cells": [],
+        "false_positive_cells": [],
+        "evaluation_note": "Scenario-level / cell-level detection. N=3 injected fault scenarios (congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic dataset. This is a dataset limitation \u2014 recall/precision should not be extrapolated to real-world deployments without additional validation."
+      }
+    }
+  }
+}

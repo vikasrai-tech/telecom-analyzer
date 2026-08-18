@@ -2,12 +2,16 @@
 Shared topology/config for the 64-UE / 6-hour dataset (PCAP + KPI + Stats).
 
 16 cells across 4 gNBs (4 cells each), 64 UEs (4 per cell):
-  PCI_1  .. PCI_8   (gNB-1, gNB-2)  -> TDD  cells, DL capacity 1500 Mbps, UL 100 Mbps
-  PCI_9  .. PCI_16  (gNB-3, gNB-4)  -> FDD  cells, DL capacity  100 Mbps, UL  50 Mbps
+  PCI_1  .. PCI_8   (gNB-1, gNB-2)  -> TDD  cells, DL capacity 1400 Mbps, UL 100 Mbps
+  PCI_9  .. PCI_16  (gNB-3, gNB-4)  -> FDD  cells, DL capacity   84 Mbps, UL  50 Mbps
 
 KPI and Stats generators both use this 6-hour window (08:00-14:00) and the
 same 3 injected-anomaly windows so the two datasets can be cross-correlated
 on (cell_id, time).
+
+CAPACITY VALUES — AUTHORITATIVE SOURCE
+These values are confirmed cell-type capacities. The runtime normalizer in
+src/detection/throughput_normalizer.py must match these exactly.
 """
 
 from datetime import datetime
@@ -27,9 +31,11 @@ CELLS = [
 ]
 
 # Per-cell peak (busy-hour) channel capacity, Mbps
+# Authoritative values — confirmed 2026-08-15.
+# Must stay in sync with src/detection/throughput_normalizer.py CHANNEL_TYPE_CAPACITY.
 CAPACITY = {
-    "TDD": {"dl": 1500.0, "ul": 100.0},
-    "FDD": {"dl":  100.0, "ul":  50.0},
+    "TDD": {"dl": 1400.0, "ul": 100.0},
+    "FDD": {"dl":   84.0, "ul":  50.0},
 }
 
 UE_PER_CELL = 4   # 16 cells x 4 = 64 UEs
