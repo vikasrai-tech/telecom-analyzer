@@ -22,17 +22,20 @@
         "recommended_action": "Check HARQ retransmission rate (>10% indicates poor link quality). Review DL/UL scheduling algorithm and PRB utilisation. Inspect PDCP discard timer and buffer status reports.",
         "source": "rule-based (Ollama unavailable)",
         "n_hops": 5,
-        "n_citations": 2
+        "n_citations": 3
       },
       "keyword_match": {
         "matched_keywords": [
           "PRB",
           "throughput",
-          "prb",
-          "utilization"
+          "utilization",
+          "utilisation",
+          "MAC",
+          "HARQ",
+          "scheduling"
         ],
         "total_expected": 8,
-        "keyword_hit_rate": 0.5,
+        "keyword_hit_rate": 0.875,
         "any_match": true
       },
       "success": true,
@@ -54,13 +57,10 @@
       "keyword_match": {
         "matched_keywords": [
           "availability",
-          "RACH",
-          "cell",
-          "avail",
-          "rach"
+          "RACH"
         ],
-        "total_expected": 7,
-        "keyword_hit_rate": 0.714,
+        "total_expected": 5,
+        "keyword_hit_rate": 0.4,
         "any_match": true
       },
       "success": true,
@@ -81,11 +81,10 @@
       },
       "keyword_match": {
         "matched_keywords": [
-          "handover",
-          "ho"
+          "handover"
         ],
-        "total_expected": 6,
-        "keyword_hit_rate": 0.333,
+        "total_expected": 5,
+        "keyword_hit_rate": 0.2,
         "any_match": true
       },
       "success": true,

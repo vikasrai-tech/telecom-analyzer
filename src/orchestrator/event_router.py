@@ -311,7 +311,12 @@ class EventRouter:
     def summary(self) -> Dict[str, Any]:
         """High-level counts for the dashboard header."""
         total       = len(self._events)
-        correlated  = len(self.get_correlated())
+        corr_events = self.get_correlated()
+        correlated  = len(corr_events)
+        # correlated_unique_cells: distinct cell_ids that have ≥2 source domains.
+        # This is the cell-level view; `correlated` is the event-level count (higher
+        # because each correlated event — kpi AND stats — is counted separately).
+        correlated_unique_cells = len({ev["cell_id"] for ev in corr_events})
         predicted   = sum(1 for e in self._events if e["state"] == "predicted")
         current     = total - predicted
 
@@ -327,13 +332,14 @@ class EventRouter:
         top_cells = dict(sorted(top_cells.items(), key=lambda x: x[1], reverse=True)[:5])
 
         return {
-            "total":          total,
-            "current":        current,
-            "predicted":      predicted,
-            "correlated":     correlated,
-            "by_severity":    by_sev,
-            "by_source":      by_src,
-            "top_cells":      top_cells,
+            "total":                   total,
+            "current":                 current,
+            "predicted":               predicted,
+            "correlated":              correlated,              # event-level count
+            "correlated_unique_cells": correlated_unique_cells, # cell-level count
+            "by_severity":             by_sev,
+            "by_source":               by_src,
+            "top_cells":               top_cells,
         }
 
     def clear(self) -> None:

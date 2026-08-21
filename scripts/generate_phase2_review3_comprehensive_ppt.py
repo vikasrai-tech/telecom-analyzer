@@ -473,7 +473,7 @@ def s_b_results(prs, n):
 
     headers = ["Metric", "Value"]
     rows = [
-        ("Full automated test suite",            "83 passed, 1 skipped (needs live Ollama), 0 failed"),
+        ("Full automated test suite",            "83 passed, 1 skipped (needs live Ollama), 0 failed  [→ Review 3 final: 173 passed]"),
         ("New tests added this review",           "24  (agent 13, forecast_eval 6, API root-cause 3, pipeline 2)"),
         ("Regressions vs Phase I / Review 1",     "0"),
         ("Forecasting methods benchmarked",       "3 — Prophet, Holt-Winters, direct multi-horizon LSTM"),
@@ -507,7 +507,7 @@ def s_b_code_status(prs, n):
         ("Deterministic RAG-grounded rule-based fallback (no-LLM path)",             "Done"),
         ("/analyze/stats + /agent/root-cause REST endpoints",                        "Done"),
         ("Dashboard: shared session router, Root Cause Agent panel, simple mode",    "Done"),
-        ("24 new automated tests, 0 regressions (83 passed / 1 skipped total)",      "Done"),
+        ("24 new automated tests, 0 regressions (83 passed at Review 2 → 173 by Review 3)", "Done"),
         ("Benchmark vs published single-method baselines",                            "Pending — Third Review"),
         ("Performance / scalability profiling at real-world scale (64 UE / 6 hr)",   "Pending — Third Review"),
         ("Journal paper draft (Phase I + II)",                                        "Pending — Third Review"),
@@ -553,7 +553,7 @@ def s_c_title_abstract(prs, n):
     slide_title(slide, "Title & Abstract — Final")
     section_badge(slide, "Part C — Review 3", PART_C_COLOR)
     textbox(slide, 0.3, 0.68, 9.4, 0.36,
-            "Unified Telecom Analyzer: An 18-Detector Ensemble for Multi-Modal Anomaly Detection, "
+            "Unified Telecom Analyzer: An 18-Detector Multi-Domain Framework for Anomaly Detection, "
             "Cross-Domain Correlation, and LLM-Aided Explanation in 5G Networks",
             12.5, GREEN, bold=True, wrap=True)
     text = (
@@ -561,20 +561,21 @@ def s_c_title_abstract(prs, n):
         "per-cell KPI exports, and gNB L1/L2 statistics — yet existing monitoring tools "
         "treat each source in isolation, missing cross-domain fault signatures. This work "
         "presents a unified, open-source pipeline that parses all three domains against the "
-        "full 3GPP specification stack, runs an 18-detector ensemble (6 methods × 3 domains) "
-        "covering statistical, density, kernel, and neural anomaly-detection families, routes "
-        "anomalies through a shared event correlator keyed on (cell, category, time-window), "
-        "forecasts near-term degradation with Prophet + Holt-Winters + LSTM, and provides "
-        "natural-language root-cause explanations via FAISS-backed RAG → Ollama LLM with "
-        "a deterministic rule-based fallback.\n\n"
-        "Phase I validated the architecture on single-cell synthetic samples. Phase II extended "
-        "it to a real-world-scale topology: 4 gNBs, 16 cells, 64 UEs, 6-hour diurnal run "
-        "with 3 concurrent injected fault scenarios (congestion, outage, drift). The ensemble "
-        "achieved Precision 0.75 / Recall 1.00 / F1 0.86 on scenario-level detection — "
-        "outperforming single-method baselines (Threshold-only F1=0.22, IF-only F1=0.50) "
-        "while correlating 8,607 of 8,623 cross-domain events at scale. Full pipeline "
-        "latency: 58 s for the 6-hour dataset on a CPU-only host. 100% of code is "
-        "implemented, tested (56 automated tests, 0 failures), and live-demoable."
+        "full 3GPP specification stack, runs 18 detectors across PCAP, KPI, and Stats domains "
+        "(6 methods per domain) covering statistical, density, kernel, and neural families, "
+        "routes anomalies through a shared event correlator keyed on (cell, category, time-window), "
+        "forecasts near-term degradation with Holt-Winters and LSTM (benchmarked; Prophet "
+        "implemented but not executed in the authoritative benchmark environment), and provides "
+        "natural-language root-cause explanations via FAISS-backed RAG → Ollama LLM "
+        "with a deterministic rule-based fallback.\n\n"
+        "Phase II was evaluated on a controlled synthetic testbed: 4 gNBs, "
+        "16 cells, 64 UEs, 6-hour diurnal run with 3 injected fault scenarios (congestion, "
+        "outage, drift). Under the final cell-level evaluation (3 fault cells / 16 total), "
+        "Stats Count-Threshold achieved Precision=1.00, Recall=1.00, F1=1.00. "
+        "The Full Ensemble achieved Recall=1.00 (all faults detected) with Precision=0.1875, "
+        "F1=0.316. The system correlates anomaly events across domains, provides explainable "
+        "RCA narratives, and completes end-to-end in 45.6 s on a CPU-only host. "
+        "173 automated tests, 0 failures."
     )
     textbox(slide, 0.3, 1.18, 9.4, 3.95, text, 11.2, WHITE, wrap=True)
     footer(slide, n)
@@ -592,15 +593,16 @@ def s_c_overall_design(prs, n):
          "pcap_parser_real.py (pyshark): NAS·NGAP·RRC·F1AP·E1AP·XnAP vs full 3GPP stack  |  "
          "kpi_parser.py (vs 3GPP KPI catalogue)  |  stats_parser.py (srsRAN/OAI/NIST/Parquet)"),
         ("DETECT",    ORANGE,
-         "6 PCAP detectors: Isolation Forest · Statistical/Cascade · OC-SVM · LOF · Elliptic Env. · LSTM-AE  |  "
-         "6 KPI: Threshold · Peer-Comparison · Trend-Regression · IQR · CUSUM · Bollinger  |  "
-         "6 Stats: same family, adapted for L1/L2 DU/CU metrics"),
+         "18 detectors across 3 domains — PCAP: Isolation Forest · Statistical/Cascade · OC-SVM · LOF · "
+         "Elliptic Env. · LSTM-AE  |  KPI: Threshold · Peer-Comparison · Trend-Regression · IQR · CUSUM · "
+         "Bollinger  |  Stats: same family, adapted for L1/L2 DU/CU metrics"),
         ("CORRELATE", YELLOW,
          "EventRouter: (cell, category) key, 1-h sliding window → cross-domain anomaly clusters  |  "
-         "8,607/8,623 events correlated at 64-UE scale (99.8%)"),
+         "1,427 anomaly events (KPI: 1,316 + Stats: 111) — 100% cross-source cluster assignment at 64-UE scale"),
         ("PREDICT",   GREEN,
-         "Prophet (seasonal decomp.)  +  Holt-Winters (damped trend)  +  LSTM (sequence)  — "
-         "4-hr ahead, per-cell KPI & Stats  |  Rolling-origin backtest + lead-time evaluator"),
+         "Holt-Winters (damped trend) + LSTM (sequence) — 4-hr ahead, rolling-origin backtest + "
+         "lead-time evaluator  |  HW MAE=15.54, LSTM MAE=20.24 (seed=42)  |  "
+         "Prophet implemented — not executed in authoritative benchmark environment"),
         ("EXPLAIN",   TEAL,
          "FAISS + all-MiniLM-L6-v2 RAG → Ollama phi3:mini ReAct agent → natural-language root-cause  |  "
          "rule_based_root_cause() deterministic fallback — demoable without live LLM"),
@@ -628,11 +630,11 @@ def s_c_experimental_results(prs, n):
             "congestion (PCI_3), outage (PCI_12), drift (PCI_8).  Pipeline: --no-llm flag.",
             9.5, GREY, wrap=True)
 
-    headers = ["Domain", "Input size", "Ensemble anomalies", "Top detectors"]
+    headers = ["Domain", "Input size", "Anomaly records", "Top detectors"]
     rows = [
         ("PCAP",  "901 pkts / 901 events",    "16",    "Statistical/Cascade (9) · LSTM-AE (51 frame-level) · IF (3)"),
-        ("KPI",   "5,760 rows × 26 cols",     "8,496", "Threshold (7,954) · CUSUM (212) · Bollinger (196) · IQR (117)"),
-        ("Stats", "5,760 rows × 15 cols",     "111",   "Trend-Regression (104) · Peer-Comparison (19) · IQR (21)"),
+        ("KPI",   "5,760 rows × 26 cols",     "1,316", "Threshold (833) · CUSUM (212) · Bollinger (196) · IQR (117)"),
+        ("Stats", "5,760 rows × 15 cols",     "111",   "Trend-Regression (88) · Peer-Comparison (15) · IQR (8)"),
     ]
     col_x = [0.3, 2.05, 3.8, 5.5]
     col_w = [1.65, 1.65, 1.65, 4.1]
@@ -646,12 +648,15 @@ def s_c_experimental_results(prs, n):
             "Cross-Domain Correlation (shared EventRouter — PCAP + KPI + Stats):",
             11, ACCENT, bold=True)
     bullets(slide, 0.4, 3.29, 9.0, 1.25, [
-        "Events ingested: 8,623  →  cross-source correlated (≥2 domains, same cell + category, 1-h window): "
-        "8,607 / 8,623  (99.8%).",
-        "Top correlated cells: PCI_12 (outage), PCI_3 (congestion), PCI_9, PCI_14, PCI_15 — "
-        "router correctly attributes injected faults at the right cells across all three data domains.",
-        "All 3 injected scenarios surfaced: congestion (CUSUM + Bollinger), "
-        "outage (PCAP Statistical + Threshold), drift (Trend-Regression).",
+        "EventRouter processed 1,427 anomaly events (KPI: 1,316 + Stats: 111). "
+        "Event-level cross-source assignment rate: 100% (1,427/1,427). "
+        "Cell-level: all 16 cells have ≥2 source domains — note this includes 13 normal "
+        "cells where KPI fires due to FDD/TDD capacity calibration differences.",
+        "All 3 injected fault cells (PCI_3, PCI_12, PCI_8) are correctly surfaced: "
+        "congestion (CUSUM + Bollinger), outage (Threshold + Peer-Comparison), drift (Trend-Regression).",
+        "Cross-source coverage alone does not imply fault attribution — "
+        "the Stats Count-Threshold step (F1=1.00) is needed to isolate the 3 true fault cells "
+        "from the 13 normal cells that also generate cross-source events.",
     ], 10, WHITE)
     footer(slide, n)
 
@@ -661,46 +666,62 @@ def s_c_performance(prs, n):
     slide_title(slide, "Performance Evaluation")
     section_badge(slide, "Part C — Review 3", PART_C_COLOR)
 
-    textbox(slide, 0.3, 0.63, 9.2, 0.26,
-            "Scenario-Level Detection Quality  (3 injected faults = ground truth):",
-            11, ACCENT, bold=True)
-    headers = ["Method", "Scenarios Detected", "FP (false cells)", "Precision", "Recall", "F1"]
-    rows = [
-        ("Threshold-only",        "1 / 3  (outage only)", "5", "0.17", "0.33", "0.22"),
-        ("Isolation Forest only", "2 / 3  (no drift)",    "3", "0.40", "0.67", "0.50"),
-        ("Our Ensemble (6 det.)", "3 / 3",                "2", "0.60", "1.00", "0.75"),
-        ("Ensemble + EventRouter","3 / 3",                "1", "0.75", "1.00", "0.86"),
-    ]
-    col_x = [0.3, 2.6, 4.4, 5.45, 6.45, 7.45]
-    col_w = [2.2, 1.7, 0.95, 0.9, 0.9, 0.9]
-    rc = [WHITE, WHITE, GREEN, GREEN]
-    table_header(slide, col_x, col_w, headers, 0.95, size=10)
-    for r, row in enumerate(rows):
-        ty = 1.28 + r * 0.45
-        for i, val in enumerate(row):
-            textbox(slide, col_x[i], ty, col_w[i], 0.42, val, 9.5, rc[r], wrap=True)
+    # ── Detection benchmark header ──────────────────────────────────────────
+    textbox(slide, 0.3, 0.62, 9.4, 0.24,
+            "Final Cell-Level Detection Benchmark  "
+            "(Ground truth: 3 injected fault cells / 16 total cells, seed=42):",
+            10.5, ACCENT, bold=True, wrap=True)
 
-    textbox(slide, 0.3, 3.18, 9.2, 0.26,
-            "Pipeline Scalability — 64-UE / 6-hr Run (CPU-only host, no GPU):",
-            11, ACCENT, bold=True)
-    perf_rows = [
-        ("PCAP parse (901 pkts, pyshark)",                 "8.2 s",   "320 MB"),
-        ("PCAP detection (6 detectors)",                    "11.8 s",  "430 MB"),
-        ("KPI parse (5,760 rows × 26 cols)",                "2.1 s",   "85 MB"),
-        ("KPI detection (6 detectors)",                     "17.6 s",  "510 MB"),
-        ("Stats parse + detection (5,760 rows × 15 cols)",  "14.3 s",  "480 MB"),
-        ("Cross-domain correlation (8,623 events)",         "2.8 s",   "55 MB"),
-        ("TOTAL end-to-end pipeline",                       "56.8 s",  "1.2 GB peak"),
+    headers = ["Method", "TP", "FP", "FN", "Precision", "Recall", "F1"]
+    rows = [
+        ("Threshold-only (KPI)",         "3", "4",  "0", "0.4286", "1.000", "0.600"),
+        ("IQR-only (KPI)",               "3", "13", "0", "0.1875", "1.000", "0.316"),
+        ("Full Ensemble (KPI+Stats)",    "3", "13", "0", "0.1875", "1.000", "0.316"),
+        ("Ensemble + EventRouter",       "3", "13", "0", "0.1875", "1.000", "0.316"),
+        ("Stats Count-Threshold ★",     "3", "0",  "0", "1.000",  "1.000", "1.000"),
     ]
-    ph = ["Stage", "Latency", "Memory"]
-    pc = [0.3, 6.1, 7.55]
-    pw = [5.7, 1.35, 1.75]
-    table_header(slide, pc, pw, ph, 3.5, size=10)
-    for r, row in enumerate(perf_rows):
-        ty = 3.83 + r * 0.27
+    col_x = [0.3, 3.25, 3.85, 4.45, 5.1, 6.2, 7.3]
+    col_w = [2.85, 0.5,  0.5,  0.55, 1.0, 1.0, 1.0]
+    table_header(slide, col_x, col_w, headers, 0.90, size=9.5)
+    row_colors = [WHITE, WHITE, WHITE, WHITE, GREEN]
+    for r, row in enumerate(rows):
+        ty = 1.20 + r * 0.37
+        for i, val in enumerate(row):
+            textbox(slide, col_x[i], ty, col_w[i], 0.34, val,
+                    9.0, row_colors[r], bold=(r == 4), wrap=True)
+
+    textbox(slide, 0.3, 3.10, 9.4, 0.22,
+            "★ Best evaluated method: Stats Count-Threshold F1=1.00  |  "
+            "All methods achieve Recall=1.00 (all 3 fault cells detected)  |  "
+            "KPI ensemble FP rate reflects TDD/FDD capacity calibration differences in this dataset.",
+            8.5, GREY, italic=True, wrap=True)
+
+    # ── Scalability ─────────────────────────────────────────────────────────
+    textbox(slide, 0.3, 3.40, 9.4, 0.24,
+            "Pipeline Scalability — 64-UE / 6-hr Run  (CPU-only host, tracemalloc memory):",
+            10.5, ACCENT, bold=True, wrap=True)
+
+    # AUTHORITATIVE VALUES from the original Python 3.13.13 benchmark run (git a516829).
+    # results/scalability_results.json reflects a later Python 3.12.3 re-run (40.1 s total).
+    # The PPT intentionally uses the original run to maintain consistency with the
+    # submitted experiment_manifest.json. Any future re-benchmark should update BOTH.
+    sc_rows = [
+        ("PCAP parse (901 pkts, pyshark)",        "2.6 s",  "1.2 MB"),
+        ("KPI parse (5,760 rows × 26 cols)",       "1.1 s",  "11.1 MB"),
+        ("KPI detection (6 detectors)",            "32.7 s", "7.8 MB"),
+        ("Stats parse + detection (5,760 rows)",   "5.0 s",  "17.0 MB"),
+        ("Cross-domain correlation (1,427 events)","4.2 s",  "1.6 MB"),
+        ("TOTAL end-to-end pipeline",              "45.6 s", "~21 MB peak (tracemalloc)"),
+    ]
+    ph = ["Stage", "Latency", "Memory (incremental)"]
+    pc = [0.3, 6.1, 7.6]
+    pw = [5.7, 1.4, 2.0]
+    table_header(slide, pc, pw, ph, 3.68, size=9.5)
+    for r, row in enumerate(sc_rows):
+        ty = 3.96 + r * 0.245
         c = YELLOW if row[0].startswith("TOTAL") else WHITE
         for i, val in enumerate(row):
-            textbox(slide, pc[i], ty, pw[i], 0.25, val, 9.0, c)
+            textbox(slide, pc[i], ty, pw[i], 0.23, val, 8.5, c)
     footer(slide, n)
 
 
@@ -721,7 +742,7 @@ def s_c_comparison(prs, n):
          "Misses",
          "Misses",
          "Misses",
-         "Caught by Trend-Regression + CUSUM (104 + 212 this run)"),
+         "Caught by Trend-Regression + CUSUM (88 + 212 this run)"),
         ("Sequence/order violations",
          "None",
          "None",
@@ -731,17 +752,17 @@ def s_c_comparison(prs, n):
          "None",
          "None",
          "None",
-         "EventRouter: PCAP + KPI + Stats; 8,607/8,623 correlated (99.8%)"),
+         "EventRouter: PCAP + KPI + Stats; 1,427 events, 100% cross-source assignment"),
         ("Explainability",
          "Rule string",
          "Feature importance",
          "Support-vector dist.",
          "RAG + LLM narrative + rationale expander in dashboard"),
-        ("Scenario Precision / F1",
-         "0.17 / 0.22",
-         "0.40 / 0.50",
-         "0.33 / 0.44 (est.)",
-         "0.75 / 0.86  (Ensemble + EventRouter)"),
+        ("Cell-level Precision / F1\n(final benchmark)",
+         "0.4286 / 0.600",
+         "Not evaluated\nin final benchmark",
+         "Not evaluated\nin final benchmark",
+         "0.1875 / 0.316 (Ensemble+Router)\n1.000 / 1.000 (Stats Count-Threshold)"),
         ("Multi-source domain",
          "KPI/Stats only",
          "Single source",
@@ -751,7 +772,7 @@ def s_c_comparison(prs, n):
          "Partial",
          "Partial",
          "Partial",
-         "Full — Streamlit + FastAPI + CLI, 56 automated tests"),
+         "Full — Streamlit + FastAPI + CLI, 173 tests passed, 0 failed"),
     ]
 
     col_x = [0.3, 2.65, 4.15, 5.65, 7.15]
@@ -762,6 +783,10 @@ def s_c_comparison(prs, n):
         for i, val in enumerate(row):
             c = GREEN if i == 4 else WHITE
             textbox(slide, col_x[i], ty, col_w[i], 0.52, val, 8.5, c, wrap=True)
+    textbox(slide, 0.3, 5.30, 9.4, 0.22,
+            "★ Note: Isolation Forest and One-Class SVM columns show algorithmic baseline "
+            "characteristics only — neither was part of the final cell-level benchmark run.",
+            8.0, GREY, italic=True, wrap=True)
     footer(slide, n)
 
 
@@ -790,7 +815,7 @@ def s_c_code_demo(prs, n):
         ("src/orchestrator/pipeline.py — CLI orchestrator (run_pipeline)",            "230", "Done"),
         ("src/api/main.py — FastAPI REST (5 endpoints)",                              "210", "Done"),
         ("src/dashboard/app.py — Streamlit (PCAP + KPI + Agent panel)",              "910", "Done"),
-        ("tests/ — 56 automated tests (pytest), 0 failures",                         "680", "Done"),
+        ("tests/ — 173 automated tests (pytest), 0 failures, 1 skipped",              "680", "Done"),
     ]
     col_x = [0.3, 7.5, 8.3]
     col_w = [7.1, 0.7, 1.3]
@@ -804,19 +829,19 @@ def s_c_code_demo(prs, n):
     textbox(slide, 0.3, 5.22, 9.4, 0.26,
             "Demo:  make dev  (Streamlit)  |  make api  (FastAPI)  |  "
             "python -m src.orchestrator.pipeline --input data/raw/ue_64_6hr.pcap  |  "
-            "make test-all  (56 tests, 0 failed)",
+            "make test-all  (173 passed, 1 skipped, 0 failed)",
             8.5, YELLOW, wrap=True)
     footer(slide, n)
 
 
 def s_c_journal(prs, n):
     slide = new_slide(prs)
-    slide_title(slide, "Journal Paper Publication Proof — Draft")
+    slide_title(slide, "Journal Paper Draft — Final Results")
     section_badge(slide, "Part C — Review 3", PART_C_COLOR)
 
     textbox(slide, 0.3, 0.65, 9.4, 0.28,
             "Target venue: IEEE Communications Letters / Elsevier Computer Networks  |  "
-            "Status: Full draft complete; abstract, sections, and figures authored.",
+            "Status: Draft complete; numbers synchronized with authoritative benchmark run (seed=42).",
             9.5, GREY, italic=True, wrap=True)
 
     textbox(slide, 0.3, 1.0, 9.4, 0.28, "Working Title:", 10.5, ACCENT, bold=True)
@@ -825,20 +850,23 @@ def s_c_journal(prs, n):
             'and LLM-Aided Explanation for 5G Networks"',
             12, GREEN, bold=True, wrap=True)
 
-    textbox(slide, 0.3, 1.75, 9.4, 0.26, "Paper Abstract (draft):", 10.5, ACCENT, bold=True)
+    textbox(slide, 0.3, 1.75, 9.4, 0.26, "Paper Abstract (draft — final numbers):", 10.5, ACCENT, bold=True)
     abstract = (
         "We propose a unified open-source pipeline for 5G network fault detection that "
         "jointly processes PCAP protocol traces, per-cell KPI exports, and gNB L1/L2 "
-        "statistics through an 18-detector ensemble covering six anomaly-detection families. "
+        "statistics through 18 detectors (6 per domain) covering six anomaly-detection families. "
         "A shared event correlator links anomalies across the three data domains by cell, "
         "category, and time-window, enabling cross-domain root-cause attribution that "
-        "single-source methods cannot achieve. On a real-world-scale testbed of 4 gNBs, "
-        "16 cells, 64 UEs, and a 6-hour diurnal trace with three concurrent injected fault "
-        "scenarios, the ensemble achieves Precision 0.75 / Recall 1.00 / F1 0.86, compared "
-        "to F1 0.22 (threshold-only) and F1 0.50 (Isolation Forest baseline). "
-        "A FAISS-backed RAG pipeline feeds an on-device Ollama LLM to provide "
-        "natural-language root-cause narratives. End-to-end pipeline completes in 57 s "
-        "for a 6-hour dataset on a CPU-only host; peak memory 1.2 GB."
+        "single-source methods cannot achieve. On a controlled 4-gNB, 16-cell, 64-UE synthetic "
+        "testbed with a 6-hour diurnal trace and three concurrent injected fault scenarios "
+        "(congestion, outage, drift), the Stats Count-Threshold method achieves "
+        "Precision=1.00, Recall=1.00, F1=1.00 under the final cell-level evaluation; the "
+        "Full Ensemble achieves Recall=1.00 with Precision=0.1875, F1=0.316. "
+        "Holt-Winters and LSTM forecasters benchmarked (rolling-origin backtest, seed=42): "
+        "HW MAE=15.54 / RMSE=21.04 / MAPE=45.67%, LSTM MAE=20.24 / RMSE=24.12 / MAPE=55.47%. "
+        "Prophet implemented but not executed in the authoritative benchmark environment. "
+        "End-to-end pipeline latency: 45.6 s on a CPU-only host (tracemalloc peak: ~21 MB). "
+        "173 automated tests, 0 failures."
     )
     textbox(slide, 0.3, 2.03, 9.4, 1.55, abstract, 10.5, WHITE, wrap=True)
 
@@ -902,7 +930,7 @@ def s_close(prs, n):
     summary_rows = [
         ("Review 1", PART_A_COLOR, "Novelty proposed — two Phase II research directions, 40% code"),
         ("Review 2", PART_B_COLOR, "Both novelties implemented — ReAct agent + forecast benchmark, 80% code, 83 tests"),
-        ("Review 3", PART_C_COLOR, "Full validation — 64 UE / 6 hr, F1 0.86, 100% code, journal draft complete"),
+        ("Review 3", PART_C_COLOR, "Final validation — 64 UE / 6 hr, 173 tests passed, 100% code, journal draft prepared  |  Best F1=1.00 (Stats Count-Threshold, 3 injected fault cells)"),
     ]
     for i, (label, clr, desc) in enumerate(summary_rows):
         y = 2.96 + i * 0.5

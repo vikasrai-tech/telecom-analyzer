@@ -64,6 +64,7 @@ def run_forecast_evaluation(
 
     # Rolling-origin backtest
     accuracy_results = []
+    failed_methods: List[Dict] = []
     for method in methods:
         try:
             results = rolling_origin_backtest(
@@ -73,6 +74,11 @@ def run_forecast_evaluation(
             logger.info(f"  {method}: {len(results)} series evaluated")
         except Exception as e:
             logger.warning(f"  {method} backtest failed: {e}")
+            failed_methods.append({
+                "method": method,
+                "stage":  "rolling_origin_backtest",
+                "error":  str(e),
+            })
 
     # Lead-time evaluation
     lead_time_results = []
@@ -85,6 +91,11 @@ def run_forecast_evaluation(
             logger.info(f"  {method} lead-time: {len(lt)} events evaluated")
         except Exception as e:
             logger.warning(f"  {method} lead-time evaluation failed: {e}")
+            failed_methods.append({
+                "method": method,
+                "stage":  "evaluate_anomaly_lead_time",
+                "error":  str(e),
+            })
 
     # Aggregate per-method summary
     method_agg: Dict[str, Dict] = {}
@@ -103,10 +114,15 @@ def run_forecast_evaluation(
     summary_table = []
     method_summary: Dict[str, Dict] = {}
     for method, agg in method_agg.items():
-        n = agg["n"]
-        mae  = round(agg["mae_sum"] / n, 4) if n else None
-        rmse = round(agg["rmse_sum"] / n, 4) if n else None
-        mape = round(agg["mape_sum"] / agg["mape_n"], 2) if agg["mape_n"] else None
+        n      = agg["n"]
+        mape_n = agg["mape_n"]
+        mae    = round(agg["mae_sum"] / n,      4) if n      else None
+        rmse   = round(agg["rmse_sum"] / n,     4) if n      else None
+        # MAPE is averaged only over series with nonzero actuals (mape_n ≤ n).
+        # n_mape is stored alongside avg_mape so callers know the denominator.
+        # Do NOT compare avg_mape directly against avg_mae/avg_rmse on a per-series
+        # basis — they may be computed over different subsets of series.
+        mape   = round(agg["mape_sum"] / mape_n, 2) if mape_n else None
 
         lead_detected = sum(1 for lt in lead_time_results if lt.method == method and lt.detected)
         lead_total    = sum(1 for lt in lead_time_results if lt.method == method)
@@ -114,7 +130,8 @@ def run_forecast_evaluation(
 
         row = {
             "method":              method,
-            "n_series":            n,
+            "n_series":            n,       # series evaluated for MAE and RMSE
+            "n_mape":              mape_n,  # series evaluated for MAPE (nonzero actuals only)
             "avg_mae":             mae,
             "avg_rmse":            rmse,
             "avg_mape":            mape,
@@ -123,13 +140,18 @@ def run_forecast_evaluation(
             "total_false_alarms":  false_alarms,
         }
         summary_table.append(row)
-        method_summary[method] = {"mae": mae, "rmse": rmse, "mape": mape}
+        method_summary[method] = {"mae": mae, "rmse": rmse, "mape": mape,
+                                   "n_series": n, "n_mape": mape_n}
 
     result = {
         "forecast_accuracy": [asdict(m) for m in accuracy_results],
         "lead_time":         [asdict(m) for m in lead_time_results],
         "summary_table":     summary_table,
         "method_summary":    method_summary,
+        # failed_methods is [] when all methods ran successfully.
+        # A non-empty list means one or more methods raised an exception and
+        # produced no results — distinguishable from a valid run with n_series=0.
+        "failed_methods":    failed_methods,
         "config": {
             "methods":    list(methods),
             "horizon_h":  horizon_h,

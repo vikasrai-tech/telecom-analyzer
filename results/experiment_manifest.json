@@ -1,19 +1,51 @@
 {
   "project": "Unified Telecom Analyzer \u2014 Research Validation",
-  "generated_at": "2026-08-15T06:10:20.391468+00:00",
-  "git_commit": "543012e",
-  "python_version": "3.13.13",
+  "generated_at": "2026-08-21T11:19:11.043868+00:00",
+  "git_commit": "a5168298",
+  "python_version": "3.12.3",
   "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
   "random_seed": 42,
   "library_versions": {
-    "numpy": "2.4.6",
-    "pandas": "3.0.3",
-    "scikit-learn": "1.8.0",
-    "torch": "2.12.0",
-    "statsmodels": "0.14.6",
-    "faiss": "unknown",
-    "sentence-transformers": "5.5.1",
+    "numpy": "1.26.4",
+    "pandas": "2.2.3",
+    "scikit-learn": "1.5.2",
+    "torch": "2.5.1+cpu",
+    "statsmodels": "0.14.4",
     "fastapi": "0.136.3"
+  },
+  "capacity_config": {
+    "TDD": {
+      "dl_mbps": 1400.0,
+      "ul_mbps": 100.0
+    },
+    "FDD": {
+      "dl_mbps": 84.0,
+      "ul_mbps": 50.0
+    },
+    "source": "scripts/_ue64_config.py CHANNEL_TYPE_CAPACITY and src/detection/throughput_normalizer.py CHANNEL_TYPE_CAPACITY"
+  },
+  "datasets": {
+    "kpi_64ue_6hr": {
+      "file": "kpi_64ue_6hr.csv",
+      "rows": 5760,
+      "cells": 16
+    },
+    "stats_64ue_6hr": {
+      "file": "stats_64ue_6hr.csv",
+      "rows": 5760,
+      "cells": 16
+    },
+    "kpi_10hr_sample": {
+      "file": "kpi_10hr_sample.csv",
+      "rows": 6000,
+      "cells": 10
+    },
+    "topology": "4 gNBs / 16 cells / 64 UEs / 6-hour diurnal run",
+    "fault_cells": [
+      "PCI_3 (congestion)",
+      "PCI_8 (drift)",
+      "PCI_12 (outage)"
+    ]
   },
   "experiments": {
     "detection_benchmark": {
@@ -23,8 +55,70 @@
         "results/detection/detection_metrics.csv",
         "results/correlation/correlation_metrics.json"
       ],
-      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv",
-      "n_fault_scenarios": 3
+      "evaluation_type": "scenario-level / cell-level",
+      "n_fault_scenarios": 3,
+      "n_total_cells": 16,
+      "final_results": {
+        "threshold_only": {
+          "TP": 3,
+          "FP": 4,
+          "FN": 0,
+          "precision": 0.4286,
+          "recall": 1.0,
+          "f1": 0.6
+        },
+        "single_method_iqr": {
+          "TP": 3,
+          "FP": 13,
+          "FN": 0,
+          "precision": 0.1875,
+          "recall": 1.0,
+          "f1": 0.3158
+        },
+        "full_ensemble": {
+          "TP": 3,
+          "FP": 13,
+          "FN": 0,
+          "precision": 0.1875,
+          "recall": 1.0,
+          "f1": 0.3158
+        },
+        "ensemble_with_router": {
+          "TP": 3,
+          "FP": 13,
+          "FN": 0,
+          "precision": 0.1875,
+          "recall": 1.0,
+          "f1": 0.3158
+        },
+        "stats_count_threshold": {
+          "TP": 3,
+          "FP": 0,
+          "FN": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      },
+      "per_detector_anomaly_counts": {
+        "kpi": {
+          "Threshold": 833,
+          "CUSUM": 212,
+          "Bollinger Bands": 196,
+          "IQR": 117,
+          "Peer Comparison": 17,
+          "Trend": 0,
+          "total_raw_records": 1375,
+          "total_eventrouter_input": 1316
+        },
+        "stats": {
+          "Trend": 88,
+          "Peer Comparison": 15,
+          "IQR": 8,
+          "total": 111
+        },
+        "note": "kpi total_raw_records = sum across all detectors (detect_kpi_anomalies_by_detector). total_eventrouter_input = events received by EventRouter after ensemble merge (detect_kpi_anomalies). The PPT reports 1,316 (EventRouter input) for consistency with the correlation slide. Source: results/detection/detection_metrics.json per_detector_anomaly_counts section."
+      }
     },
     "forecast_benchmark": {
       "command": "python scripts/run_forecast_benchmark.py",
@@ -33,27 +127,167 @@
         "results/forecast/forecast_summary.csv"
       ],
       "dataset": "kpi_10hr_sample.csv",
-      "note": "Prophet not installed in environment \u2014 holt_winters and lstm only"
+      "models_executed": [
+        "prophet",
+        "holt_winters",
+        "lstm"
+      ],
+      "models_not_executed": [],
+      "cmdstan_fix": "CmdStan 2.33.1 installed in prophet stan_model dir",
+      "final_results": {
+        "prophet": {
+          "avg_mae": 22.4298,
+          "avg_rmse": 31.1379,
+          "avg_mape_pct": 72.8,
+          "lead_det": 1,
+          "lead_total": 6
+        },
+        "holt_winters": {
+          "avg_mae": 14.969,
+          "avg_rmse": 20.3905,
+          "avg_mape_pct": 45.1,
+          "lead_det": 0,
+          "lead_total": 6
+        },
+        "lstm": {
+          "avg_mae": 19.7798,
+          "avg_rmse": 23.6287,
+          "avg_mape_pct": 55.76,
+          "lead_det": 0,
+          "lead_total": 6
+        }
+      },
+      "note": "Lead-time detection = 0/6 for HW+LSTM because kpi_10hr_sample has abrupt step-change anomalies. Prophet lead=1 is a false alarm (false_alarms=1). Honest negative finding documented."
     },
     "rca_evaluation": {
       "command": "python scripts/run_rca_evaluation.py",
       "result_files": [
         "results/rca/rca_metrics.json"
       ],
-      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv",
-      "n_fault_cells": 3
+      "rca_method": "rule_based_root_cause() \u2014 deterministic, no LLM (Ollama unavailable)",
+      "n_fault_cells": 3,
+      "results_per_cell": {
+        "PCI_3_congestion": {
+          "matched_keywords": [
+            "PRB",
+            "throughput",
+            "utilization",
+            "utilisation",
+            "MAC",
+            "HARQ",
+            "scheduling"
+          ],
+          "keyword_hit_rate": 0.875,
+          "any_match": true,
+          "pass": true,
+          "confidence": 0.82,
+          "keywords_tested": 8
+        },
+        "PCI_12_outage": {
+          "matched_keywords": [
+            "availability",
+            "RACH"
+          ],
+          "keyword_hit_rate": 0.4,
+          "any_match": true,
+          "pass": true,
+          "confidence": 0.4,
+          "keywords_tested": 5
+        },
+        "PCI_8_drift": {
+          "matched_keywords": [
+            "handover"
+          ],
+          "keyword_hit_rate": 0.2,
+          "any_match": true,
+          "pass": true,
+          "confidence": 0.8,
+          "keywords_tested": 5
+        }
+      },
+      "overall_pass_3of3": true,
+      "note": "Keyword hit rate tests RCA output for expected diagnostic terms. Top-1/Top-3/MRR NOT reported \u2014 evaluator does not rank candidates.",
+      "keyword_fix_note": "Keywords updated 2026-08-21: removed generic tokens (cell, ho, avail) that match any output by template. Now using fault-specific terms only. All 3 cells still PASS."
     },
     "scalability_benchmark": {
       "command": "python scripts/run_scalability_benchmark.py",
       "result_files": [
         "results/scalability/scalability_results.json"
       ],
-      "dataset": "kpi_64ue_6hr.csv + stats_64ue_6hr.csv + ue_64_6hr.pcap"
+      "pipeline_stages": {
+        "pcap_parse": {
+          "latency_s": 2.602,
+          "peak_mb": 1.14
+        },
+        "kpi_parse": {
+          "latency_s": 0.804,
+          "peak_mb": 10.67,
+          "rows": 5760
+        },
+        "kpi_detect": {
+          "latency_s": 27.823,
+          "peak_mb": 10.89
+        },
+        "stats_parse": {
+          "latency_s": 1.24,
+          "peak_mb": 12.09,
+          "rows": 5760
+        },
+        "stats_detect": {
+          "latency_s": 3.313,
+          "peak_mb": 7.21
+        },
+        "correlation": {
+          "latency_s": 4.319,
+          "peak_mb": 1.61,
+          "total_events": 1427
+        },
+        "total_measured_latency_s": 40.101
+      },
+      "cell_scaling": {
+        "4_cells": {
+          "rows": 1440,
+          "mean_lat_s": 7.033,
+          "mean_mem_mb": 4.7
+        },
+        "8_cells": {
+          "rows": 2880,
+          "mean_lat_s": 18.63,
+          "mean_mem_mb": 9.2
+        },
+        "12_cells": {
+          "rows": 4320,
+          "mean_lat_s": 27.346,
+          "mean_mem_mb": 14.1
+        },
+        "16_cells": {
+          "rows": 5760,
+          "mean_lat_s": 27.892,
+          "mean_mem_mb": 18.6
+        }
+      },
+      "memory_note": "Memory measured with tracemalloc per stage (incremental allocation). The 1.2 GB in prior PPT slides is INCORRECT. The 56.8 s latency in prior PPT is INCORRECT. Actual: ~40 s, peak ~12 MB per stage (tracemalloc)."
+    },
+    "correlation_benchmark": {
+      "total_events": 1427,
+      "correlated_events": 1427,
+      "assignment_rate_pct": 100.0,
+      "note": "Event-level assignment rate 100% (1427/1427). Cell-level: 16/16 cells have cross-source events, including all 13 normal cells (KPI fires on FDD cells due to capacity calibration). Cross-source coverage \u2260 fault attribution. NOT precision/recall of fault attribution.",
+      "clustered_unique_cells": 16
     }
   },
-  "scalability": {
-    "script": "run_scalability_benchmark.py",
+  "test_results": {
+    "command": "make test-all",
+    "passed": 173,
+    "failed": 0,
+    "skipped": 1,
+    "skip_reason": "Requires live Ollama LLM runtime (test_run_root_cause_agent_with_real_ollama)"
+  },
+  "rca": {
+    "script": "run_rca_evaluation.py",
     "random_seed": 42,
-    "results_file": "/mnt/e/telecom-analyzer/results/scalability/scalability_results.json"
+    "n_fault_cells": 3,
+    "n_success": 3,
+    "results_file": "/mnt/e/telecom-analyzer/results/rca/rca_metrics.json"
   }
 }

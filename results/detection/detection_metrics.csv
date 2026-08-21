@@ -1,5 +1,5 @@
 method_key,method_label,TP,FP,FN,TN,precision,recall,f1,flagged_cells
-threshold_only,Threshold — KPI only (any violation),3,13,0,0,0.1875,1.0,0.3158,PCI_1|PCI_10|PCI_11|PCI_12|PCI_13|PCI_14|PCI_15|PCI_16|PCI_2|PCI_3|PCI_4|PCI_5|PCI_6|PCI_7|PCI_8|PCI_9
+threshold_only,Threshold — KPI only (any violation),3,4,0,9,0.4286,1.0,0.6,PCI_1|PCI_11|PCI_12|PCI_14|PCI_16|PCI_3|PCI_8
 single_method_iqr,"IQR — KPI only (distribution-based, any violation)",3,13,0,0,0.1875,1.0,0.3158,PCI_1|PCI_10|PCI_11|PCI_12|PCI_13|PCI_14|PCI_15|PCI_16|PCI_2|PCI_3|PCI_4|PCI_5|PCI_6|PCI_7|PCI_8|PCI_9
 full_ensemble,Full Ensemble — KPI+Stats (any violation),3,13,0,0,0.1875,1.0,0.3158,PCI_1|PCI_10|PCI_11|PCI_12|PCI_13|PCI_14|PCI_15|PCI_16|PCI_2|PCI_3|PCI_4|PCI_5|PCI_6|PCI_7|PCI_8|PCI_9
 ensemble_with_router,Ensemble + EventRouter (≥2 source domains),3,13,0,0,0.1875,1.0,0.3158,PCI_1|PCI_10|PCI_11|PCI_12|PCI_13|PCI_14|PCI_15|PCI_16|PCI_2|PCI_3|PCI_4|PCI_5|PCI_6|PCI_7|PCI_8|PCI_9

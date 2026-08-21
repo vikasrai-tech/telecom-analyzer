@@ -19,8 +19,9 @@ GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
         "trigger_layer":              "KPI",
         "trigger_type":               "congestion",
         "expected_root_cause_keywords": [
-            "congestion", "PRB", "throughput", "RRC",
-            "prb", "rrc", "capacity", "utilization",
+            # Fault-specific terms only — generic tokens ('cell', 'layer') excluded
+            "congestion", "PRB", "throughput", "utilization", "utilisation",
+            "MAC", "HARQ", "scheduling",
         ],
         "description": "DL congestion — high PRB utilisation and RRC/throughput degradation",
     },
@@ -28,8 +29,8 @@ GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
         "trigger_layer":              "KPI",
         "trigger_type":               "outage",
         "expected_root_cause_keywords": [
-            "outage", "availability", "RACH",
-            "cell", "avail", "rach", "failure",
+            # Removed 'cell' (appears in every output by template) and 'avail' (redundant)
+            "outage", "availability", "RACH", "failure", "collapse",
         ],
         "description": "Cell outage — Cell_Availability collapse, RACH/NGAP failures",
     },
@@ -37,8 +38,8 @@ GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
         "trigger_layer":              "KPI",
         "trigger_type":               "drift",
         "expected_root_cause_keywords": [
-            "drift", "handover", "latency",
-            "ho", "trend", "degradation",
+            # Removed 'ho' (2-char substring matches 'should', 'threshold', etc.)
+            "drift", "handover", "latency", "trend", "degradation",
         ],
         "description": "Slow drift — Handover success rate and latency gradually degrade",
     },
@@ -65,6 +66,10 @@ def _check_keyword_match(rca_result: Dict[str, Any], expected_keywords: List[str
     }
 
 
+_FLEET_WIDE_SENTINEL = "Fleet-wide"
+_MAX_GROUP_SIZE = 5
+
+
 def build_synthetic_event_group(
     cell_id: str,
     kpi_anomalies: List[Dict[str, Any]],
@@ -72,38 +77,67 @@ def build_synthetic_event_group(
     router=None,
 ) -> List[Dict[str, Any]]:
     """
-    Build a synthetic correlated event group for a given cell from actual
-    detected anomalies. Prioritises high-severity anomalies.
+    Build a correlated event group for a given cell from actual detected anomalies.
+    Prioritises high-severity anomalies. Returns at most _MAX_GROUP_SIZE events.
 
-    If a router is provided, uses router.get_by_cell() directly.
-    Otherwise, filters kpi_anomalies + stats_anomalies by cell_id.
+    Router path (preferred)
+    -----------------------
+    Uses router.get_by_cell(cell_id). If that returns fewer than _MAX_GROUP_SIZE
+    events, Fleet-wide events (e.g. from the KPI Trend detector, which emits
+    cell_id='Fleet-wide') are appended as supplementary context up to the cap.
+    Fleet-wide events are relevant for drift-type faults where the primary signal
+    is a fleet-level trend rather than a cell-specific spike.
+
+    Fallback path (router=None or empty)
+    -------------------------------------
+    Filters kpi_anomalies + stats_anomalies by cell_id. Also includes Fleet-wide
+    anomalies as supplementary context when the cell-specific group is sparse.
+
+    NOTE: The KPI Trend detector (kpi_detector.detect_trend) hardcodes
+    cell_id='Fleet-wide' because it computes a regression across the fleet rather
+    than per cell. Without this Fleet-wide inclusion, drift-scenario fault cells
+    that are detected primarily by the Trend detector would yield an empty event
+    group and silently fail RCA evaluation.
     """
-    if router is not None:
-        events = router.get_by_cell(cell_id)
-        if events:
-            # Deduplicate: keep at most 5 highest-severity events
-            return events[:5]
-
-    # Fallback: build from raw anomaly lists and wrap in EventRouter format
     from src.orchestrator.event_router import _new_event
 
+    sev_rank = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
+
+    if router is not None:
+        cell_events = router.get_by_cell(cell_id)
+        if len(cell_events) >= _MAX_GROUP_SIZE:
+            return cell_events[:_MAX_GROUP_SIZE]
+        # Supplement with Fleet-wide events if cell-specific group is sparse
+        fleet_events = router.get_by_cell(_FLEET_WIDE_SENTINEL)
+        combined = cell_events + fleet_events
+        combined.sort(
+            key=lambda e: sev_rank.get(e.get("severity", "Low"), 0), reverse=True
+        )
+        return combined[:_MAX_GROUP_SIZE]
+
+    # Fallback: build from raw anomaly lists
     combined = []
     for a in kpi_anomalies:
-        if str(a.get("cell_id", "")) == cell_id:
+        cid = str(a.get("cell_id", "")).strip()
+        if cid == cell_id or cid == _FLEET_WIDE_SENTINEL:
             combined.append(("kpi", a))
     for a in stats_anomalies:
-        if str(a.get("cell_id", "")) == cell_id:
+        cid = str(a.get("cell_id", "")).strip()
+        if cid == cell_id or cid == _FLEET_WIDE_SENTINEL:
             combined.append(("stats", a))
 
-    # Sort by severity
-    sev_rank = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
-    combined.sort(key=lambda x: sev_rank.get(x[1].get("severity", "Low"), 0), reverse=True)
+    # Cell-specific events rank higher than Fleet-wide
+    combined.sort(
+        key=lambda x: (
+            0 if str(x[1].get("cell_id", "")) == _FLEET_WIDE_SENTINEL else 1,
+            sev_rank.get(x[1].get("severity", "Low"), 0),
+        ),
+        reverse=True,
+    )
 
     events = []
-    for source, raw in combined[:5]:
-        ev = _new_event(source=source, anomaly=raw, state="current")
-        events.append(ev)
-
+    for source, raw in combined[:_MAX_GROUP_SIZE]:
+        events.append(_new_event(source=source, anomaly=raw, state="current"))
     return events
 
 

@@ -1,3 +1,4 @@
 method,n_series,avg_mae,avg_rmse,avg_mape,lead_time_detected,lead_time_total,total_false_alarms
-holt_winters,220,15.5443,21.038,45.67,0,6,0
-lstm,220,19.9918,23.7772,55.29,0,6,0
+prophet,220,22.4298,31.1379,72.8,1,6,1
+holt_winters,220,14.969,20.3905,45.1,0,6,0
+lstm,220,19.7798,23.6287,55.76,0,6,0

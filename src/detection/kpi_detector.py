@@ -567,7 +567,10 @@ def detect_iqr_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
 # 5. CUSUM — Cumulative Sum Change-Point Detection
 # ═════════════════════════════════════════════════════════════════════
 
-def detect_cusum(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
+def detect_cusum(
+    parsed_kpi: Dict[str, Any],
+    reference_window: int = None,
+) -> List[Dict[str, Any]]:
     """
     Two-sided CUSUM control chart per (KPI, cell).
 
@@ -582,6 +585,25 @@ def detect_cusum(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
       h = 5σ    — alarm threshold (triggers after sustained drift)
 
     One alert per (kpi, cell) — first trigger point only.
+
+    Parameters
+    ----------
+    reference_window : int, optional
+        Number of leading samples used to estimate the per-cell μ and σ
+        baseline. When None (default), μ/σ are estimated from the full
+        series — simple and fast, but contaminated if a fault occurs during
+        the evaluation window (inflated σ widens the alarm band, delaying
+        detection of severe faults).
+
+        Set to a positive integer (e.g. reference_window=90 for the first
+        90 minutes of a 1-min-granularity dataset) to use only the initial
+        reference period for baseline estimation. The CUSUM accumulator then
+        runs over ALL samples, including those beyond reference_window.
+        This matches the standard CUSUM deployment pattern: train on clean
+        history, detect on live data.
+
+        Example — 25 % burn-in on a 360-row series:
+            detect_cusum(parsed, reference_window=90)
     """
     records  = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
@@ -614,8 +636,14 @@ def detect_cusum(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
                 continue
 
             vals  = series[kpi].values
-            mu    = vals.mean()
-            sigma = vals.std()
+            # Baseline estimation: use reference_window leading rows when set,
+            # otherwise full series. Full-series default is fast but risks
+            # baseline contamination when a fault spans the evaluation window.
+            ref = vals[:reference_window] if (
+                reference_window is not None and reference_window < len(vals)
+            ) else vals
+            mu    = ref.mean()
+            sigma = ref.std()
             if sigma == 0:
                 continue
 

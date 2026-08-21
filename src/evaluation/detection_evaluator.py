@@ -164,6 +164,21 @@ def run_method_stats_count_threshold(
     z_factor : float
         Number of standard deviations above mean to set the threshold.
         Default 1.5 is standard for outlier detection (not fitted to labels).
+
+    STATISTICAL NOTE — CONTAMINATED BASELINE
+    -----------------------------------------
+    The fleet mean and std are estimated from ALL cells, including any that
+    are already anomalous. Fault cells with high anomaly counts inflate both
+    the mean and std, raising the threshold against the very cells being
+    detected. In the evaluation dataset (16 cells, 3 severe faults) the
+    injected faults are strong enough to clear the contaminated threshold
+    (F1=1.0), but on a dataset with subtle faults this contamination could
+    cause false negatives.
+
+    This is an inherent tradeoff in unsupervised fleet-level anomaly detection:
+    excluding fault cells from the baseline requires labels, which defeats the
+    purpose. In production, this baseline should be computed from a historical
+    reference window of known-normal operation.
     """
     import numpy as np
     from collections import Counter
