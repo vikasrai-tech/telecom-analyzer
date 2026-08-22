@@ -1,7 +1,7 @@
 """
 Prediction Layer — Phase II
 
-Three forecasting methods:
+Four forecasting methods:
   1. Prophet       — off-the-shelf library baseline (seasonal/trend
                      decomposition), kept as a control for the benchmark
                      comparison rather than a built contribution.
@@ -12,8 +12,12 @@ Three forecasting methods:
                      multi-horizon output head (single forward pass over
                      the whole horizon, no autoregressive error
                      compounding) and a time-ordered train/val split.
+  4. TimesFM       — Google's pre-trained zero-shot time-series foundation
+                     model (200M params, timesfm-2.5-200m-pytorch).
+                     No fine-tuning needed; works directly on CSV series.
+                     Loaded once and cached as a module singleton.
 
-All three return predicted anomalies in the same schema as the detection
+All four return predicted anomalies in the same schema as the detection
 layer, tagged state="predicted" with lead_time_h set. See
 src/detection/forecast_eval.py for the backtesting/lead-time evaluation
 harness that quantitatively compares them.
@@ -528,6 +532,133 @@ def forecast_lstm(
     return predicted
 
 
+# ── TimesFM forecaster ────────────────────────────────────────────────
+
+# Module-level singleton — model is ~200MB, load once per process.
+_timesfm_model = None
+
+def _get_timesfm():
+    """Load TimesFM 2.5-200M (PyTorch) from HuggingFace, cached after first call."""
+    global _timesfm_model
+    if _timesfm_model is not None:
+        return _timesfm_model
+    try:
+        import timesfm
+        logger.info("[timesfm] Loading google/timesfm-2.5-200m-pytorch from HuggingFace...")
+        model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
+            timesfm.TimesFM_2p5_200M_torch.DEFAULT_REPO_ID,
+            torch_compile=False,   # faster cold start on CPU
+        )
+        # compile() required before forecast(); ForecastConfig sets max horizon
+        model.compile(timesfm.ForecastConfig(max_horizon=512))
+        _timesfm_model = model
+        logger.info("[timesfm] Model loaded and compiled.")
+        return _timesfm_model
+    except Exception as e:
+        logger.warning(f"[timesfm] Failed to load model: {e}")
+        return None
+
+
+def forecast_timesfm(
+    parsed: Dict[str, Any],
+    horizon_h: int = DEFAULT_HORIZON_H,
+    min_rows:  int = DEFAULT_MIN_ROWS,
+) -> List[Dict[str, Any]]:
+    """
+    Zero-shot forecast using Google TimesFM 2.5-200M (PyTorch backend).
+
+    TimesFM is a pre-trained foundation model trained on 100B+ real-world
+    time-series points. It requires no fine-tuning — feed raw CSV series
+    directly and get a multi-step forecast out.
+
+    Frequency mapping for telecom data:
+      Stats (1-min intervals) → high-frequency
+      KPI   (5-min intervals) → high-frequency
+
+    Returns predicted anomalies in the same schema as other forecasters,
+    tagged state='predicted' with lead_time_h set.
+    """
+    tfm = _get_timesfm()
+    if tfm is None:
+        logger.warning("[timesfm] Model unavailable — skipping TimesFM forecast")
+        return []
+
+    ts_col   = parsed.get("timestamp_col", "")
+    cell_col = parsed.get("cell_col", "")
+    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+
+    if not ts_col or not cols:
+        return []
+
+    df = pd.DataFrame(parsed["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+    df = df.dropna(subset=[ts_col])
+
+    freq_s = _infer_freq_seconds(df, ts_col, cell_col)
+    if not freq_s:
+        return []
+    horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
+
+    predicted = []
+    groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
+
+    for cell, grp in groups:
+        # Batch all columns for this cell in one forecast call
+        series_list: List[np.ndarray] = []
+        valid_cols:  List[str]        = []
+
+        for col in cols:
+            series = grp.sort_values(ts_col)[col].dropna().values.astype(float)
+            if len(series) < min_rows:
+                continue
+            # TimesFM context: use last 512 points max (model max_context)
+            series_list.append(series[-512:])
+            valid_cols.append(col)
+
+        if not series_list:
+            continue
+
+        try:
+            # TimesFM requires context length = multiple of 32 (patch size).
+            # Pad each series to the next multiple of 32, cap at 512.
+            padded = []
+            for s in series_list:
+                ctx = min(512, max(64, (len(s) // 32) * 32))
+                padded.append(s[-ctx:] if len(s) >= ctx else
+                              np.pad(s, (ctx - len(s), 0), mode="edge"))
+            point_forecasts, _ = tfm.forecast(
+                horizon=horizon_periods,
+                inputs=padded,
+            )
+            # point_forecasts shape: (n_series, horizon_periods)
+        except Exception as e:
+            logger.warning(f"[timesfm] forecast failed for cell={cell}: {e}")
+            continue
+
+        for col, series, fc_arr in zip(valid_cols, series_list, point_forecasts):
+            forecast_val = float(np.mean(fc_arr))
+            forecast_max = float(np.max(fc_arr))
+
+            w, c, direction = _get_thresholds(col, parsed)
+            sev = _sev_from_forecast(forecast_val, w, c, col, direction)
+            if sev == "Low":
+                sev_max = _sev_from_forecast(forecast_max, w, c, col, direction)
+                if sev_max == "Low":
+                    continue
+                sev = "Medium"
+
+            predicted.append(_make_predicted(
+                col, cell, forecast_val, horizon_h, sev,
+                evidence=(f"TimesFM forecast: {col} predicted "
+                          f"{forecast_val:.2f} (peak={forecast_max:.2f}) "
+                          f"in {horizon_h}h. Last 5 values mean={series[-5:].mean():.2f}"),
+                method="TimesFM",
+            ))
+            logger.info(f"[timesfm] {col}@{cell} forecast={forecast_val:.2f} sev={sev}")
+
+    return predicted
+
+
 # ── Public API ────────────────────────────────────────────────────────
 
 def run_prediction(
@@ -538,10 +669,10 @@ def run_prediction(
     """
     Run prediction layer. Returns {method: [predicted_anomaly, ...]}.
 
-    methods: None = run all; ["prophet"] or ["lstm"] to select.
+    methods: None = run all; or a subset list e.g. ["timesfm", "holt_winters"].
     """
     if methods is None:
-        methods = ["prophet", "holt_winters", "lstm"]
+        methods = ["prophet", "holt_winters", "lstm", "timesfm"]
 
     results: Dict[str, List] = {}
 
@@ -556,6 +687,10 @@ def run_prediction(
     if "lstm" in methods:
         logger.info("[predictor] Running LSTM forecast...")
         results["lstm"] = forecast_lstm(parsed, horizon_h=horizon_h)
+
+    if "timesfm" in methods:
+        logger.info("[predictor] Running TimesFM zero-shot forecast...")
+        results["timesfm"] = forecast_timesfm(parsed, horizon_h=horizon_h)
 
     total = sum(len(v) for v in results.values())
     logger.info(f"[predictor] Done — {total} predicted anomalies across {len(results)} methods")

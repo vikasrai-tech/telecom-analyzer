@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_METHODS = ("prophet", "holt_winters", "lstm")
+DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm")
 DEFAULT_HORIZON_H = 4
 DEFAULT_N_ORIGINS = 8
 

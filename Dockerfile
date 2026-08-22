@@ -23,6 +23,11 @@ RUN pip install --no-cache-dir \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download TimesFM model weights so container cold-starts don't hit HuggingFace
+RUN python -c "\
+from huggingface_hub import snapshot_download; \
+snapshot_download('google/timesfm-2.5-200m-pytorch')"
+
 
 # ── Stage 2: Runtime image ────────────────────────────────────────────────────
 FROM python:3.11-slim

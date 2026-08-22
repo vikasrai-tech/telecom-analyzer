@@ -17,6 +17,7 @@ torchvision==0.20.1
 # Time-series
 prophet==1.1.6
 statsmodels==0.14.4
+timesfm[torch]==2.0.2
 
 # RAG / embeddings
 faiss-cpu==1.9.0

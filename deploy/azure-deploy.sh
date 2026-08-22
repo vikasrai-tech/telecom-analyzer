@@ -26,10 +26,16 @@ echo "║   Telecom Analyzer — Azure Container Apps Deploy  ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
-# 1. Login
-echo "▶ Step 1/6 — Azure login"
-az login --output none
-echo "   ✅ Logged in"
+# 1. Login check (skip interactive login if already authenticated)
+echo "▶ Step 1/6 — Azure login check"
+if az account show --output none 2>/dev/null; then
+  ACCOUNT=$(az account show --query "user.name" --output tsv)
+  echo "   ✅ Already logged in as: $ACCOUNT"
+else
+  echo "   Not logged in — attempting device code login..."
+  az login --use-device-code --output none
+  echo "   ✅ Logged in"
+fi
 
 # 2. Resource group
 echo "▶ Step 2/6 — Creating resource group: $RESOURCE_GROUP"

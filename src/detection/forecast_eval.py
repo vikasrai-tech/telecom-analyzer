@@ -30,6 +30,7 @@ from src.detection.predictor import (
     _prophet_point_forecast,
     _holt_winters_point_forecast,
     _LSTMForecaster,
+    _get_timesfm,
     _get_thresholds,
     _sev_from_forecast,
     _infer_freq_seconds,
@@ -37,7 +38,7 @@ from src.detection.predictor import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_METHODS = ("prophet", "holt_winters", "lstm")
+DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm")
 
 
 # ── Result schemas ──────────────────────────────────────────────────────
@@ -116,6 +117,24 @@ def _point_forecast(method: str, sub: pd.DataFrame, ts_col: str, col: str,
         if not forecaster.is_fitted:
             return None
         return forecaster.predict(series, horizon_periods)
+
+    if method == "timesfm":
+        tfm = _get_timesfm()
+        if tfm is None:
+            return None
+        try:
+            # Context must be a multiple of 32 (patch size), capped at 512
+            ctx = min(512, max(64, (len(series) // 32) * 32))
+            context = (series[-ctx:] if len(series) >= ctx else
+                       np.pad(series, (ctx - len(series), 0), mode="edge"))
+            point_forecasts, _ = tfm.forecast(
+                horizon=horizon_periods,
+                inputs=[context],
+            )
+            return point_forecasts[0]  # shape: (horizon_periods,)
+        except Exception as e:
+            logger.debug(f"[timesfm] point_forecast failed: {e}")
+            return None
 
     raise ValueError(f"Unknown method: {method}")
 
