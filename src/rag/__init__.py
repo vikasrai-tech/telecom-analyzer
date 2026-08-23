@@ -1,1 +1,1 @@
-from .retriever import retrieve, reset
+from .retriever import retrieve, reset  # noqa: F401

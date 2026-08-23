@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 
 # Ordered list of all detectors: (display_name, class)
 ALL_DETECTORS = [
-    ("Isolation Forest",   IsolationForestDetector),
-    ("Statistical",        StatisticalDetector),
-    ("One-Class SVM",      OneClassSVMDetector),
-    ("LOF",                LOFDetector),
-    ("Elliptic Envelope",  EllipticEnvelopeDetector),
-    ("LSTM Autoencoder",   LSTMAutoencoderDetector),
+    ("Isolation Forest", IsolationForestDetector),
+    ("Statistical", StatisticalDetector),
+    ("One-Class SVM", OneClassSVMDetector),
+    ("LOF", LOFDetector),
+    ("Elliptic Envelope", EllipticEnvelopeDetector),
+    ("LSTM Autoencoder", LSTMAutoencoderDetector),
 ]
 
 
@@ -84,11 +84,11 @@ def merge_detector_results(
 
 def detect_anomalies(
     parsed: Dict[str, Any],
-    use_if:      bool = True,
-    use_stat:    bool = True,
-    use_lstm:    bool = True,
-    use_ocsvm:   bool = True,
-    use_lof:     bool = True,
+    use_if: bool = True,
+    use_stat: bool = True,
+    use_lstm: bool = True,
+    use_ocsvm: bool = True,
+    use_lof: bool = True,
     use_elliptic: bool = True,
 ) -> List[Dict[str, Any]]:
     """
@@ -97,11 +97,11 @@ def detect_anomalies(
     procedure, layer, failure_causes, recommendation.
     """
     toggles = {
-        "Isolation Forest":  use_if,
-        "Statistical":       use_stat,
-        "LSTM Autoencoder":  use_lstm,
-        "One-Class SVM":     use_ocsvm,
-        "LOF":               use_lof,
+        "Isolation Forest": use_if,
+        "Statistical": use_stat,
+        "LSTM Autoencoder": use_lstm,
+        "One-Class SVM": use_ocsvm,
+        "LOF": use_lof,
         "Elliptic Envelope": use_elliptic,
     }
 
@@ -143,7 +143,7 @@ def _merge(anomalies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             if SEV_RANK.get(a["severity"], 0) > SEV_RANK.get(existing["severity"], 0):
                 groups[key].update({
                     "severity": a["severity"],
-                    "score":    a["score"],
+                    "score": a["score"],
                     "evidence": a["evidence"],
                 })
             existing["detectors"].append(a["detector"])
@@ -174,11 +174,11 @@ def detect_anomalies_stub(
     for proc_name, stats in procedures.items():
         if stats.get("failure", 0) > 0:
             anomalies.append({
-                "type":      f"{proc_name} failure spike",
-                "severity":  "Medium" if stats["failure"] > 1 else "Low",
-                "score":     round(stats["failure"] / max(stats["attempts"], 1), 2),
-                "detector":  detector,
-                "evidence":  (
+                "type": f"{proc_name} failure spike",
+                "severity": "Medium" if stats["failure"] > 1 else "Low",
+                "score": round(stats["failure"] / max(stats["attempts"], 1), 2),
+                "detector": detector,
+                "evidence": (
                     f"{stats['failure']} failures; "
                     f"success rate {stats['success_rate']}%"
                 ),

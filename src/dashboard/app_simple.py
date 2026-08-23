@@ -39,12 +39,14 @@ div[data-testid="stDataFrame"] { border-radius: 8px; }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
-SEV_ICON  = {"Critical": "🔴", "High": "🟠", "Medium": "🟡",
-             "Low": "🟢", "Clean": "✅"}
+SEV_ICON = {"Critical": "🔴", "High": "🟠", "Medium": "🟡",
+            "Low": "🟢", "Clean": "✅"}
 SEV_ORDER = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Clean": 0}
+
 
 def sev_icon(s):
     return SEV_ICON.get(s, "⚪")
+
 
 def run_pipeline(uploaded_file):
     suffix = Path(uploaded_file.name).suffix.lower()
@@ -58,23 +60,24 @@ def run_pipeline(uploaded_file):
     finally:
         os.unlink(tmp)
 
+
 def plain_type(t: str) -> str:
     """Convert technical anomaly type to plain English."""
     t = t.replace(" anomaly", "").replace("_", " ")
     replacements = {
-        "NAS Registration":        "Registration Failure",
-        "NAS Authentication":      "Authentication Failure",
-        "NAS PDUSession":          "Data Session Failure",
-        "NAS SecurityMode":        "Security Setup Failure",
-        "NGAP InitialContextSetup":"Initial Context Failure",
+        "NAS Registration": "Registration Failure",
+        "NAS Authentication": "Authentication Failure",
+        "NAS PDUSession": "Data Session Failure",
+        "NAS SecurityMode": "Security Setup Failure",
+        "NGAP InitialContextSetup": "Initial Context Failure",
         "NGAP PDUSessionResource": "PDU Session Failure",
-        "RRC Setup":               "Radio Connection Failure",
-        "RRC Reestablishment":     "Radio Link Failure",
-        "RRC Reconfiguration":     "Reconfiguration Anomaly",
-        "F1AP UEContextSetup":     "UE Context Failure (DU-CU)",
-        "E1AP BearerContext":      "Bearer Setup Failure",
-        "XnAP HandoverRequest":    "Handover Failure",
-        "Cascading failure":       "Cascading Failure",
+        "RRC Setup": "Radio Connection Failure",
+        "RRC Reestablishment": "Radio Link Failure",
+        "RRC Reconfiguration": "Reconfiguration Anomaly",
+        "F1AP UEContextSetup": "UE Context Failure (DU-CU)",
+        "E1AP BearerContext": "Bearer Setup Failure",
+        "XnAP HandoverRequest": "Handover Failure",
+        "Cascading failure": "Cascading Failure",
         "Anomalous message sequence": "Sequence Order Violation",
     }
     for k, v in replacements.items():
@@ -82,19 +85,21 @@ def plain_type(t: str) -> str:
             return v
     return t.title()
 
+
 def plain_layer(layer: str) -> str:
     labels = {
-        "NAS":  "Core (NAS)", "NGAP": "Core (NGAP)", "RRC":  "Radio (RRC)",
-        "F1AP": "DU-CU (F1)", "E1AP": "DU-CU (E1)",  "XnAP": "Inter-gNB (Xn)",
-        "KPI":  "KPI",        "kpi":  "KPI",          "stats":"L1/L2 Stats",
+        "NAS": "Core (NAS)", "NGAP": "Core (NGAP)", "RRC": "Radio (RRC)",
+        "F1AP": "DU-CU (F1)", "E1AP": "DU-CU (E1)", "XnAP": "Inter-gNB (Xn)",
+        "KPI": "KPI", "kpi": "KPI", "stats": "L1/L2 Stats",
     }
     return labels.get(layer, layer or "—")
 
+
 def fix_action(anomaly: dict) -> str:
     """Return one-line engineer action from anomaly evidence."""
-    ev  = anomaly.get("evidence", "")
+    ev = anomaly.get("evidence", "")
     rec = anomaly.get("recommendation", "")
-    t   = anomaly.get("type", "")
+    t = anomaly.get("type", "")
     if rec:
         return rec.split(".")[0].strip()
     if "radio-connection" in ev or "rlf" in ev.lower():
@@ -163,8 +168,8 @@ with st.spinner(f"🔍 Analysing `{uploaded.name}` ..."):
         st.stop()
 
 anomalies = result.get("anomalies", [])
-pipeline  = result.get("pipeline", "pcap")
-parsed    = result.get("parsed", {})
+pipeline = result.get("pipeline", "pcap")
+parsed = result.get("parsed", {})
 
 # ── Summary cards ─────────────────────────────────────────────────────
 counts = {}
@@ -172,21 +177,22 @@ for a in anomalies:
     s = a.get("severity", "Low")
     counts[s] = counts.get(s, 0) + 1
 
-total    = len(anomalies)
+total = len(anomalies)
 critical = counts.get("Critical", 0)
-high     = counts.get("High", 0)
-medium   = counts.get("Medium", 0)
-low      = counts.get("Low", 0)
+high = counts.get("High", 0)
+medium = counts.get("Medium", 0)
+low = counts.get("Low", 0)
 
-st.success(f"✅ File processed: `{uploaded.name}`  |  Pipeline: **{pipeline.upper()}**  |  Duration: **{result.get('duration_s', 0)}s**")
+st.success(
+    f"✅ File processed: `{uploaded.name}`  |  Pipeline: **{pipeline.upper()}**  |  Duration: **{result.get('duration_s', 0)}s**")  # noqa: E501
 st.divider()
 
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total Anomalies", total)
 col2.metric("🔴 Critical", critical)
-col3.metric("🟠 High",     high)
-col4.metric("🟡 Medium",   medium)
-col5.metric("🟢 Low",      low)
+col3.metric("🟠 High", high)
+col4.metric("🟡 Medium", medium)
+col5.metric("🟢 Low", low)
 
 if total == 0:
     st.success("## ✅ No anomalies detected — network looks healthy!")
@@ -210,13 +216,13 @@ with left:
 
     rows = []
     for a in sorted_anomalies:
-        sev   = a.get("severity", "Low")
+        sev = a.get("severity", "Low")
         layer = a.get("layer") or a.get("source") or "?"
         rows.append({
-            "Sev":    f"{sev_icon(sev)} {sev}",
-            "Issue":  plain_type(a.get("type", "")),
-            "Where":  plain_layer(layer),
-            "Cell":   str(a.get("cell_id") or "—"),
+            "Sev": f"{sev_icon(sev)} {sev}",
+            "Issue": plain_type(a.get("type", "")),
+            "Where": plain_layer(layer),
+            "Cell": str(a.get("cell_id") or "—"),
             "Action": fix_action(a),
         })
 
@@ -262,12 +268,12 @@ if not top:
     top = sorted_anomalies[:5]
 
 for i, a in enumerate(top):
-    sev    = a.get("severity", "Low")
-    issue  = plain_type(a.get("type", ""))
-    where  = plain_layer(a.get("layer") or a.get("source") or "?")
+    sev = a.get("severity", "Low")
+    issue = plain_type(a.get("type", ""))
+    where = plain_layer(a.get("layer") or a.get("source") or "?")
     action = fix_action(a)
-    ev     = a.get("evidence", "—")
-    cell   = a.get("cell_id") or "—"
+    ev = a.get("evidence", "—")
+    cell = a.get("cell_id") or "—"
 
     with st.expander(f"{sev_icon(sev)} [{sev}]  {issue}  —  {where}", expanded=(i == 0)):
         c1, c2 = st.columns(2)
@@ -292,11 +298,11 @@ if pipeline == "pcap":
             sr = stats.get("success_rate", 100)
             status = "✅ OK" if sr >= 98 else ("🟡 Warning" if sr >= 90 else "🔴 Issue")
             proc_rows.append({
-                "Protocol":     name.replace("_", " "),
-                "Attempts":     stats.get("attempts", 0),
-                "Failures":     stats.get("failure", 0),
+                "Protocol": name.replace("_", " "),
+                "Attempts": stats.get("attempts", 0),
+                "Failures": stats.get("failure", 0),
                 "Success Rate": f"{sr:.1f}%",
-                "Status":       status,
+                "Status": status,
             })
         proc_rows.sort(key=lambda r: r["Success Rate"])
         st.dataframe(pd.DataFrame(proc_rows), use_container_width=True, hide_index=True)
@@ -314,10 +320,10 @@ if pipeline == "kpi":
             status_map = {"🟢 OK": "✅ OK", "🟡 Warning": "🟡 Warning",
                           "🔴 Critical": "🔴 Critical"}
             sum_rows.append({
-                "KPI":      row.get("label", row.get("kpi", "")),
+                "KPI": row.get("label", row.get("kpi", "")),
                 "Category": row.get("category", ""),
-                "Value":    row.get("display_value", "—"),
-                "Status":   row.get("status", "—"),
+                "Value": row.get("display_value", "—"),
+                "Status": row.get("status", "—"),
             })
         st.dataframe(pd.DataFrame(sum_rows), use_container_width=True,
                      hide_index=True, height=350)
@@ -339,21 +345,21 @@ if pipeline == "stats":
             crit = meta.get("critical")
             mean_val = s.get("mean", 0)
             if crit is not None and warn is not None:
-                if (meta.get("desc","").lower() in ("lower_better","") and
-                        col in ("dl_bler","ul_bler","dl_prb_util","ul_prb_util",
-                                "dl_harq_nack_rate","ul_harq_nack_rate","congestion_score")):
+                if (meta.get("desc", "").lower() in ("lower_better", "") and
+                        col in ("dl_bler", "ul_bler", "dl_prb_util", "ul_prb_util",
+                                "dl_harq_nack_rate", "ul_harq_nack_rate", "congestion_score")):
                     status = "🔴 Critical" if mean_val >= crit else ("🟡 Warning" if mean_val >= warn else "✅ OK")
                 else:
                     status = "🔴 Critical" if mean_val <= crit else ("🟡 Warning" if mean_val <= warn else "✅ OK")
             else:
                 status = "—"
             stat_rows.append({
-                "Metric":  meta.get("desc", col),
-                "Mean":    round(mean_val, 2),
-                "Min":     round(s.get("min", 0), 2),
-                "Max":     round(s.get("max", 0), 2),
-                "Unit":    meta.get("unit", ""),
-                "Status":  status,
+                "Metric": meta.get("desc", col),
+                "Mean": round(mean_val, 2),
+                "Min": round(s.get("min", 0), 2),
+                "Max": round(s.get("max", 0), 2),
+                "Unit": meta.get("unit", ""),
+                "Status": status,
             })
         st.dataframe(pd.DataFrame(stat_rows), use_container_width=True,
                      hide_index=True, height=350)

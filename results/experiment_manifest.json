@@ -289,5 +289,19 @@
     "n_fault_cells": 3,
     "n_success": 3,
     "results_file": "/mnt/e/telecom-analyzer/results/rca/rca_metrics.json"
+  },
+  "forecast": {
+    "script": "run_forecast_benchmark.py",
+    "dataset": "kpi_10hr_sample.csv",
+    "random_seed": 42,
+    "methods": [
+      "prophet",
+      "holt_winters",
+      "lstm",
+      "timesfm"
+    ],
+    "horizon_h": 4,
+    "n_origins": 8,
+    "results_file": "/mnt/e/telecom-analyzer/results/forecast/forecast_benchmark.json"
   }
 }

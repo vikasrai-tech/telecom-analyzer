@@ -37,9 +37,9 @@ from .ie_extractor import (
     extract_f1ap_ies, extract_e1ap_ies, extract_xnap_ies,
     build_message_event,
 )
-from .f1ap_parser import handle_f1ap_real, handle_f1ap_raw, REAL_F1AP_PROC_MAP, F1AP_CAUSE_NAMES
-from .e1ap_parser import handle_e1ap_real, handle_e1ap_raw, REAL_E1AP_PROC_MAP, E1AP_CAUSE_NAMES
-from .xnap_parser import handle_xnap_real, handle_xnap_raw, REAL_XNAP_PROC_MAP, XNAP_CAUSE_NAMES
+from .f1ap_parser import handle_f1ap_real, handle_f1ap_raw
+from .e1ap_parser import handle_e1ap_real, handle_e1ap_raw
+from .xnap_parser import handle_xnap_real, handle_xnap_raw
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,19 +48,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Synthetic payload discriminators
-DISC_NAS  = 0x7e
+DISC_NAS = 0x7e
 DISC_NGAP = 0x3a
-DISC_RRC  = 0x2b
+DISC_RRC = 0x2b
 
 # NGAP / RRC synthetic message categories
-MSG_REQUEST  = 0x00
+MSG_REQUEST = 0x00
 MSG_RESPONSE = 0x01
-MSG_FAILURE  = 0x02
+MSG_FAILURE = 0x02
 
 # RRC-specific
-RRC_REQUEST  = 0x00
+RRC_REQUEST = 0x00
 RRC_COMPLETE = 0x01
-RRC_REJECT   = 0x02
+RRC_REJECT = 0x02
 
 # IE names (as produced by ie_extractor's readable field map) that carry a
 # cell identity — only populated on real pyshark-dissected captures with the
@@ -107,26 +107,26 @@ class PCAPParser:
 
     # RRC procedure name → pyshark message string patterns for real captures
     RRC_REAL_PATTERNS: List[Tuple[str, str, str]] = [
-        ('rrcSetupRequest',            'RRC_Setup',              'request'),
-        ('rrcSetupComplete',           'RRC_Setup',              'complete'),
-        ('rrcSetup ',                  'RRC_Setup',              'complete'),
-        ('rrcReject',                  'RRC_Setup',              'reject'),
-        ('rrcReestablishmentRequest',  'RRC_Reestablishment',    'request'),
-        ('rrcReestablishmentComplete', 'RRC_Reestablishment',    'complete'),
-        ('rrcReestablishmentReject',   'RRC_Reestablishment',    'reject'),
-        ('rrcReconfigurationComplete', 'RRC_Reconfiguration',    'complete'),
-        ('rrcReconfiguration ',        'RRC_Reconfiguration',    'command'),
-        ('rrcRelease',                 'RRC_Release',            'command'),
-        ('securityModeCommand',        'RRC_SecurityMode',       'command'),
-        ('securityModeComplete',       'RRC_SecurityMode',       'complete'),
-        ('securityModeFailure',        'RRC_SecurityMode',       'reject'),
-        ('ueCapabilityEnquiry',        'RRC_UECapabilityEnquiry','request'),
-        ('ueCapabilityInformation',    'RRC_UECapabilityEnquiry','response'),
-        ('measurementReport',          'RRC_MeasurementReport',  'request'),
-        ('rrcSuspend',                 'RRC_Suspend',            'command'),
-        ('rrcSuspendComplete',         'RRC_Suspend',            'complete'),
-        ('rrcResume',                  'RRC_Resume',             'command'),
-        ('rrcResumeComplete',          'RRC_Resume',             'complete'),
+        ('rrcSetupRequest', 'RRC_Setup', 'request'),
+        ('rrcSetupComplete', 'RRC_Setup', 'complete'),
+        ('rrcSetup ', 'RRC_Setup', 'complete'),
+        ('rrcReject', 'RRC_Setup', 'reject'),
+        ('rrcReestablishmentRequest', 'RRC_Reestablishment', 'request'),
+        ('rrcReestablishmentComplete', 'RRC_Reestablishment', 'complete'),
+        ('rrcReestablishmentReject', 'RRC_Reestablishment', 'reject'),
+        ('rrcReconfigurationComplete', 'RRC_Reconfiguration', 'complete'),
+        ('rrcReconfiguration ', 'RRC_Reconfiguration', 'command'),
+        ('rrcRelease', 'RRC_Release', 'command'),
+        ('securityModeCommand', 'RRC_SecurityMode', 'command'),
+        ('securityModeComplete', 'RRC_SecurityMode', 'complete'),
+        ('securityModeFailure', 'RRC_SecurityMode', 'reject'),
+        ('ueCapabilityEnquiry', 'RRC_UECapabilityEnquiry', 'request'),
+        ('ueCapabilityInformation', 'RRC_UECapabilityEnquiry', 'response'),
+        ('measurementReport', 'RRC_MeasurementReport', 'request'),
+        ('rrcSuspend', 'RRC_Suspend', 'command'),
+        ('rrcSuspendComplete', 'RRC_Suspend', 'complete'),
+        ('rrcResume', 'RRC_Resume', 'command'),
+        ('rrcResumeComplete', 'RRC_Resume', 'complete'),
     ]
 
     def __init__(self, timeout_seconds: int = 30):
@@ -230,7 +230,7 @@ class PCAPParser:
             ue_id = str(getattr(getattr(packet, 'ip', None), 'src', 'unknown'))
             msg_type = None
             for fname in ['mm_msg_type', 'sm_msg_type', 'nas_5gs_mm_msg_type',
-                           'nas_5gs_sm_msg_type', 'msg_type']:
+                          'nas_5gs_sm_msg_type', 'msg_type']:
                 raw = getattr(nas, fname, None)
                 if raw is not None:
                     try:
@@ -268,7 +268,7 @@ class PCAPParser:
             tx_key = f"ngap_{proc_name}_{ue_id}"
             ngap_str = str(ngap).lower()
             is_response = 'successfuloutcome' in ngap_str
-            is_failure  = 'unsuccessfuloutcome' in ngap_str
+            is_failure = 'unsuccessfuloutcome' in ngap_str
             ies = extract_ngap_ies(packet)
             if not is_response and not is_failure:
                 self._record_request(proc_name, tx_key, timestamp, ue_id, 'NGAP', ies)
@@ -337,54 +337,54 @@ class PCAPParser:
     def _handle_nas_raw(self, raw_bytes: bytes, timestamp: float) -> None:
         if len(raw_bytes) < 7:
             return
-        msg_type   = raw_bytes[2]
-        tmsi       = struct.unpack('>I', raw_bytes[3:7])[0]
+        msg_type = raw_bytes[2]
+        tmsi = struct.unpack('>I', raw_bytes[3:7])[0]
         cause_byte = raw_bytes[7] if len(raw_bytes) > 7 else None
         self._process_nas_message(msg_type, str(tmsi), timestamp, cause_byte, {})
 
     def _handle_ngap_raw(self, raw_bytes: bytes, timestamp: float) -> None:
         if len(raw_bytes) < 7:
             return
-        proc_code  = raw_bytes[1]
-        msg_cat    = raw_bytes[2]
-        ue_id      = str(struct.unpack('>I', raw_bytes[3:7])[0])
+        proc_code = raw_bytes[1]
+        msg_cat = raw_bytes[2]
+        ue_id = str(struct.unpack('>I', raw_bytes[3:7])[0])
         cause_byte = raw_bytes[7] if len(raw_bytes) > 7 else None
-        proc_name  = self.NGAP_PROCS.get(proc_code, f"NGAP_Proc_{proc_code:02x}")
-        tx_key     = f"ngap_{proc_name}_{ue_id}"
+        proc_name = self.NGAP_PROCS.get(proc_code, f"NGAP_Proc_{proc_code:02x}")
+        tx_key = f"ngap_{proc_name}_{ue_id}"
         if msg_cat == MSG_REQUEST:
             self._record_request(proc_name, tx_key, timestamp, ue_id, 'NGAP', {})
         elif msg_cat == MSG_RESPONSE:
             self._record_success(proc_name, tx_key, 'NGAP', {})
         elif msg_cat == MSG_FAILURE:
             cause = NGAP_CAUSE_NAMES.get(cause_byte, f"unknown-0x{cause_byte:02x}") \
-                    if cause_byte else "unknown"
+                if cause_byte else "unknown"
             self._record_failure(proc_name, tx_key, cause, 'NGAP', {})
         self._inc_events()
 
     def _handle_rrc_raw(self, raw_bytes: bytes, timestamp: float) -> None:
         if len(raw_bytes) < 7:
             return
-        proc_code  = raw_bytes[1]
-        msg_cat    = raw_bytes[2]
-        ue_id      = str(struct.unpack('>I', raw_bytes[3:7])[0])
+        proc_code = raw_bytes[1]
+        msg_cat = raw_bytes[2]
+        ue_id = str(struct.unpack('>I', raw_bytes[3:7])[0])
         cause_byte = raw_bytes[7] if len(raw_bytes) > 7 else None
-        proc_name  = self.RRC_PROCS.get(proc_code, f"RRC_Proc_{proc_code:02x}")
-        tx_key     = f"rrc_{proc_name}_{ue_id}"
+        proc_name = self.RRC_PROCS.get(proc_code, f"RRC_Proc_{proc_code:02x}")
+        tx_key = f"rrc_{proc_name}_{ue_id}"
         if msg_cat == RRC_REQUEST:
             self._record_request(proc_name, tx_key, timestamp, ue_id, 'RRC', {})
         elif msg_cat == RRC_COMPLETE:
             self._record_success(proc_name, tx_key, 'RRC', {})
         elif msg_cat == RRC_REJECT:
             cause = RRC_CAUSE_NAMES.get(cause_byte, f"unknown-0x{cause_byte:02x}") \
-                    if cause_byte else "unknown"
+                if cause_byte else "unknown"
             self._record_failure(proc_name, tx_key, cause, 'RRC', {})
         self._inc_events()
 
     # ── Shared helpers ────────────────────────────────────────────────
 
     def _process_nas_message(self, msg_type: int, ue_id: str, timestamp: float,
-                              cause_byte: Optional[int],
-                              ies: Dict[str, str]) -> None:
+                             cause_byte: Optional[int],
+                             ies: Dict[str, str]) -> None:
         info = NAS_5GMM_MSGS.get(msg_type) or NAS_5GSM_MSGS.get(msg_type)
         if info is None:
             logger.debug(f"Unknown NAS msg_type: 0x{msg_type:02x}")
@@ -487,13 +487,13 @@ class PCAPParser:
         procedures_out = {}
         for proc_name, stats in self.stats.items():
             procedures_out[proc_name] = {
-                "attempts":       stats.attempts,
-                "success":        stats.success,
-                "failure":        stats.failure,
-                "success_rate":   stats.success_rate,
+                "attempts": stats.attempts,
+                "success": stats.success,
+                "failure": stats.failure,
+                "success_rate": stats.success_rate,
                 "failure_causes": dict(stats.failure_causes),
-                "layer":          stats.layer,
-                "cell_id":        stats.cell_id or "—",
+                "layer": stats.layer,
+                "cell_id": stats.cell_id or "—",
             }
 
         # Per-layer event counts
@@ -502,14 +502,14 @@ class PCAPParser:
             layer_event_counts[evt["layer"]] += 1
 
         return {
-            "filename":                Path(filename).name,
-            "total_events":            self.total_events,
+            "filename": Path(filename).name,
+            "total_events": self.total_events,
             "total_packets_processed": self.total_packets,
-            "procedures":              procedures_out,
-            "message_log":             self.message_log,
-            "layer_event_counts":      dict(layer_event_counts),
-            "parser_version":          "real_v3",
-            "layers_supported":        ["NAS", "NGAP", "RRC", "F1AP", "E1AP", "XnAP"],
+            "procedures": procedures_out,
+            "message_log": self.message_log,
+            "layer_event_counts": dict(layer_event_counts),
+            "parser_version": "real_v3",
+            "layers_supported": ["NAS", "NGAP", "RRC", "F1AP", "E1AP", "XnAP"],
         }
 
 

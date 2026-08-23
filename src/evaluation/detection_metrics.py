@@ -47,23 +47,23 @@ def compute_scenario_metrics(
     tn = len(normal_cells - detected_cells)
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = (
         2 * precision * recall / (precision + recall)
         if (precision + recall) > 0 else 0.0
     )
 
     return {
-        "TP":        tp,
-        "FP":        fp,
-        "FN":        fn,
-        "TN":        tn,
+        "TP": tp,
+        "FP": fp,
+        "FN": fn,
+        "TN": tn,
         "precision": round(precision, 4),
-        "recall":    round(recall, 4),
-        "f1":        round(f1, 4),
-        "detected_fault_cells":  sorted(detected_cells & fault_cells),
-        "missed_fault_cells":    sorted(fault_cells - detected_cells),
-        "false_positive_cells":  sorted(detected_cells - fault_cells),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "detected_fault_cells": sorted(detected_cells & fault_cells),
+        "missed_fault_cells": sorted(fault_cells - detected_cells),
+        "false_positive_cells": sorted(detected_cells - fault_cells),
         "evaluation_note": (
             "Scenario-level / cell-level detection. N=3 injected fault scenarios "
             "(congestion PCI_3, outage PCI_12, drift PCI_8) in a 16-cell synthetic "

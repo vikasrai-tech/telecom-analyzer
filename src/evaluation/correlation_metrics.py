@@ -37,13 +37,13 @@ def compute_correlation_assignment_rate(router: EventRouter) -> Dict[str, Any]:
     total = len(all_events)
 
     correlated = router.get_correlated(min_sources=2)
-    clustered_ids  = {ev["event_id"] for ev in correlated}
+    clustered_ids = {ev["event_id"] for ev in correlated}
     # Unique cells with cross-source coverage (cell-level view).
     # clustered_events counts individual events (both kpi AND stats event
     # for the same cell each count), so clustered_unique_cells ≤ clustered_events.
     clustered_cell_ids = {ev["cell_id"] for ev in correlated}
 
-    clustered     = len(clustered_ids)
+    clustered = len(clustered_ids)
     single_source = total - clustered
 
     rate = round(clustered / total * 100, 2) if total > 0 else 0.0
@@ -73,10 +73,10 @@ def compute_correlation_assignment_rate(router: EventRouter) -> Dict[str, Any]:
             "clustered_events counts individual events (kpi + stats events for the same "
             "cell are counted separately); clustered_unique_cells is the cell-level count."
         ),
-        "total_events":           total,
-        "clustered_events":       clustered,
+        "total_events": total,
+        "clustered_events": clustered,
         "clustered_unique_cells": len(clustered_cell_ids),
-        "single_source_events":   single_source,
-        "assignment_rate_pct":    rate,
-        "by_source":              by_source,
+        "single_source_events": single_source,
+        "assignment_rate_pct": rate,
+        "by_source": by_source,
     }

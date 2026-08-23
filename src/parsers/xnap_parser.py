@@ -14,23 +14,23 @@ Synthetic payload format:
 
 import logging
 import struct
-from typing import Dict, Any
+from typing import Dict
 
-from .protocol_defs import XNAP_PROCS, XNAP_CAUSE_NAMES, DISC_XNAP
+from .protocol_defs import XNAP_PROCS, XNAP_CAUSE_NAMES
 
 logger = logging.getLogger(__name__)
 
 # Real XnAP procedure codes (TS 38.423 §9.2 Table 9.2.1-1)
 REAL_XNAP_PROC_MAP: Dict[int, str] = {
-    1:  "XnAP_HandoverPreparation",
-    2:  "XnAP_HandoverCancel",
-    3:  "XnAP_RetrieveUEContext",
-    4:  "XnAP_SNStatusTransfer",
-    5:  "XnAP_UEContextRelease",
-    6:  "XnAP_HandoverSuccess",
-    7:  "XnAP_ConditionalHandoverCancel",
-    8:  "XnAP_RANPaging",
-    9:  "XnAP_XnSetup",
+    1: "XnAP_HandoverPreparation",
+    2: "XnAP_HandoverCancel",
+    3: "XnAP_RetrieveUEContext",
+    4: "XnAP_SNStatusTransfer",
+    5: "XnAP_UEContextRelease",
+    6: "XnAP_HandoverSuccess",
+    7: "XnAP_ConditionalHandoverCancel",
+    8: "XnAP_RANPaging",
+    9: "XnAP_XnSetup",
     10: "XnAP_gNBXnConfigurationUpdate",
     11: "XnAP_CellActivation",
     12: "XnAP_DataForwardingAddressIndication",
@@ -89,9 +89,9 @@ REAL_XNAP_PROC_MAP: Dict[int, str] = {
     65: "XnAP_BCInfoTransfer",
 }
 
-REQUEST_CAT  = 0x00
+REQUEST_CAT = 0x00
 RESPONSE_CAT = 0x01
-FAILURE_CAT  = 0x02
+FAILURE_CAT = 0x02
 
 
 def handle_xnap_real(packet, record_request_fn, record_success_fn,
@@ -115,14 +115,14 @@ def handle_xnap_real(packet, record_request_fn, record_success_fn,
             return
 
         proc_name = REAL_XNAP_PROC_MAP.get(proc_code, f"XnAP_Proc_{proc_code}")
-        xnap_str  = str(xnap).lower()
+        xnap_str = str(xnap).lower()
 
         node_id = str(getattr(xnap, 'oldNG_RAN_node_UE_XnAP_ID',
-                     getattr(xnap, 'newNG_RAN_node_UE_XnAP_ID', 'unknown')))
-        tx_key  = f"xnap_{proc_name}_{node_id}"
+                              getattr(xnap, 'newNG_RAN_node_UE_XnAP_ID', 'unknown')))
+        tx_key = f"xnap_{proc_name}_{node_id}"
 
         is_response = 'successfuloutcome' in xnap_str or 'acknowledge' in xnap_str
-        is_failure  = 'unsuccessfuloutcome' in xnap_str or 'reject' in xnap_str
+        is_failure = 'unsuccessfuloutcome' in xnap_str or 'reject' in xnap_str
 
         ies = extract_ies_fn(packet)
 
@@ -146,13 +146,13 @@ def handle_xnap_raw(raw_bytes: bytes, timestamp: float,
     """Handle synthetic XnAP payload. Format: [0x1c][proc][cat][ID:4][cause?]"""
     if len(raw_bytes) < 7:
         return
-    proc_code  = raw_bytes[1]
-    msg_cat    = raw_bytes[2]
-    node_id    = str(struct.unpack('>I', raw_bytes[3:7])[0])
+    proc_code = raw_bytes[1]
+    msg_cat = raw_bytes[2]
+    node_id = str(struct.unpack('>I', raw_bytes[3:7])[0])
     cause_byte = raw_bytes[7] if len(raw_bytes) > 7 else None
 
     proc_name = XNAP_PROCS.get(proc_code, f"XnAP_Proc_{proc_code:02x}")
-    tx_key    = f"xnap_{proc_name}_{node_id}"
+    tx_key = f"xnap_{proc_name}_{node_id}"
 
     if msg_cat == REQUEST_CAT:
         record_request_fn(proc_name, tx_key, timestamp, node_id, 'XnAP', {})
@@ -160,7 +160,7 @@ def handle_xnap_raw(raw_bytes: bytes, timestamp: float,
         record_success_fn(proc_name, tx_key, 'XnAP', {})
     elif msg_cat == FAILURE_CAT:
         cause = XNAP_CAUSE_NAMES.get(cause_byte, f"unknown-0x{cause_byte:02x}") \
-                if cause_byte else "unknown"
+            if cause_byte else "unknown"
         record_failure_fn(proc_name, tx_key, cause, 'XnAP', {})
 
     inc_events_fn()

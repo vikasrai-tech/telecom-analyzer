@@ -1,7 +1,7 @@
 """
 Prediction Layer — Phase II
 
-Four forecasting methods:
+Five forecasting methods:
   1. Prophet       — off-the-shelf library baseline (seasonal/trend
                      decomposition), kept as a control for the benchmark
                      comparison rather than a built contribution.
@@ -16,8 +16,13 @@ Four forecasting methods:
                      model (200M params, timesfm-2.5-200m-pytorch).
                      No fine-tuning needed; works directly on CSV series.
                      Loaded once and cached as a module singleton.
+  5. Chronos       — Amazon's pre-trained zero-shot time-series foundation
+                     model (amazon/chronos-t5-small, 46M params).
+                     T5-based probabilistic forecaster trained on 100B+
+                     real-world time-series points. Direct competitor to
+                     TimesFM; loaded once and cached as a module singleton.
 
-All four return predicted anomalies in the same schema as the detection
+All five return predicted anomalies in the same schema as the detection
 layer, tagged state="predicted" with lead_time_h set. See
 src/detection/forecast_eval.py for the backtesting/lead-time evaluation
 harness that quantitatively compares them.
@@ -37,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # Forecast horizon
 DEFAULT_HORIZON_H = 4       # predict 4 hours ahead
-DEFAULT_MIN_ROWS  = 24      # need at least 24 data points to forecast
+DEFAULT_MIN_ROWS = 24      # need at least 24 data points to forecast
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -108,21 +113,21 @@ def _infer_freq_seconds(df: pd.DataFrame, ts_col: str, cell_col: str = "") -> Op
 
 def _make_predicted(col, cell, forecast_val, horizon_h, sev, evidence, method) -> Dict:
     return {
-        "label":          col,
-        "category":       col,
-        "cell_id":        str(cell),
-        "gnb_id":         str(cell),
-        "value":          round(float(forecast_val), 3),
-        "unit":           "",
-        "severity":       sev,
-        "evidence":       evidence,
+        "label": col,
+        "category": col,
+        "cell_id": str(cell),
+        "gnb_id": str(cell),
+        "value": round(float(forecast_val), 3),
+        "unit": "",
+        "severity": sev,
+        "evidence": evidence,
         "recommendation": f"Predicted {sev.lower()} anomaly in {col} within {horizon_h}h. "
-                          f"Take proactive action now before threshold breach.",
-        "detector":       f"Prediction ({method})",
-        "score":          round(abs(forecast_val), 3),
-        "state":          "predicted",
-        "lead_time_h":    horizon_h,
-        "source":         "prediction",
+        f"Take proactive action now before threshold breach.",
+        "detector": f"Prediction ({method})",
+        "score": round(abs(forecast_val), 3),
+        "state": "predicted",
+        "lead_time_h": horizon_h,
+        "source": "prediction",
     }
 
 
@@ -153,7 +158,7 @@ def _prophet_point_forecast(
             m.fit(sub)
 
         future = m.make_future_dataframe(periods=horizon_periods, freq=f"{int(freq_s)}s")
-        fc     = m.predict(future)
+        fc = m.predict(future)
         horizon_rows = fc.tail(horizon_periods)
         return horizon_rows["yhat"].values, horizon_rows["yhat_upper"].values
     except Exception:
@@ -163,7 +168,7 @@ def _prophet_point_forecast(
 def forecast_prophet(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
-    min_rows:  int = DEFAULT_MIN_ROWS,
+    min_rows: int = DEFAULT_MIN_ROWS,
 ) -> List[Dict[str, Any]]:
     """
     Use Facebook Prophet to forecast KPI/Stats time series.
@@ -175,9 +180,9 @@ def forecast_prophet(
         logger.warning("[predictor] Prophet not installed — skipping")
         return []
 
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
-    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
 
     if not ts_col or not cols:
         return []
@@ -209,10 +214,10 @@ def forecast_prophet(
                 continue
             yhat, yhat_upper = fc
             forecast_val = float(np.mean(yhat))
-            forecast_hi  = float(np.mean(yhat_upper))
+            forecast_hi = float(np.mean(yhat_upper))
 
             w, c, direction = _get_thresholds(col, parsed)
-            sev  = _sev_from_forecast(forecast_val, w, c, col, direction)
+            sev = _sev_from_forecast(forecast_val, w, c, col, direction)
             if sev == "Low":
                 sev_hi = _sev_from_forecast(forecast_hi, w, c, col, direction)
                 if sev_hi == "Low":
@@ -269,7 +274,7 @@ def _holt_winters_point_forecast(
 def forecast_holt_winters(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
-    min_rows:  int = DEFAULT_MIN_ROWS,
+    min_rows: int = DEFAULT_MIN_ROWS,
     seasonal_periods: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -285,9 +290,9 @@ def forecast_holt_winters(
         logger.warning("[predictor] statsmodels not installed — skipping Holt-Winters")
         return []
 
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
-    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
 
     if not ts_col or not cols:
         return []
@@ -310,7 +315,7 @@ def forecast_holt_winters(
             if len(sub) < min_rows:
                 continue
 
-            series   = sub[col].values.astype(float)
+            series = sub[col].values.astype(float)
             forecast = _holt_winters_point_forecast(series, horizon_periods, seasonal_periods)
             if forecast is None:
                 logger.debug(f"[holt_winters] {col}@{cell}: forecast failed")
@@ -320,7 +325,7 @@ def forecast_holt_winters(
             forecast_max = float(np.max(forecast))
 
             w, c, direction = _get_thresholds(col, parsed)
-            sev  = _sev_from_forecast(forecast_val, w, c, col, direction)
+            sev = _sev_from_forecast(forecast_val, w, c, col, direction)
             if sev == "Low":
                 sev_max = _sev_from_forecast(forecast_max, w, c, col, direction)
                 if sev_max == "Low":
@@ -350,14 +355,14 @@ class _LSTMForecaster:
     def __init__(self, lookback: int = 12, hidden: int = 32, epochs: int = 60,
                  val_frac: float = 0.2, patience: int = 8):
         self.lookback = lookback
-        self.hidden   = hidden
-        self.epochs   = epochs
+        self.hidden = hidden
+        self.epochs = epochs
         self.val_frac = val_frac
         self.patience = patience
         self.val_mae: Optional[float] = None
-        self._net  = None
-        self._mu   = 0.0
-        self._sig  = 1.0
+        self._net = None
+        self._mu = 0.0
+        self._sig = 1.0
 
     def _windows(self, z: np.ndarray, horizon: int) -> Tuple[np.ndarray, np.ndarray]:
         X, y = [], []
@@ -381,26 +386,26 @@ class _LSTMForecaster:
 
         n_val = min(max(1, int(len(X) * self.val_frac)), len(X) - 1)
         X_train, y_train = X[:-n_val], y[:-n_val]
-        X_val,   y_val   = X[-n_val:], y[-n_val:]
+        X_val, y_val = X[-n_val:], y[-n_val:]
 
         class Net(nn.Module):
             def __init__(self, hidden, horizon):
                 super().__init__()
-                self.lstm   = nn.LSTM(1, hidden, batch_first=True)
+                self.lstm = nn.LSTM(1, hidden, batch_first=True)
                 self.linear = nn.Linear(hidden, horizon)
 
             def forward(self, x):
                 out, _ = self.lstm(x)
                 return self.linear(out[:, -1, :])
 
-        net     = Net(self.hidden, horizon)
-        opt     = torch.optim.Adam(net.parameters(), lr=1e-2)
+        net = Net(self.hidden, horizon)
+        opt = torch.optim.Adam(net.parameters(), lr=1e-2)
         loss_fn = nn.MSELoss()
 
         X_train_t = torch.tensor(X_train).unsqueeze(-1)
         y_train_t = torch.tensor(y_train)
-        X_val_t   = torch.tensor(X_val).unsqueeze(-1)
-        y_val_t   = torch.tensor(y_val)
+        X_val_t = torch.tensor(X_val).unsqueeze(-1)
+        y_val_t = torch.tensor(y_val)
 
         best_val, best_state, stall = float("inf"), None, 0
 
@@ -427,7 +432,7 @@ class _LSTMForecaster:
             net.load_state_dict(best_state)
         net.eval()
 
-        self._net    = net
+        self._net = net
         self.val_mae = best_val * sig  # de-normalize to original units
         return self
 
@@ -459,7 +464,7 @@ class _LSTMForecaster:
 def forecast_lstm(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
-    min_rows:  int = DEFAULT_MIN_ROWS,
+    min_rows: int = DEFAULT_MIN_ROWS,
 ) -> List[Dict[str, Any]]:
     """
     Use a lightweight LSTM to forecast KPI/Stats time series.
@@ -471,9 +476,9 @@ def forecast_lstm(
         logger.warning("[predictor] PyTorch not installed — skipping LSTM")
         return []
 
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
-    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
 
     if not ts_col or not cols:
         return []
@@ -488,7 +493,7 @@ def forecast_lstm(
     horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
 
     forecaster = _LSTMForecaster()
-    predicted  = []
+    predicted = []
     groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
 
     for cell, grp in groups:
@@ -505,7 +510,7 @@ def forecast_lstm(
                         f"{horizon_periods} periods — skipping (no fabricated flat forecast)"
                     )
                     continue
-                forecasts    = forecaster.predict(series, horizon_periods)
+                forecasts = forecaster.predict(series, horizon_periods)
                 forecast_val = float(forecasts.mean())
                 forecast_max = float(forecasts.max())
             except Exception as e:
@@ -513,7 +518,7 @@ def forecast_lstm(
                 continue
 
             w, c, direction = _get_thresholds(col, parsed)
-            sev  = _sev_from_forecast(forecast_val, w, c, col, direction)
+            sev = _sev_from_forecast(forecast_val, w, c, col, direction)
             if sev == "Low":
                 sev_max = _sev_from_forecast(forecast_max, w, c, col, direction)
                 if sev_max == "Low":
@@ -536,6 +541,7 @@ def forecast_lstm(
 
 # Module-level singleton — model is ~200MB, load once per process.
 _timesfm_model = None
+
 
 def _get_timesfm():
     """Load TimesFM 2.5-200M (PyTorch) from HuggingFace, cached after first call."""
@@ -562,7 +568,7 @@ def _get_timesfm():
 def forecast_timesfm(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
-    min_rows:  int = DEFAULT_MIN_ROWS,
+    min_rows: int = DEFAULT_MIN_ROWS,
 ) -> List[Dict[str, Any]]:
     """
     Zero-shot forecast using Google TimesFM 2.5-200M (PyTorch backend).
@@ -583,9 +589,9 @@ def forecast_timesfm(
         logger.warning("[timesfm] Model unavailable — skipping TimesFM forecast")
         return []
 
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
-    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
 
     if not ts_col or not cols:
         return []
@@ -605,7 +611,7 @@ def forecast_timesfm(
     for cell, grp in groups:
         # Batch all columns for this cell in one forecast call
         series_list: List[np.ndarray] = []
-        valid_cols:  List[str]        = []
+        valid_cols: List[str] = []
 
         for col in cols:
             series = grp.sort_values(ts_col)[col].dropna().values.astype(float)
@@ -659,6 +665,130 @@ def forecast_timesfm(
     return predicted
 
 
+# ── Chronos forecaster ────────────────────────────────────────────────
+
+# Module-level singleton — model is ~46MB, load once per process.
+_chronos_model = None
+
+
+def _get_chronos():
+    """Load amazon/chronos-t5-small (CPU) from HuggingFace, cached after first call."""
+    global _chronos_model
+    if _chronos_model is not None:
+        return _chronos_model
+    try:
+        import torch
+        from chronos import ChronosPipeline
+        logger.info("[chronos] Loading amazon/chronos-t5-small from HuggingFace...")
+        model = ChronosPipeline.from_pretrained(
+            "amazon/chronos-t5-small",
+            device_map="cpu",
+            torch_dtype=torch.float32,
+        )
+        _chronos_model = model
+        logger.info("[chronos] Model loaded.")
+        return _chronos_model
+    except Exception as e:
+        logger.warning(f"[chronos] Failed to load model: {e}")
+        return None
+
+
+def _chronos_point_forecast(
+    series: np.ndarray, horizon_periods: int,
+) -> Optional[np.ndarray]:
+    """Run Chronos on a raw series and return a horizon-length mean forecast array,
+    or None on failure. Shared by forecast_chronos() and the backtest harness."""
+    pipeline = _get_chronos()
+    if pipeline is None:
+        return None
+    try:
+        import torch
+        context = torch.tensor(series, dtype=torch.float32)
+        _, mean = pipeline.predict_quantiles(
+            inputs=context,
+            prediction_length=horizon_periods,
+            quantile_levels=[0.5],
+        )
+        # mean shape: (1, horizon_periods)
+        return mean[0].numpy()
+    except Exception as e:
+        logger.debug(f"[chronos] point_forecast failed: {e}")
+        return None
+
+
+def forecast_chronos(
+    parsed: Dict[str, Any],
+    horizon_h: int = DEFAULT_HORIZON_H,
+    min_rows: int = DEFAULT_MIN_ROWS,
+) -> List[Dict[str, Any]]:
+    """
+    Zero-shot forecast using Amazon Chronos (chronos-t5-small, 46M params).
+
+    Chronos is a T5-based probabilistic foundation model pre-trained on
+    100B+ real-world time-series points. Like TimesFM it requires no
+    fine-tuning — feed raw numeric series and get a probabilistic forecast.
+    We use the median (0.5-quantile) as the point forecast.
+
+    Returns predicted anomalies in the same schema as other forecasters,
+    tagged state='predicted' with lead_time_h set.
+    """
+    if _get_chronos() is None:
+        logger.warning("[chronos] Model unavailable — skipping Chronos forecast")
+        return []
+
+    ts_col = parsed.get("timestamp_col", "")
+    cell_col = parsed.get("cell_col", "")
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+
+    if not ts_col or not cols:
+        return []
+
+    df = pd.DataFrame(parsed["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+    df = df.dropna(subset=[ts_col])
+
+    freq_s = _infer_freq_seconds(df, ts_col, cell_col)
+    if not freq_s:
+        return []
+    horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
+
+    predicted = []
+    groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
+
+    for cell, grp in groups:
+        for col in cols:
+            series = grp.sort_values(ts_col)[col].dropna().values.astype(float)
+            if len(series) < min_rows:
+                continue
+
+            forecast = _chronos_point_forecast(series, horizon_periods)
+            if forecast is None:
+                logger.debug(f"[chronos] {col}@{cell}: forecast failed")
+                continue
+
+            forecast_val = float(np.mean(forecast))
+            forecast_max = float(np.max(forecast))
+
+            w, c, direction = _get_thresholds(col, parsed)
+            sev = _sev_from_forecast(forecast_val, w, c, col, direction)
+            if sev == "Low":
+                sev_max = _sev_from_forecast(forecast_max, w, c, col, direction)
+                if sev_max == "Low":
+                    continue
+                sev = "Medium"
+
+            predicted.append(_make_predicted(
+                col, cell, forecast_val, horizon_h, sev,
+                evidence=(f"Chronos forecast: {col} predicted "
+                          f"{forecast_val:.2f} (peak={forecast_max:.2f}) "
+                          f"in {horizon_h}h. Last 5 values mean={series[-5:].mean():.2f}"),
+                method="Chronos",
+            ))
+            logger.info(f"[chronos] {col}@{cell} forecast={forecast_val:.2f} sev={sev}")
+
+    return predicted
+
+
 # ── Public API ────────────────────────────────────────────────────────
 
 def run_prediction(
@@ -669,10 +799,10 @@ def run_prediction(
     """
     Run prediction layer. Returns {method: [predicted_anomaly, ...]}.
 
-    methods: None = run all; or a subset list e.g. ["timesfm", "holt_winters"].
+    methods: None = run all; or a subset list e.g. ["chronos", "holt_winters"].
     """
     if methods is None:
-        methods = ["prophet", "holt_winters", "lstm", "timesfm"]
+        methods = ["prophet", "holt_winters", "lstm", "timesfm", "chronos"]
 
     results: Dict[str, List] = {}
 
@@ -691,6 +821,10 @@ def run_prediction(
     if "timesfm" in methods:
         logger.info("[predictor] Running TimesFM zero-shot forecast...")
         results["timesfm"] = forecast_timesfm(parsed, horizon_h=horizon_h)
+
+    if "chronos" in methods:
+        logger.info("[predictor] Running Chronos zero-shot forecast...")
+        results["chronos"] = forecast_chronos(parsed, horizon_h=horizon_h)
 
     total = sum(len(v) for v in results.values())
     logger.info(f"[predictor] Done — {total} predicted anomalies across {len(results)} methods")

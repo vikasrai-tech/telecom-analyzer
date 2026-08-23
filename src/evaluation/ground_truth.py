@@ -16,13 +16,13 @@ from typing import Any, Dict, List, Set
 
 FAULT_SCENARIOS: List[Dict[str, Any]] = [
     {
-        "scenario_id":      "congestion",
-        "fault_type":       "congestion",
-        "cell_id":          "PCI_3",
-        "start_minute":     90,
-        "end_minute":       150,
-        "start_hour":       1.5,
-        "end_hour":         2.5,
+        "scenario_id": "congestion",
+        "fault_type": "congestion",
+        "cell_id": "PCI_3",
+        "start_minute": 90,
+        "end_minute": 150,
+        "start_hour": 1.5,
+        "end_hour": 2.5,
         "affected_domains": ["kpi", "stats"],
         "description": (
             "DL congestion on TDD cell PCI_3 (gNB-1). "
@@ -30,13 +30,13 @@ FAULT_SCENARIOS: List[Dict[str, Any]] = [
         ),
     },
     {
-        "scenario_id":      "outage",
-        "fault_type":       "outage",
-        "cell_id":          "PCI_12",
-        "start_minute":     240,
-        "end_minute":       260,
-        "start_hour":       4.0,
-        "end_hour":         4.33,
+        "scenario_id": "outage",
+        "fault_type": "outage",
+        "cell_id": "PCI_12",
+        "start_minute": 240,
+        "end_minute": 260,
+        "start_hour": 4.0,
+        "end_hour": 4.33,
         "affected_domains": ["kpi", "stats", "pcap"],
         "description": (
             "Hardware/backhaul outage on FDD cell PCI_12 (gNB-3). "
@@ -44,13 +44,13 @@ FAULT_SCENARIOS: List[Dict[str, Any]] = [
         ),
     },
     {
-        "scenario_id":      "drift",
-        "fault_type":       "drift",
-        "cell_id":          "PCI_8",
-        "start_minute":     300,
-        "end_minute":       360,
-        "start_hour":       5.0,
-        "end_hour":         6.0,
+        "scenario_id": "drift",
+        "fault_type": "drift",
+        "cell_id": "PCI_8",
+        "start_minute": 300,
+        "end_minute": 360,
+        "start_hour": 5.0,
+        "end_hour": 6.0,
         "affected_domains": ["kpi", "stats"],
         "description": (
             "Slow drift on TDD cell PCI_8 (gNB-2). "

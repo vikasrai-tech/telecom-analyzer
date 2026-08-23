@@ -55,7 +55,7 @@ def run_pcap_pipeline(
 
     logger.info("[pipeline] Running 6 PCAP detectors...")
     by_detector = detect_anomalies_by_detector(parsed)
-    anomalies   = merge_detector_results(by_detector)
+    anomalies = merge_detector_results(by_detector)
 
     explanations: List[Dict[str, Any]] = []
     if not skip_llm:
@@ -74,15 +74,15 @@ def run_pcap_pipeline(
     logger.info(f"[pipeline] PCAP pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
-        "pipeline":     "pcap",
-        "input_file":   str(file_path),
-        "parsed":       parsed,
-        "anomalies":    anomalies,
-        "by_detector":  by_detector,
+        "pipeline": "pcap",
+        "input_file": str(file_path),
+        "parsed": parsed,
+        "anomalies": anomalies,
+        "by_detector": by_detector,
         "explanations": explanations,
-        "events":       router.get_events(),
-        "event_summary":router.summary(),
-        "duration_s":   duration,
+        "events": router.get_events(),
+        "event_summary": router.summary(),
+        "duration_s": duration,
     }
 
 
@@ -122,7 +122,6 @@ def run_kpi_pipeline(
     from src.parsers.kpi_parser import parse_kpi_file
     from src.detection.kpi_detector import (
         detect_kpi_anomalies_by_detector,
-        detect_kpi_anomalies,
         kpi_summary_table,
     )
     from src.llm.explainer import explain_anomaly
@@ -132,7 +131,7 @@ def run_kpi_pipeline(
 
     logger.info("[pipeline] Running 6 KPI detectors...")
     by_detector = detect_kpi_anomalies_by_detector(parsed)
-    anomalies   = sorted(
+    anomalies = sorted(
         [a for anoms in by_detector.values() for a in anoms],
         key=lambda a: ({"Critical": 4, "High": 3, "Medium": 2, "Low": 1}.get(a["severity"], 0),
                        a.get("score", 0)),
@@ -148,9 +147,9 @@ def run_kpi_pipeline(
         for a in top:
             # Adapt KPI anomaly to the PCAP anomaly schema expected by the explainer
             adapted = {
-                "type":     a.get("label", a.get("kpi", "KPI anomaly")),
+                "type": a.get("label", a.get("kpi", "KPI anomaly")),
                 "severity": a["severity"],
-                "layer":    "KPI",
+                "layer": "KPI",
                 "procedure": a.get("category", ""),
                 "evidence": a.get("evidence", ""),
                 "failure_causes": {},
@@ -178,17 +177,17 @@ def run_kpi_pipeline(
     logger.info(f"[pipeline] KPI pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
-        "pipeline":      "kpi",
-        "input_file":    str(file_path),
-        "parsed":        parsed,
-        "anomalies":     anomalies,
-        "by_detector":   by_detector,
+        "pipeline": "kpi",
+        "input_file": str(file_path),
+        "parsed": parsed,
+        "anomalies": anomalies,
+        "by_detector": by_detector,
         "summary_table": summary,
-        "explanations":  explanations,
-        "predictions":   predictions,
-        "events":        router.get_events(),
+        "explanations": explanations,
+        "predictions": predictions,
+        "events": router.get_events(),
         "event_summary": router.summary(),
-        "duration_s":    duration,
+        "duration_s": duration,
     }
 
 
@@ -235,7 +234,7 @@ def run_stats_pipeline(
 
     logger.info("[pipeline] Running 6 stats detectors...")
     by_detector = detect_stats_anomalies_by_detector(parsed)
-    anomalies   = detect_stats_anomalies(parsed)
+    anomalies = detect_stats_anomalies(parsed)
 
     explanations: List[Dict[str, Any]] = []
     if not skip_llm:
@@ -244,13 +243,13 @@ def run_stats_pipeline(
             top = anomalies[:2]
         for a in top:
             adapted = {
-                "type":           a.get("label", "L1/L2 anomaly"),
-                "severity":       a["severity"],
-                "layer":          "KPI",
-                "procedure":      a.get("category", ""),
-                "evidence":       a.get("evidence", ""),
+                "type": a.get("label", "L1/L2 anomaly"),
+                "severity": a["severity"],
+                "layer": "KPI",
+                "procedure": a.get("category", ""),
+                "evidence": a.get("evidence", ""),
                 "failure_causes": {},
-                "detector":       a.get("detector", ""),
+                "detector": a.get("detector", ""),
             }
             exp = explain_anomaly(adapted)
             explanations.append({"anomaly": a, "explanation": exp})
@@ -273,16 +272,16 @@ def run_stats_pipeline(
     logger.info(f"[pipeline] Stats pipeline done in {duration}s — {len(anomalies)} anomalies")
 
     return {
-        "pipeline":     "stats",
-        "input_file":   str(file_path),
-        "parsed":       parsed,
-        "anomalies":    anomalies,
-        "by_detector":  by_detector,
+        "pipeline": "stats",
+        "input_file": str(file_path),
+        "parsed": parsed,
+        "anomalies": anomalies,
+        "by_detector": by_detector,
         "explanations": explanations,
-        "predictions":  predictions,
-        "events":       router.get_events(),
-        "event_summary":router.summary(),
-        "duration_s":   duration,
+        "predictions": predictions,
+        "events": router.get_events(),
+        "event_summary": router.summary(),
+        "duration_s": duration,
     }
 
 
@@ -318,8 +317,8 @@ if __name__ == "__main__":
     )
 
     parser = argparse.ArgumentParser(description="Telecom Analyzer — CLI pipeline runner")
-    parser.add_argument("--input",  required=True, help="Path to PCAP or KPI file")
-    parser.add_argument("--kpi",    action="store_true", help="Force KPI mode")
+    parser.add_argument("--input", required=True, help="Path to PCAP or KPI file")
+    parser.add_argument("--kpi", action="store_true", help="Force KPI mode")
     parser.add_argument("--output", default=None, help="Write JSON report to this path")
     parser.add_argument("--no-llm", action="store_true", help="Skip LLM explanations")
     args = parser.parse_args()
@@ -327,7 +326,7 @@ if __name__ == "__main__":
     result = run_pipeline(args.input, kpi=args.kpi, skip_llm=args.no_llm)
 
     # Print summary to stdout
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Pipeline : {result['pipeline'].upper()}")
     print(f"Input    : {result['input_file']}")
     print(f"Duration : {result['duration_s']}s")
@@ -338,7 +337,7 @@ if __name__ == "__main__":
     for sev, n in sorted(sev_counts.items()):
         print(f"  {sev:10s}: {n}")
     print(f"Explained: {len(result['explanations'])}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     if args.output:
         # Remove non-serialisable pandas objects from parsed

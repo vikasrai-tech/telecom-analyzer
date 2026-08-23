@@ -11,6 +11,23 @@ CURRENT STATE:
   ✅ LLM explainer   — real (RAG: FAISS + MiniLM + Ollama phi3:mini / rule-based fallback)
 """
 
+import uuid as _uuid
+from src.agent.tools import get_predictions_for_cell
+from src.agent.react_agent import run_root_cause_agent
+from src.llm.explainer import explain_anomaly, ollama_status
+from src.feedback.store import save_feedback, load_feedback, feedback_stats
+from src.detection.predictor import run_prediction
+from src.orchestrator.event_router import EventRouter, _correlation_key
+from src.detection.stats_detector import (
+    detect_stats_anomalies, detect_stats_anomalies_by_detector
+)
+from src.detection.kpi_detector import (
+    detect_kpi_anomalies, detect_kpi_anomalies_by_detector, kpi_summary_table
+)
+from src.detection.detector import detect_anomalies_by_detector, merge_detector_results
+from src.parsers.stats_parser import parse_stats_file, get_meta as stats_get_meta
+from src.parsers.kpi_parser import parse_kpi_file
+from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
 import streamlit as st
 import pandas as pd
 import tempfile
@@ -22,28 +39,13 @@ import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from src.parsers.pcap_parser_real import parse_pcap as parse_pcap_real
-from src.parsers.kpi_parser import parse_kpi_file
-from src.parsers.stats_parser import parse_stats_file, get_meta as stats_get_meta
-from src.detection.detector import detect_anomalies_by_detector, merge_detector_results
-from src.detection.kpi_detector import (
-    detect_kpi_anomalies, detect_kpi_anomalies_by_detector, kpi_summary_table
-)
-from src.detection.stats_detector import (
-    detect_stats_anomalies, detect_stats_anomalies_by_detector
-)
-from src.orchestrator.event_router import EventRouter, _correlation_key
-from src.detection.predictor import run_prediction
-from src.feedback.store import save_feedback, load_feedback, feedback_stats
-from src.llm.explainer import explain_anomaly, ollama_status
-from src.agent.react_agent import run_root_cause_agent
-from src.agent.tools import get_predictions_for_cell
 
 st.set_page_config(
     page_title="Unified Telecom Analyzer",
     page_icon="📡",
     layout="wide",
 )
+
 
 def render_time_filter(r: dict, key_suffix: str = "") -> dict:
     """
@@ -74,7 +76,7 @@ def render_time_filter(r: dict, key_suffix: str = "") -> dict:
         # Quick presets — only show those shorter than actual data span
         presets = ["All data"]
         for label, hours in [("Last 1h", 1), ("Last 2h", 2), ("Last 4h", 4),
-                              ("Last 8h", 8), ("Last 12h", 12), ("Last 24h", 24)]:
+                             ("Last 8h", 8), ("Last 12h", 12), ("Last 24h", 24)]:
             if duration_h >= hours:
                 presets.append(label)
         presets.append("Custom range")
@@ -109,24 +111,24 @@ def render_time_filter(r: dict, key_suffix: str = "") -> dict:
                 e_time = st.time_input("End time", value=ts_max.time(),
                                        step=300, key=f"tf_et{key_suffix}")
             ts_start = pd.Timestamp.combine(s_date, s_time)
-            ts_end   = pd.Timestamp.combine(e_date, e_time)
+            ts_end = pd.Timestamp.combine(e_date, e_time)
             if ts_start > ts_end:
                 st.warning("⚠️ Start is after end — swapping.")
                 ts_start, ts_end = ts_end, ts_start
 
         # Apply filter
-        mask    = (df[ts_col] >= ts_start) & (df[ts_col] <= ts_end)
-        df_f    = df[mask].copy()
+        mask = (df[ts_col] >= ts_start) & (df[ts_col] <= ts_end)
+        df_f = df[mask].copy()
         n_total = len(df)
-        n_f     = len(df_f)
-        win_h   = max((ts_end - ts_start).total_seconds() / 3600, 0)
+        n_f = len(df_f)
+        win_h = max((ts_end - ts_start).total_seconds() / 3600, 0)
 
         fi1, fi2, fi3, fi4 = st.columns(4)
-        fi1.metric("Total rows",     f"{n_total:,}")
-        fi2.metric("Filtered rows",  f"{n_f:,}",
+        fi1.metric("Total rows", f"{n_total:,}")
+        fi2.metric("Filtered rows", f"{n_f:,}",
                    delta=f"{n_f - n_total:,}" if n_f != n_total else None)
-        fi3.metric("Coverage",       f"{n_f / n_total * 100:.1f}%")
-        fi4.metric("Window",         f"{win_h:.1f} h")
+        fi3.metric("Coverage", f"{n_f / n_total * 100:.1f}%")
+        fi4.metric("Window", f"{win_h:.1f} h")
 
         if n_f == 0:
             st.warning("⚠️ No data in selected range — reverting to full dataset.")
@@ -135,13 +137,13 @@ def render_time_filter(r: dict, key_suffix: str = "") -> dict:
     # Build filtered copy
     r_f = dict(r)
     r_f["df_records"] = df_f.to_dict("records")
-    r_f["rows"]       = n_f
+    r_f["rows"] = n_f
     r_f["time_range"] = [
         str(df_f[ts_col].min()),
         str(df_f[ts_col].max()),
     ]
     cell_col = r.get("cell_col", "")
-    gnb_col  = r.get("gnb_col", "")
+    gnb_col = r.get("gnb_col", "")
     if cell_col and cell_col in df_f.columns:
         r_f["cells"] = sorted(df_f[cell_col].dropna().unique().tolist())
     if gnb_col and gnb_col in df_f.columns:
@@ -156,11 +158,11 @@ def render_time_filter(r: dict, key_suffix: str = "") -> dict:
                 if len(s) > 0:
                     new_summary[col] = {
                         "mean": float(s.mean()),
-                        "std":  float(s.std()),
-                        "min":  float(s.min()),
-                        "max":  float(s.max()),
-                        "p10":  float(s.quantile(0.10)),
-                        "p90":  float(s.quantile(0.90)),
+                        "std": float(s.std()),
+                        "min": float(s.min()),
+                        "max": float(s.max()),
+                        "p10": float(s.quantile(0.10)),
+                        "p90": float(s.quantile(0.90)),
                     }
         r_f["summary"] = new_summary
 
@@ -173,7 +175,7 @@ def render_kpi_dashboard_charts(r: dict) -> None:
     from src.parsers.kpi_defs import get_meta as kpi_get_meta
 
     kpi_cols = r["kpi_columns"]
-    ts_col   = r["timestamp_col"]
+    ts_col = r["timestamp_col"]
     cell_col = r["cell_col"]
     if not kpi_cols or not ts_col:
         return
@@ -186,19 +188,19 @@ def render_kpi_dashboard_charts(r: dict) -> None:
         "Cell_Availability_%", "Packet_Loss_%",
     ]
     LINE_COLORS = {
-        "DL_Throughput_Mbps":      "#1f77b4",
-        "UL_Throughput_Mbps":      "#17becf",
-        "PRB_Utilization_DL_%":    "#d62728",
-        "PRB_Utilization_UL_%":    "#ff7f0e",
-        "RRC_Success_Rate_%":      "#2ca02c",
+        "DL_Throughput_Mbps": "#1f77b4",
+        "UL_Throughput_Mbps": "#17becf",
+        "PRB_Utilization_DL_%": "#d62728",
+        "PRB_Utilization_UL_%": "#ff7f0e",
+        "RRC_Success_Rate_%": "#2ca02c",
         "Handover_Success_Rate_%": "#9467bd",
-        "CQI":                     "#8c564b",
-        "SINR_dB":                 "#e377c2",
-        "Cell_Availability_%":     "#bcbd22",
-        "Packet_Loss_%":           "#e31a1c",
+        "CQI": "#8c564b",
+        "SINR_dB": "#e377c2",
+        "Cell_Availability_%": "#bcbd22",
+        "Packet_Loss_%": "#e31a1c",
     }
     display = [k for k in PRIORITY if k in kpi_cols] or kpi_cols
-    display  = display[:8]
+    display = display[:8]
 
     df = pd.DataFrame(r["df_records"])
     df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
@@ -212,7 +214,7 @@ def render_kpi_dashboard_charts(r: dict) -> None:
         for j, col in enumerate(cols):
             if i + j >= len(display):
                 break
-            kpi   = display[i + j]
+            kpi = display[i + j]
             kmeta = kpi_get_meta(kpi)
             color = LINE_COLORS.get(kpi, "#1f4e79")
 
@@ -230,7 +232,7 @@ def render_kpi_dashboard_charts(r: dict) -> None:
             )
             fig.update_traces(line=dict(width=2.5),
                               fill="tozeroy",
-                              fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.08)")
+                              fillcolor=f"rgba({int(color[1:3], 16)},{int(color[3:5], 16)},{int(color[5:7], 16)},0.08)")
             if kmeta.get("warning") is not None:
                 fig.add_hline(y=kmeta["warning"], line_dash="dash", line_color="orange",
                               annotation_text=f"Warn {kmeta['warning']}", annotation_font_size=9,
@@ -253,7 +255,7 @@ def render_kpi_dashboard_charts(r: dict) -> None:
     if cell_col:
         st.subheader("🏙️ Cell Comparison")
         bar_kpi = st.selectbox("Select KPI for comparison", display, key="dash_kpi_bar")
-        kmeta   = kpi_get_meta(bar_kpi)
+        kmeta = kpi_get_meta(bar_kpi)
         better_high = kmeta.get("better_high", True)
 
         df_bar = (df.groupby(cell_col)[bar_kpi].mean().reset_index()
@@ -279,9 +281,9 @@ def render_kpi_dashboard_charts(r: dict) -> None:
             st.plotly_chart(fig_bar, use_container_width=True)
 
         with b2:
-            top_cells  = df_bar[cell_col].tolist()[:6]
-            df_multi   = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_kpi]]
-            fleet_avg  = df.groupby(ts_col)[bar_kpi].mean().reset_index()
+            top_cells = df_bar[cell_col].tolist()[:6]
+            df_multi = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_kpi]]
+            fleet_avg = df.groupby(ts_col)[bar_kpi].mean().reset_index()
             fleet_avg[cell_col] = "⬛ Fleet Avg"
             df_combined = pd.concat([df_multi, fleet_avg[[ts_col, cell_col, bar_kpi]]])
 
@@ -314,45 +316,45 @@ def render_stats_dashboard_charts(r: dict) -> None:
     from src.parsers.stats_parser import get_meta as s_get_meta
 
     l1l2_cols = r["l1l2_columns"]
-    ts_col    = r["timestamp_col"]
-    cell_col  = r["cell_col"]
+    ts_col = r["timestamp_col"]
+    cell_col = r["cell_col"]
     if not l1l2_cols or not ts_col:
         return
 
     PRIORITY = [
         "dl_throughput_mbps", "ul_throughput_mbps",
-        "dl_bler",            "ul_bler",
-        "dl_prb_util",        "ul_prb_util",
-        "pusch_snr_db",       "dl_mcs",
-        "dl_harq_nack_rate",  "nof_ue",
+        "dl_bler", "ul_bler",
+        "dl_prb_util", "ul_prb_util",
+        "pusch_snr_db", "dl_mcs",
+        "dl_harq_nack_rate", "nof_ue",
     ]
     LINE_COLORS = {
-        "dl_throughput_mbps":  "#1f77b4",
-        "ul_throughput_mbps":  "#17becf",
-        "dl_bler":             "#d62728",
-        "ul_bler":             "#ff7f0e",
-        "dl_prb_util":         "#9467bd",
-        "ul_prb_util":         "#8c564b",
-        "pusch_snr_db":        "#2ca02c",
-        "dl_mcs":              "#e377c2",
-        "dl_harq_nack_rate":   "#e31a1c",
-        "nof_ue":              "#bcbd22",
+        "dl_throughput_mbps": "#1f77b4",
+        "ul_throughput_mbps": "#17becf",
+        "dl_bler": "#d62728",
+        "ul_bler": "#ff7f0e",
+        "dl_prb_util": "#9467bd",
+        "ul_prb_util": "#8c564b",
+        "pusch_snr_db": "#2ca02c",
+        "dl_mcs": "#e377c2",
+        "dl_harq_nack_rate": "#e31a1c",
+        "nof_ue": "#bcbd22",
     }
     LABELS = {
-        "dl_throughput_mbps":  "DL Throughput",
-        "ul_throughput_mbps":  "UL Throughput",
-        "dl_bler":             "DL BLER",
-        "ul_bler":             "UL BLER",
-        "dl_prb_util":         "DL PRB Utilization",
-        "ul_prb_util":         "UL PRB Utilization",
-        "pusch_snr_db":        "PUSCH SNR",
-        "dl_mcs":              "DL MCS",
-        "dl_harq_nack_rate":   "DL HARQ NACK Rate",
-        "nof_ue":              "Active UEs",
+        "dl_throughput_mbps": "DL Throughput",
+        "ul_throughput_mbps": "UL Throughput",
+        "dl_bler": "DL BLER",
+        "ul_bler": "UL BLER",
+        "dl_prb_util": "DL PRB Utilization",
+        "ul_prb_util": "UL PRB Utilization",
+        "pusch_snr_db": "PUSCH SNR",
+        "dl_mcs": "DL MCS",
+        "dl_harq_nack_rate": "DL HARQ NACK Rate",
+        "nof_ue": "Active UEs",
     }
 
     display = [k for k in PRIORITY if k in l1l2_cols] or l1l2_cols
-    display  = display[:8]
+    display = display[:8]
 
     df = pd.DataFrame(r["df_records"])
     df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
@@ -366,10 +368,10 @@ def render_stats_dashboard_charts(r: dict) -> None:
         for j, col in enumerate(cols):
             if i + j >= len(display):
                 break
-            metric  = display[i + j]
-            smeta   = s_get_meta(metric)
-            color   = LINE_COLORS.get(metric, "#1f4e79")
-            label   = LABELS.get(metric, metric)
+            metric = display[i + j]
+            smeta = s_get_meta(metric)
+            color = LINE_COLORS.get(metric, "#1f4e79")
+            label = LABELS.get(metric, metric)
 
             df_agg = (df.groupby(ts_col)[metric].mean()
                         .reset_index().rename(columns={metric: "value"})
@@ -385,7 +387,7 @@ def render_stats_dashboard_charts(r: dict) -> None:
             )
             fig.update_traces(line=dict(width=2.5),
                               fill="tozeroy",
-                              fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.09)")
+                              fillcolor=f"rgba({int(color[1:3], 16)},{int(color[3:5], 16)},{int(color[5:7], 16)},0.09)")
             if smeta.get("warning") is not None:
                 fig.add_hline(y=smeta["warning"], line_dash="dash", line_color="orange",
                               annotation_text=f"Warn {smeta['warning']}", annotation_font_size=9,
@@ -408,7 +410,7 @@ def render_stats_dashboard_charts(r: dict) -> None:
     if cell_col:
         st.subheader("🏙️ Cell (PCI) Comparison")
         bar_metric = st.selectbox("Select metric for comparison", display, key="dash_stats_bar")
-        smeta      = s_get_meta(bar_metric)
+        smeta = s_get_meta(bar_metric)
 
         df_bar = (df.groupby(cell_col)[bar_metric].mean().reset_index()
                     .rename(columns={bar_metric: "mean_val"})
@@ -434,9 +436,9 @@ def render_stats_dashboard_charts(r: dict) -> None:
             st.plotly_chart(fig_bar, use_container_width=True)
 
         with b2:
-            top_cells   = df_bar[cell_col].tolist()
-            df_multi    = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_metric]]
-            fleet_avg   = df.groupby(ts_col)[bar_metric].mean().reset_index()
+            top_cells = df_bar[cell_col].tolist()
+            df_multi = df[df[cell_col].isin(top_cells)][[ts_col, cell_col, bar_metric]]
+            fleet_avg = df.groupby(ts_col)[bar_metric].mean().reset_index()
             fleet_avg[cell_col] = "⬛ All-Cell Avg"
             df_combined = pd.concat([df_multi, fleet_avg[[ts_col, cell_col, bar_metric]]])
 
@@ -473,7 +475,7 @@ def render_anomaly_distribution_charts(anomalies: list, source: str) -> None:
     df_a = pd.DataFrame([{
         "Severity": a["severity"],
         "Detector": a.get("detector", "—"),
-        "Cell":     a.get("cell_id", a.get("label", "—")),
+        "Cell": a.get("cell_id", a.get("label", "—")),
     } for a in anomalies])
 
     SEV_COLORS = {"Critical": "#c0392b", "High": "#e67e22",
@@ -594,12 +596,12 @@ def render_event_log(router: "EventRouter") -> None:
 
     # Summary metrics
     e1, e2, e3, e4, e5 = st.columns(5)
-    e1.metric("Total Events",     summary["total"])
+    e1.metric("Total Events", summary["total"])
     e2.metric("🔴 Critical+High", summary["by_severity"].get("Critical", 0) +
-                                   summary["by_severity"].get("High", 0))
-    e3.metric("🔁 Correlated",    summary["correlated"])
-    e4.metric("📡 Current",       summary["current"])
-    e5.metric("🔮 Predicted",     summary["predicted"])
+              summary["by_severity"].get("High", 0))
+    e3.metric("🔁 Correlated", summary["correlated"])
+    e4.metric("📡 Current", summary["current"])
+    e5.metric("🔮 Predicted", summary["predicted"])
 
     src_cols = st.columns(3)
     for col, src in zip(src_cols, ["pcap", "stats", "kpi"]):
@@ -618,7 +620,7 @@ def render_event_log(router: "EventRouter") -> None:
         for ev in correlated[:10]:
             conf_pct = int(ev["correlation_confidence"] * 100)
             sev_icon = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}.get(ev["severity"], "⚪")
-            sources  = [ev["source"]] + ev["correlated_sources"]
+            sources = [ev["source"]] + ev["correlated_sources"]
             with st.expander(
                 f"{sev_icon} [{ev['severity']}] {ev['category']} | Cell: {ev['cell_id']} "
                 f"| Sources: {' + '.join(s.upper() for s in sources)} | Confidence: {conf_pct}%",
@@ -638,17 +640,17 @@ def render_event_log(router: "EventRouter") -> None:
         events = router.get_events()
         if events:
             df_ev = pd.DataFrame([{
-                "Severity":    e["severity"],
-                "Source":      e["source"].upper(),
-                "State":       e["state"],
-                "Category":    e["category"],
-                "Cell":        e["cell_id"],
+                "Severity": e["severity"],
+                "Source": e["source"].upper(),
+                "State": e["state"],
+                "Category": e["category"],
+                "Cell": e["cell_id"],
                 "Metric/Proc": e["metric"],
-                "Detector":    e["detector"],
-                "Correlated":  "✅" if e["correlated_sources"] else "—",
-                "Confidence":  f"{int(e['correlation_confidence']*100)}%"
-                               if e["correlated_sources"] else "—",
-                "Score":       round(e["score"], 3),
+                "Detector": e["detector"],
+                "Correlated": "✅" if e["correlated_sources"] else "—",
+                "Confidence": f"{int(e['correlation_confidence'] * 100)}%"
+                if e["correlated_sources"] else "—",
+                "Score": round(e["score"], 3),
             } for e in events])
             st.dataframe(df_ev, use_container_width=True, height=400)
         else:
@@ -693,18 +695,19 @@ def render_prediction_panel(parsed: Dict, source: str, router: "EventRouter") ->
         st.markdown("""
 | Method | Type | Why |
 |--------|------|-----|
-| **Prophet** | Bayesian structural time-series | Handles seasonality, trends, and missing data. Produces confidence intervals. Best for KPIs with daily/weekly patterns (PRB load, throughput). |
-| **Holt-Winters** | Exponential smoothing | Hand-configured (damped trend, optional seasonality) baseline — cheap, interpretable, good sanity check against Prophet. |
-| **LSTM** | Deep learning / sequence | Captures nonlinear dependencies between metrics. Better than Prophet when there's no clear seasonality — L1/L2 counters like HARQ NACK rate or BLER show abrupt non-seasonal shifts. |
-| **TimesFM** | Foundation model (Google, 200M params) | Zero-shot forecaster pretrained on 100B+ real-world time-series. No fine-tuning needed — works directly on raw CSV exports. Reviewer-recommended for production-grade telecom forecasting. |
+| **Prophet** | Bayesian structural time-series | Handles seasonality, trends, and missing data. Produces confidence intervals. Best for KPIs with daily/weekly patterns (PRB load, throughput). |  # noqa: E501
+| **Holt-Winters** | Exponential smoothing | Hand-configured (damped trend, optional seasonality) baseline — cheap, interpretable, good sanity check against Prophet. |  # noqa: E501
+| **LSTM** | Deep learning / sequence | Captures nonlinear dependencies between metrics. Better than Prophet when there's no clear seasonality — L1/L2 counters like HARQ NACK rate or BLER show abrupt non-seasonal shifts. |  # noqa: E501
+| **TimesFM** | Foundation model (Google, 200M params) | Zero-shot forecaster pretrained on 100B+ real-world time-series. No fine-tuning needed — works directly on raw CSV exports. Reviewer-recommended for production-grade telecom forecasting. |  # noqa: E501
+| **Chronos** | Foundation model (Amazon, 46M params) | T5-based probabilistic zero-shot forecaster (chronos-t5-small) pretrained on 100B+ real-world points. Direct benchmark competitor to TimesFM. Outputs full forecast distributions; median used as point forecast. |  # noqa: E501
 
-**Complementary:** Prophet/Holt-Winters catch slow degradation early; LSTM catches sudden pattern breaks; TimesFM generalises across all patterns zero-shot.
+**Complementary:** Prophet/Holt-Winters catch slow degradation early; LSTM catches sudden pattern breaks; TimesFM and Chronos generalise across all patterns zero-shot (foundation model comparison).  # noqa: E501
 **Lead time:** Default 4h — gives NOC engineers time to act before threshold breach.
         """)
 
     horizon_h = st.slider("Forecast horizon (hours)", 1, 12, 4, key=f"horizon_{source}")
 
-    with st.spinner(f"Running forecast ({horizon_h}h ahead) — Prophet · Holt-Winters · LSTM · TimesFM ..."):
+    with st.spinner(f"Running forecast ({horizon_h}h ahead) — Prophet · Holt-Winters · LSTM · TimesFM · Chronos ..."):
         try:
             pred_by_method = run_prediction(parsed, horizon_h=horizon_h)
         except Exception as e:
@@ -721,19 +724,20 @@ def render_prediction_panel(parsed: Dict, source: str, router: "EventRouter") ->
         st.success(f"✅ No predicted anomalies in the next {horizon_h}h.")
         return
 
-    p1, p2, p3, p4, p5 = st.columns(5)
+    p1, p2, p3, p4, p5, p6 = st.columns(6)
     p1.metric("Predicted anomalies", len(all_predicted))
-    p2.metric("🔮 Prophet",       len(pred_by_method.get("prophet", [])))
-    p3.metric("📈 Holt-Winters",  len(pred_by_method.get("holt_winters", [])))
-    p4.metric("🧠 LSTM",          len(pred_by_method.get("lstm", [])))
-    p5.metric("⚡ TimesFM",       len(pred_by_method.get("timesfm", [])))
+    p2.metric("🔮 Prophet", len(pred_by_method.get("prophet", [])))
+    p3.metric("📈 Holt-Winters", len(pred_by_method.get("holt_winters", [])))
+    p4.metric("🧠 LSTM", len(pred_by_method.get("lstm", [])))
+    p5.metric("⚡ TimesFM", len(pred_by_method.get("timesfm", [])))
+    p6.metric("🌀 Chronos", len(pred_by_method.get("chronos", [])))
 
     SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
     for method, anoms in pred_by_method.items():
         router.ingest_predicted(anoms, source=source, lead_time_h=horizon_h)
 
     for a in sorted(all_predicted,
-                    key=lambda x: {"Critical":4,"High":3,"Medium":2,"Low":1}.get(x["severity"],0),
+                    key=lambda x: {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}.get(x["severity"], 0),
                     reverse=True)[:15]:
         icon = SEV_ICON.get(a["severity"], "⚪")
         with st.expander(
@@ -763,8 +767,8 @@ def render_root_cause_panel(router: "EventRouter") -> None:
     summary = router.summary()
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total events", summary["total"])
-    c2.metric("Correlated",   summary["correlated"])
-    c3.metric("Predicted",    summary["predicted"])
+    c2.metric("Correlated", summary["correlated"])
+    c3.metric("Predicted", summary["predicted"])
     c4.metric("Sources seen", sum(1 for v in summary["by_source"].values() if v > 0))
 
     correlated = router.get_correlated(min_sources=2)
@@ -908,10 +912,10 @@ def render_simple_mode(router: "EventRouter") -> None:
     st.subheader("📊 Summary")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total events", summary["total"])
-    m2.metric("🚨 Critical",  summary["by_severity"]["Critical"])
-    m3.metric("🔴 High",      summary["by_severity"]["High"])
-    m4.metric("Correlated",   summary["correlated"])
-    m5.metric("Sources",      sum(1 for v in summary["by_source"].values() if v > 0))
+    m2.metric("🚨 Critical", summary["by_severity"]["Critical"])
+    m3.metric("🔴 High", summary["by_severity"]["High"])
+    m4.metric("Correlated", summary["correlated"])
+    m5.metric("Sources", sum(1 for v in summary["by_source"].values() if v > 0))
 
     sev_df = pd.DataFrame({
         "Count": [summary["by_severity"][s] for s in ("Critical", "High", "Medium", "Low")],
@@ -958,7 +962,7 @@ def render_simple_mode(router: "EventRouter") -> None:
 def render_feedback_history() -> None:
     """Show feedback history + retraining trigger panel."""
     records = load_feedback(limit=100)
-    stats   = feedback_stats()
+    stats = feedback_stats()
 
     st.subheader("📋 Feedback History")
     if stats["total"] == 0:
@@ -966,23 +970,23 @@ def render_feedback_history() -> None:
         return
 
     f1, f2, f3, f4 = st.columns(4)
-    f1.metric("Total",        stats["total"])
-    f2.metric("✅ Correct",   stats["correct"])
+    f1.metric("Total", stats["total"])
+    f2.metric("✅ Correct", stats["correct"])
     f3.metric("❌ False +ve", stats["false_positive"])
     f4.metric("❓ Uncertain", stats["uncertain"])
     if stats["precision"] is not None:
         st.progress(stats["precision"],
-                    text=f"Overall Precision: {stats['precision']*100:.1f}%")
+                    text=f"Overall Precision: {stats['precision'] * 100:.1f}%")
 
     if records:
         df_fb = pd.DataFrame([{
-            "Time":     r["timestamp"][:16],
-            "Verdict":  r["verdict"],
-            "Type":     r["anomaly_type"],
+            "Time": r["timestamp"][:16],
+            "Verdict": r["verdict"],
+            "Type": r["anomaly_type"],
             "Severity": r["severity"],
-            "Source":   r["source"],
+            "Source": r["source"],
             "Detector": r["detector"],
-            "Cell":     r["cell_id"],
+            "Cell": r["cell_id"],
         } for r in records[:50]])
         st.dataframe(df_fb, use_container_width=True, height=250)
 
@@ -992,10 +996,10 @@ def render_feedback_history() -> None:
         det_rows = []
         for det, counts in stats["by_detector"].items():
             total = counts["correct"] + counts["false_positive"]
-            prec  = round(counts["correct"] / total, 2) if total > 0 else None
+            prec = round(counts["correct"] / total, 2) if total > 0 else None
             det_rows.append({"Detector": det, "Correct": counts["correct"],
-                              "False +ve": counts["false_positive"],
-                              "Precision": prec})
+                             "False +ve": counts["false_positive"],
+                             "Precision": prec})
         st.dataframe(pd.DataFrame(det_rows), use_container_width=True)
 
     # ── Retraining trigger ────────────────────────────────────────────
@@ -1016,7 +1020,7 @@ def render_feedback_history() -> None:
                 st.success(f"✅ Retraining complete — {n_changed} detector(s) adjusted")
                 for det, adj in report["adjustments"].items():
                     if adj["changed"]:
-                        st.markdown(f"- `{det}`: fp={adj['fp_rate']*100:.0f}%  "
+                        st.markdown(f"- `{det}`: fp={adj['fp_rate'] * 100:.0f}%  "
                                     f"`{adj['before']}` → `{adj['after']}`")
             else:
                 st.warning(report.get("reason", "Retraining skipped"))
@@ -1041,17 +1045,18 @@ def make_proc_table(proc_dict):
     rows = []
     for proc_name, stats in proc_dict.items():
         rows.append({
-            "Procedure":         proc_name,
-            "Attempts":          stats["attempts"],
-            "Success":           stats["success"],
-            "Failure":           stats["failure"],
-            "Success Rate %":    f"{stats['success_rate']:.1f}%",
+            "Procedure": proc_name,
+            "Attempts": stats["attempts"],
+            "Success": stats["success"],
+            "Failure": stats["failure"],
+            "Success Rate %": f"{stats['success_rate']:.1f}%",
             "Top Failure Cause": (
                 max(stats["failure_causes"], key=stats["failure_causes"].get)
                 if stats["failure_causes"] else "—"
             ),
         })
     return pd.DataFrame(rows) if rows else pd.DataFrame()
+
 
 st.title("📡 Unified Telecom Analyzer")
 st.caption(
@@ -1060,7 +1065,6 @@ st.caption(
 )
 
 # ── Session init ──────────────────────────────────────────────────────
-import uuid as _uuid
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = str(_uuid.uuid4())[:8]
 if "shared_router" not in st.session_state:
@@ -1094,17 +1098,17 @@ with st.sidebar:
         "Upload any or all — no need to switch anything between files. "
         "Correlation & the Root Cause Agent need 2+ sources flagging the same cell."
     )
-    pcap_uploaded  = st.file_uploader("📡 PCAP file",       type=["pcap", "pcapng"],
-                                       key="up_pcap")
-    kpi_uploaded   = st.file_uploader("📊 KPI file",         type=["csv", "xlsx", "xls", "parquet"],
-                                       key="up_kpi")
+    pcap_uploaded = st.file_uploader("📡 PCAP file", type=["pcap", "pcapng"],
+                                     key="up_pcap")
+    kpi_uploaded = st.file_uploader("📊 KPI file", type=["csv", "xlsx", "xls", "parquet"],
+                                    key="up_kpi")
     stats_uploaded = st.file_uploader("📶 DU/CU Stats file", type=["csv", "parquet"],
-                                       key="up_stats")
+                                      key="up_stats")
     st.divider()
 
     _uploads_by_type = {
-        "PCAP":            pcap_uploaded,
-        "DU/CU Stats":     stats_uploaded,
+        "PCAP": pcap_uploaded,
+        "DU/CU Stats": stats_uploaded,
         "KPI Time-series": kpi_uploaded,
     }
     _view_options = ["PCAP", "DU/CU Stats", "KPI Time-series", "Root Cause Agent (Phase II)"]
@@ -1119,9 +1123,9 @@ with st.sidebar:
         index=_view_options.index(_default_view),
     )
     ext_map = {
-        "PCAP":             ["pcap", "pcapng"],
-        "DU/CU Stats":      ["csv", "parquet"],
-        "KPI Time-series":  ["csv", "xlsx", "xls", "parquet"],
+        "PCAP": ["pcap", "pcapng"],
+        "DU/CU Stats": ["csv", "parquet"],
+        "KPI Time-series": ["csv", "xlsx", "xls", "parquet"],
     }
     uploaded = _uploads_by_type.get(data_type)
     st.divider()
@@ -1190,9 +1194,9 @@ with st.sidebar:
 #    fingerprint so a plain widget rerun (e.g. clicking a chart) doesn't
 #    re-ingest and duplicate events on every interaction.
 _BG_DETECTORS = {
-    "PCAP":            ("pcap",  parse_pcap_real,  lambda p: merge_detector_results(detect_anomalies_by_detector(p))),
-    "KPI Time-series": ("kpi",   parse_kpi_file,   detect_kpi_anomalies),
-    "DU/CU Stats":     ("stats", parse_stats_file, detect_stats_anomalies),
+    "PCAP": ("pcap", parse_pcap_real, lambda p: merge_detector_results(detect_anomalies_by_detector(p))),
+    "KPI Time-series": ("kpi", parse_kpi_file, detect_kpi_anomalies),
+    "DU/CU Stats": ("stats", parse_stats_file, detect_stats_anomalies),
 }
 for _bg_type, _bg_file in _uploads_by_type.items():
     if _bg_type == data_type or _bg_file is None:
@@ -1207,7 +1211,7 @@ for _bg_type, _bg_file in _uploads_by_type.items():
         with tempfile.NamedTemporaryFile(suffix=f".{_bg_suffix}", delete=False) as _bg_tmp:
             _bg_tmp.write(_bg_file.getvalue())
             _bg_tmp_path = _bg_tmp.name
-        _bg_parsed    = _bg_parse_fn(_bg_tmp_path)
+        _bg_parsed = _bg_parse_fn(_bg_tmp_path)
         _bg_anomalies = _bg_detect_fn(_bg_parsed)
         shared_router.ingest(_bg_anomalies, source=_bg_source)
         st.session_state[f"_bg_fp_{_bg_type}"] = _bg_fp
@@ -1231,29 +1235,30 @@ if uploaded is None:
     with col1:
         st.success("**NAS** ✅ TS 24.501\n\nRegistration · Auth\nSecurity Mode\nPDU Session\nDeregistration")
     with col2:
-        st.success("**NGAP** ✅ TS 38.413\n\nInitialContextSetup\nPDUSession Setup/Release\nUEContextRelease\nHandover · Paging")
+        st.success("**NGAP** ✅ TS 38.413\n\nInitialContextSetup\nPDUSession Setup/Release\nUEContextRelease\nHandover · Paging")  # noqa: E501
     with col3:
-        st.success("**RRC** ✅ TS 38.331\n\nSetup · Reestablishment\nReconfiguration · Release\nSecurity Mode\nUE Capability · Measurement")
+        st.success(
+            "**RRC** ✅ TS 38.331\n\nSetup · Reestablishment\nReconfiguration · Release\nSecurity Mode\nUE Capability · Measurement")  # noqa: E501
     col4, col5, col6 = st.columns(3)
     with col4:
         st.success("**F1AP** ✅ TS 38.473\n\nF1 Setup\nUE Context Setup/Release\nDL/UL RRC Transfer\nInitial UL RRC")
     with col5:
-        st.success("**E1AP** ✅ TS 38.463\n\ngNB-CU-UP Setup\nBearer Context Setup\nBearer Modification/Release\nData Notification")
+        st.success("**E1AP** ✅ TS 38.463\n\ngNB-CU-UP Setup\nBearer Context Setup\nBearer Modification/Release\nData Notification")  # noqa: E501
     with col6:
         st.success("**XnAP** ✅ TS 38.423\n\nXn Setup\nHandover Request\nUE Context Release\nSN Addition (MR-DC)")
     st.divider()
     col_det, col_llm = st.columns(2)
     with col_det:
-        st.success("**Detection Engine** ✅\n\nIsolation Forest\nStatistical (Threshold+Cascade)\nOne-Class SVM\nLOF\nElliptic Envelope\nLSTM Autoencoder")
+        st.success("**Detection Engine** ✅\n\nIsolation Forest\nStatistical (Threshold+Cascade)\nOne-Class SVM\nLOF\nElliptic Envelope\nLSTM Autoencoder")  # noqa: E501
     with col_llm:
-        st.success("**LLM Explainer** ✅\n\nRAG over 3GPP specs\nFAISS + MiniLM embeddings\nOllama (phi3:mini)\nRule-based fallback")
+        st.success("**LLM Explainer** ✅\n\nRAG over 3GPP specs\nFAISS + MiniLM embeddings\nOllama (phi3:mini)\nRule-based fallback")  # noqa: E501
     st.stop()
 
 # ── Parse ─────────────────────────────────────────────────────────────
 st.success(f"✅ Received: `{uploaded.name}` ({uploaded.size:,} bytes)")
 
 suffix = uploaded.name.split('.')[-1].lower()
-is_kpi   = data_type == "KPI Time-series"
+is_kpi = data_type == "KPI Time-series"
 is_stats = data_type == "DU/CU Stats"
 
 with st.spinner("🔍 Parsing file..."):
@@ -1264,16 +1269,16 @@ with st.spinner("🔍 Parsing file..."):
             tmp_path = tmp.name
 
         if is_kpi:
-            parsed_kpi   = parse_kpi_file(tmp_path)
+            parsed_kpi = parse_kpi_file(tmp_path)
             parsed_stats = None
-            parsed       = None
+            parsed = None
         elif is_stats:
             parsed_stats = parse_stats_file(tmp_path)
-            parsed_kpi   = None
-            parsed       = None
+            parsed_kpi = None
+            parsed = None
         else:
-            parsed       = parse_pcap_real(tmp_path)
-            parsed_kpi   = None
+            parsed = parse_pcap_real(tmp_path)
+            parsed_kpi = None
             parsed_stats = None
 
     except Exception as e:
@@ -1291,7 +1296,7 @@ if is_kpi and parsed_kpi:
 
     # ── gNB Filter ────────────────────────────────────────────────────
     _kpi_data = parsed_kpi  # may be narrowed below
-    _gnb_col  = r.get("gnb_col", "")
+    _gnb_col = r.get("gnb_col", "")
     if r.get("gnbs"):
         st.subheader("🏢 Filter by gNB")
         _g1, _g2 = st.columns([3, 1])
@@ -1314,8 +1319,8 @@ if is_kpi and parsed_kpi:
                 _df_gnb = _df_gnb[_df_gnb[_gnb_col].isin(_sel_gnbs)]
                 _r_gnb = dict(r)
                 _r_gnb["df_records"] = _df_gnb.to_dict("records")
-                _r_gnb["rows"]       = len(_df_gnb)
-                _r_gnb["gnbs"]       = _sel_gnbs
+                _r_gnb["rows"] = len(_df_gnb)
+                _r_gnb["gnbs"] = _sel_gnbs
                 _cc = r.get("cell_col", "")
                 if _cc and _cc in _df_gnb.columns:
                     _r_gnb["cells"] = sorted(_df_gnb[_cc].dropna().unique().tolist())
@@ -1325,11 +1330,11 @@ if is_kpi and parsed_kpi:
 
     st.subheader("📊 KPI Overview")
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Rows",           r["rows"])
-    m2.metric("Unique Cells",   len(r["cells"]))
-    m3.metric("Unique gNBs",    len(r["gnbs"]))
-    m4.metric("KPI Columns",    len(r["kpi_columns"]))
-    m5.metric("Time Range",     f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}")
+    m1.metric("Rows", r["rows"])
+    m2.metric("Unique Cells", len(r["cells"]))
+    m3.metric("Unique gNBs", len(r["gnbs"]))
+    m4.metric("KPI Columns", len(r["kpi_columns"]))
+    m5.metric("Time Range", f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}")
 
     render_kpi_dashboard_charts(r)
 
@@ -1345,11 +1350,11 @@ if is_kpi and parsed_kpi:
     # ── KPI Trend Charts ──────────────────────────────────────────────
     st.subheader("📈 KPI Trend Explorer")
     kpi_cols = r["kpi_columns"]
-    ts_col   = r["timestamp_col"]
+    ts_col = r["timestamp_col"]
     cell_col = r["cell_col"]
 
     _kpi_trend_fig = None
-    _kpi_df_cell   = pd.DataFrame()
+    _kpi_df_cell = pd.DataFrame()
 
     if kpi_cols and ts_col:
         import plotly.express as px
@@ -1376,16 +1381,16 @@ if is_kpi and parsed_kpi:
         if not df_line.empty:
             from src.parsers.kpi_defs import get_meta
             kpi_meta = get_meta(sel_kpi)
-            fig  = px.line(df_line, x=ts_col, y="value", title=title,
-                           labels={"value": f"{sel_kpi} ({kpi_meta.get('unit','')})",
-                                   ts_col: "Time"})
+            fig = px.line(df_line, x=ts_col, y="value", title=title,
+                          labels={"value": f"{sel_kpi} ({kpi_meta.get('unit', '')})",
+                                  ts_col: "Time"})
             # Add warning / critical lines
             if kpi_meta.get("warning") is not None:
-                fig.add_hline(y=kpi_meta["warning"],  line_dash="dot",
+                fig.add_hline(y=kpi_meta["warning"], line_dash="dot",
                               line_color="orange", annotation_text="Warning")
             if kpi_meta.get("critical") is not None:
                 fig.add_hline(y=kpi_meta["critical"], line_dash="dot",
-                              line_color="red",    annotation_text="Critical")
+                              line_color="red", annotation_text="Critical")
             st.plotly_chart(fig, use_container_width=True)
             _kpi_trend_fig = fig  # capture for HTML export
 
@@ -1409,12 +1414,12 @@ if is_kpi and parsed_kpi:
         st.markdown("""
 | # | Method | Type | Why we use it |
 |---|--------|------|---------------|
-| 1 | **Threshold Violation** | Rule-based | Encodes operator SLA limits directly from 3GPP / ITU-T. Instant, interpretable, zero false positives for known thresholds. Every other method is calibrated against this baseline. |
-| 2 | **Peer Comparison (Z-score)** | Statistical / cross-cell | A KPI value might be within threshold but still 3σ worse than all peer cells. Catches underperforming cells the operator hasn't set explicit limits for. |
-| 3 | **Trend (Linear Regression)** | Statistical / temporal | Detects monotonic long-term degradation before it hits threshold. Slope > 0.5 unit/hr = actionable even if current value is still "green". |
-| 4 | **IQR (Tukey Fence)** | Robust statistics | No distribution assumption. Z-score is sensitive to outliers (outlier inflates σ, masking itself). IQR is robust — PRB utilization is right-skewed, CQI during interference is left-skewed. |
-| 5 | **CUSUM** | Sequential / change-point | Accumulates small consistent deviations invisible to per-point detectors. Standard NOC method for early warning: catches RRC SR quietly dropping 99.5% → 98.2% over 10 intervals before any threshold fires. |
-| 6 | **Bollinger Bands** | Rolling envelope / burst | Catches sudden short-term spikes that trend analysis misses. PRB momentary burst to 95% in a normally 40%-loaded cell; CQI crash during interference. Window=5 gives local context. |
+| 1 | **Threshold Violation** | Rule-based | Encodes operator SLA limits directly from 3GPP / ITU-T. Instant, interpretable, zero false positives for known thresholds. Every other method is calibrated against this baseline. |  # noqa: E501
+| 2 | **Peer Comparison (Z-score)** | Statistical / cross-cell | A KPI value might be within threshold but still 3σ worse than all peer cells. Catches underperforming cells the operator hasn't set explicit limits for. |  # noqa: E501
+| 3 | **Trend (Linear Regression)** | Statistical / temporal | Detects monotonic long-term degradation before it hits threshold. Slope > 0.5 unit/hr = actionable even if current value is still "green". |  # noqa: E501
+| 4 | **IQR (Tukey Fence)** | Robust statistics | No distribution assumption. Z-score is sensitive to outliers (outlier inflates σ, masking itself). IQR is robust — PRB utilization is right-skewed, CQI during interference is left-skewed. |  # noqa: E501
+| 5 | **CUSUM** | Sequential / change-point | Accumulates small consistent deviations invisible to per-point detectors. Standard NOC method for early warning: catches RRC SR quietly dropping 99.5% → 98.2% over 10 intervals before any threshold fires. |  # noqa: E501
+| 6 | **Bollinger Bands** | Rolling envelope / burst | Catches sudden short-term spikes that trend analysis misses. PRB momentary burst to 95% in a normally 40%-loaded cell; CQI crash during interference. Window=5 gives local context. |  # noqa: E501
 
 **Complementary coverage:**
 - Threshold + IQR → point-in-time violations
@@ -1425,9 +1430,9 @@ if is_kpi and parsed_kpi:
 
     with st.spinner("Running 6 KPI detectors..."):
         kpi_by_detector = detect_kpi_anomalies_by_detector(_kpi_data)
-        kpi_anomalies   = sorted(
+        kpi_anomalies = sorted(
             [a for anoms in kpi_by_detector.values() for a in anoms],
-            key=lambda a: ({"Critical":4,"High":3,"Medium":2,"Low":1}.get(a["severity"],0),
+            key=lambda a: ({"Critical": 4, "High": 3, "Medium": 2, "Low": 1}.get(a["severity"], 0),
                            a.get("score", 0)),
             reverse=True,
         )
@@ -1438,14 +1443,14 @@ if is_kpi and parsed_kpi:
         render_anomaly_distribution_charts(kpi_anomalies, "KPI")
         crit_n = sum(1 for a in kpi_anomalies if a["severity"] == "Critical")
         high_n = sum(1 for a in kpi_anomalies if a["severity"] == "High")
-        med_n  = sum(1 for a in kpi_anomalies if a["severity"] == "Medium")
-        low_n  = sum(1 for a in kpi_anomalies if a["severity"] == "Low")
+        med_n = sum(1 for a in kpi_anomalies if a["severity"] == "Medium")
+        low_n = sum(1 for a in kpi_anomalies if a["severity"] == "Low")
 
         ka1, ka2, ka3, ka4 = st.columns(4)
         ka1.metric("🔴 Critical", crit_n)
-        ka2.metric("🟠 High",     high_n)
-        ka3.metric("🟡 Medium",   med_n)
-        ka4.metric("🟢 Low",      low_n)
+        ka2.metric("🟠 High", high_n)
+        ka3.metric("🟡 Medium", med_n)
+        ka4.metric("🟢 Low", low_n)
 
         # ── KPI method comparison matrix ──────────────────────────────
         st.subheader("🔬 KPI Method Comparison Matrix")
@@ -1481,17 +1486,17 @@ if is_kpi and parsed_kpi:
 
         # Anomaly table
         anom_df = pd.DataFrame([{
-            "Severity":    a["severity"],
-            "KPI":         a["label"],
-            "Category":    a["category"],
-            "Cell":        a["cell_id"],
-            "gNB":         a["gnb_id"],
-            "Value":       a["value"],
-            "Unit":        a["unit"],
-            "Warning":     a["warning"],
-            "Critical":    a["critical"],
-            "Detector":    a["detector"],
-            "Evidence":    a["evidence"][:80],
+            "Severity": a["severity"],
+            "KPI": a["label"],
+            "Category": a["category"],
+            "Cell": a["cell_id"],
+            "gNB": a["gnb_id"],
+            "Value": a["value"],
+            "Unit": a["unit"],
+            "Warning": a["warning"],
+            "Critical": a["critical"],
+            "Detector": a["detector"],
+            "Evidence": a["evidence"][:80],
         } for a in kpi_anomalies])
 
         sev_filter = st.selectbox("Filter severity",
@@ -1506,7 +1511,7 @@ if is_kpi and parsed_kpi:
                       if sev_filter != "All" else kpi_anomalies)[:20]
         if _kpi_shown:
             _kpi_labels = [
-                f"#{i+1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
+                f"#{i + 1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
                 for i, a in enumerate(_kpi_shown)
             ]
             _kpi_sel = st.selectbox(
@@ -1533,7 +1538,7 @@ if is_kpi and parsed_kpi:
                 st.success(_ka["recommendation"])
 
             st.markdown("**🤖 LLM Analysis — RAG over 3GPP Specs**")
-            _kpi_exp_key = f"llm_kpi_{_ka.get('label','')}_{_ka.get('cell_id','')}"
+            _kpi_exp_key = f"llm_kpi_{_ka.get('label', '')}_{_ka.get('cell_id', '')}"
             if _kpi_exp_key not in st.session_state:
                 with st.spinner("Retrieving 3GPP specs + generating analysis..."):
                     st.session_state[_kpi_exp_key] = explain_anomaly(_ka)
@@ -1544,7 +1549,7 @@ if is_kpi and parsed_kpi:
             if _kexp.get("citations"):
                 st.markdown("**3GPP Citations**")
                 for _cite in _kexp["citations"]:
-                    st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+                    st.markdown(f"- `{_cite.get('spec', '')} §{_cite.get('section', '')}` — {_cite.get('quote', '')}")
             if _kexp.get("investigation_hints"):
                 st.markdown("**Investigation Checklist**")
                 for _hint in _kexp["investigation_hints"]:
@@ -1552,10 +1557,10 @@ if is_kpi and parsed_kpi:
 
             st.markdown("**Engineer Feedback**")
             render_feedback_button(
-                event_id=_ka.get("label","") + "_" + _ka.get("cell_id",""),
-                source="kpi", anomaly_type=_ka.get("label",""),
-                severity=_ka["severity"], detector=_ka.get("detector",""),
-                cell_id=_ka.get("cell_id",""), evidence=_ka.get("evidence",""),
+                event_id=_ka.get("label", "") + "_" + _ka.get("cell_id", ""),
+                source="kpi", anomaly_type=_ka.get("label", ""),
+                severity=_ka["severity"], detector=_ka.get("detector", ""),
+                cell_id=_ka.get("cell_id", ""), evidence=_ka.get("evidence", ""),
             )
 
     # ── Export Report ─────────────────────────────────────────────────
@@ -1592,14 +1597,14 @@ if is_kpi and parsed_kpi:
         })
 
     _kpi_meta = {
-        "Source File":  uploaded.name,
-        "Data Type":    "KPI Time-series",
-        "Rows":         r["rows"],
+        "Source File": uploaded.name,
+        "Data Type": "KPI Time-series",
+        "Rows": r["rows"],
         "Unique Cells": len(r["cells"]),
-        "Unique gNBs":  len(r["gnbs"]),
-        "KPI Columns":  len(r["kpi_columns"]),
-        "Time Range":   f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}",
-        "Anomalies":    len(kpi_anomalies),
+        "Unique gNBs": len(r["gnbs"]),
+        "KPI Columns": len(r["kpi_columns"]),
+        "Time Range": f"{r['time_range'][0][:16]} → {r['time_range'][1][:16]}",
+        "Anomalies": len(kpi_anomalies),
     }
     _kpi_figures = (
         [{"title": f"KPI Trend: {_kpi_trend_fig.layout.title.text}", "fig": _kpi_trend_fig}]
@@ -1607,14 +1612,14 @@ if is_kpi and parsed_kpi:
     )
     _kpi_anomaly_cards = [
         {
-            "severity":       a["severity"],
-            "title":          f"{a['label']} | {a['cell_id']} | {a['detector']}",
-            "evidence":       a["evidence"],
+            "severity": a["severity"],
+            "title": f"{a['label']} | {a['cell_id']} | {a['detector']}",
+            "evidence": a["evidence"],
             "recommendation": a["recommendation"],
-            "value":          a["value"],
-            "unit":           a["unit"],
-            "warning":        a["warning"],
-            "critical":       a["critical"],
+            "value": a["value"],
+            "unit": a["unit"],
+            "warning": a["warning"],
+            "critical": a["critical"],
         }
         for a in kpi_anomalies[:20]
     ]
@@ -1643,10 +1648,10 @@ if is_stats and parsed_stats:
     st.subheader("📡 DU/CU Stats Overview")
 
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Rows",          r["rows"])
-    m2.metric("Cells",         len(r["cells"]))
+    m1.metric("Rows", r["rows"])
+    m2.metric("Cells", len(r["cells"]))
     m3.metric("L1/L2 Metrics", len(r["l1l2_columns"]))
-    m4.metric("Format",        r["format"].upper())
+    m4.metric("Format", r["format"].upper())
     m5.metric("Time Range",
               f"{str(r['time_range'][0])[:16]} → {str(r['time_range'][1])[:16]}"
               if r["time_range"][0] else "—")
@@ -1681,16 +1686,16 @@ if is_stats and parsed_stats:
                         status = "🟡 Warning"
 
             summary_rows.append({
-                "Status":   status,
-                "Metric":   col,
-                "Desc":     meta["desc"],
-                "Unit":     meta["unit"],
-                "Mean":     round(mean_val, 2),
-                "Min":      round(stats["min"], 2),
-                "Max":      round(stats["max"], 2),
-                "P10":      round(stats["p10"], 2),
-                "P90":      round(stats["p90"], 2),
-                "Warning":  w,
+                "Status": status,
+                "Metric": col,
+                "Desc": meta["desc"],
+                "Unit": meta["unit"],
+                "Mean": round(mean_val, 2),
+                "Min": round(stats["min"], 2),
+                "Max": round(stats["max"], 2),
+                "P10": round(stats["p10"], 2),
+                "P90": round(stats["p90"], 2),
+                "Warning": w,
                 "Critical": c_thresh,
             })
         st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, height=400)
@@ -1698,11 +1703,11 @@ if is_stats and parsed_stats:
     # ── Trend Explorer ────────────────────────────────────────────────
     st.subheader("📈 L1/L2 Metric Trend Explorer")
     l1l2_cols = r["l1l2_columns"]
-    ts_col    = r["timestamp_col"]
-    cell_col  = r["cell_col"]
+    ts_col = r["timestamp_col"]
+    cell_col = r["cell_col"]
 
     _stats_trend_fig = None
-    _stats_df_cell   = pd.DataFrame()
+    _stats_df_cell = pd.DataFrame()
 
     if l1l2_cols and ts_col:
         col_sel, cell_sel = st.columns(2)
@@ -1710,7 +1715,7 @@ if is_stats and parsed_stats:
             sel_metric = st.selectbox("Select Metric", l1l2_cols, key="stats_metric")
         with cell_sel:
             cell_opts = ["All cells (avg)"] + r["cells"]
-            sel_cell  = st.selectbox("Select Cell", cell_opts, key="stats_cell")
+            sel_cell = st.selectbox("Select Cell", cell_opts, key="stats_cell")
 
         df_plot = pd.DataFrame(r["df_records"])
         df_plot[ts_col] = pd.to_datetime(df_plot[ts_col], errors="coerce")
@@ -1726,21 +1731,21 @@ if is_stats and parsed_stats:
 
         if not df_line.empty:
             stat_meta = stats_get_meta(sel_metric)
-            fig  = px.line(df_line, x=ts_col, y="value", title=title,
-                           labels={"value": f"{sel_metric} ({stat_meta['unit']})", ts_col: "Time"})
+            fig = px.line(df_line, x=ts_col, y="value", title=title,
+                          labels={"value": f"{sel_metric} ({stat_meta['unit']})", ts_col: "Time"})
             if stat_meta.get("warning") is not None:
-                fig.add_hline(y=stat_meta["warning"],  line_dash="dot",
+                fig.add_hline(y=stat_meta["warning"], line_dash="dot",
                               line_color="orange", annotation_text="Warning")
             if stat_meta.get("critical") is not None:
                 fig.add_hline(y=stat_meta["critical"], line_dash="dot",
-                              line_color="red",   annotation_text="Critical")
+                              line_color="red", annotation_text="Critical")
             st.plotly_chart(fig, use_container_width=True)
             _stats_trend_fig = fig  # capture for HTML export
 
     # ── Per-Cell Heatmap ──────────────────────────────────────────────
     st.subheader("🗺️ Per-Cell Metric Breakdown")
     if l1l2_cols and cell_col:
-        df_all  = pd.DataFrame(r["df_records"])
+        df_all = pd.DataFrame(r["df_records"])
         df_cell = df_all.groupby(cell_col)[l1l2_cols].mean().round(3).reset_index()
         st.dataframe(df_cell, use_container_width=True, height=300)
         _stats_df_cell = df_cell  # capture for HTML export
@@ -1754,16 +1759,16 @@ if is_stats and parsed_stats:
         st.markdown("""
 | # | Method | Type | Why for L1/L2 stats |
 |---|--------|------|---------------------|
-| 1 | **Threshold** | Rule-based | 3GPP/vendor limits for BLER (<10%), PRB (<80%), SNR (>5 dB). Instant, interpretable. |
-| 2 | **Peer Comparison** | Z-score / cross-cell | A cell with BLER=8% is "OK" vs threshold but suspect if all peers are at 2%. |
-| 3 | **Trend** | Linear regression | Gradual MCS degradation or rising HARQ NACK rate — early warning before threshold fires. |
-| 4 | **IQR** | Robust / distribution-free | L1 counters are often skewed (HARQ NACK counts). IQR handles non-Gaussian distributions. |
-| 5 | **CUSUM** | Sequential / change-point | Catches persistent drift in SNR or PRB utilisation that per-point methods miss. |
-| 6 | **Bollinger Bands** | Rolling envelope | Detects transient interference spikes in SINR/RSRP that last only a few intervals. |
+| 1 | **Threshold** | Rule-based | 3GPP/vendor limits for BLER (<10%), PRB (<80%), SNR (>5 dB). Instant, interpretable. |  # noqa: E501
+| 2 | **Peer Comparison** | Z-score / cross-cell | A cell with BLER=8% is "OK" vs threshold but suspect if all peers are at 2%. |  # noqa: E501
+| 3 | **Trend** | Linear regression | Gradual MCS degradation or rising HARQ NACK rate — early warning before threshold fires. |  # noqa: E501
+| 4 | **IQR** | Robust / distribution-free | L1 counters are often skewed (HARQ NACK counts). IQR handles non-Gaussian distributions. |  # noqa: E501
+| 5 | **CUSUM** | Sequential / change-point | Catches persistent drift in SNR or PRB utilisation that per-point methods miss. |  # noqa: E501
+| 6 | **Bollinger Bands** | Rolling envelope | Detects transient interference spikes in SINR/RSRP that last only a few intervals. |  # noqa: E501
         """)
 
     with st.spinner("Running 6 L1/L2 detectors..."):
-        stats_by_det  = detect_stats_anomalies_by_detector(parsed_stats)
+        stats_by_det = detect_stats_anomalies_by_detector(parsed_stats)
         stats_anomalies = detect_stats_anomalies(parsed_stats)
 
     if not stats_anomalies:
@@ -1772,15 +1777,15 @@ if is_stats and parsed_stats:
         render_anomaly_distribution_charts(stats_anomalies, "Stats")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔴 Critical", sum(1 for a in stats_anomalies if a["severity"] == "Critical"))
-        c2.metric("🟠 High",     sum(1 for a in stats_anomalies if a["severity"] == "High"))
-        c3.metric("🟡 Medium",   sum(1 for a in stats_anomalies if a["severity"] == "Medium"))
-        c4.metric("🟢 Low",      sum(1 for a in stats_anomalies if a["severity"] == "Low"))
+        c2.metric("🟠 High", sum(1 for a in stats_anomalies if a["severity"] == "High"))
+        c3.metric("🟡 Medium", sum(1 for a in stats_anomalies if a["severity"] == "Medium"))
+        c4.metric("🟢 Low", sum(1 for a in stats_anomalies if a["severity"] == "Low"))
 
         # Method comparison matrix
         st.subheader("🔬 Method Comparison Matrix")
-        DET_COLS  = ["Threshold", "Peer Comparison", "Trend", "IQR", "CUSUM", "Bollinger Bands"]
+        DET_COLS = ["Threshold", "Peer Comparison", "Trend", "IQR", "CUSUM", "Bollinger Bands"]
         SEV_BADGE = {"Critical": "🔴 Crit", "High": "🟠 High", "Medium": "🟡 Med", "Low": "🟢 Low"}
-        SEV_R     = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
+        SEV_R = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
 
         matrix: Dict[str, Dict[str, str]] = {}
         for det_name, anoms in stats_by_det.items():
@@ -1810,11 +1815,11 @@ if is_stats and parsed_stats:
         ]
         _stats_anom_flat = pd.DataFrame([{
             "Severity": a["severity"],
-            "Metric":   a["label"],
-            "Cell":     a["cell_id"],
-            "Value":    a["value"],
-            "Unit":     a["unit"],
-            "Warning":  a["warning"],
+            "Metric": a["label"],
+            "Cell": a["cell_id"],
+            "Value": a["value"],
+            "Unit": a["unit"],
+            "Warning": a["warning"],
             "Critical": a["critical"],
             "Detector": a["detector"],
             "Evidence": a["evidence"][:80],
@@ -1826,7 +1831,7 @@ if is_stats and parsed_stats:
         _stats_shown = shown[:20]
         if _stats_shown:
             _stats_labels = [
-                f"#{i+1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
+                f"#{i + 1}  [{a['severity']}]  {a['label']}  |  {a['cell_id']}  |  {a['detector']}"
                 for i, a in enumerate(_stats_shown)
             ]
             _stats_sel = st.selectbox(
@@ -1853,7 +1858,7 @@ if is_stats and parsed_stats:
                 st.success(_sa["recommendation"])
 
             st.markdown("**🤖 LLM Analysis — RAG over 3GPP Specs**")
-            _stats_exp_key = f"llm_stats_{_sa.get('label','')}_{_sa.get('cell_id','')}"
+            _stats_exp_key = f"llm_stats_{_sa.get('label', '')}_{_sa.get('cell_id', '')}"
             if _stats_exp_key not in st.session_state:
                 with st.spinner("Retrieving 3GPP specs + generating analysis..."):
                     st.session_state[_stats_exp_key] = explain_anomaly(_sa)
@@ -1864,7 +1869,7 @@ if is_stats and parsed_stats:
             if _sexp.get("citations"):
                 st.markdown("**3GPP Citations**")
                 for _cite in _sexp["citations"]:
-                    st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+                    st.markdown(f"- `{_cite.get('spec', '')} §{_cite.get('section', '')}` — {_cite.get('quote', '')}")
             if _sexp.get("investigation_hints"):
                 st.markdown("**Investigation Checklist**")
                 for _hint in _sexp["investigation_hints"]:
@@ -1872,10 +1877,10 @@ if is_stats and parsed_stats:
 
             st.markdown("**Engineer Feedback**")
             render_feedback_button(
-                event_id=_sa.get("label","") + "_" + _sa.get("cell_id",""),
-                source="stats", anomaly_type=_sa.get("label",""),
-                severity=_sa["severity"], detector=_sa.get("detector",""),
-                cell_id=_sa.get("cell_id",""), evidence=_sa.get("evidence",""),
+                event_id=_sa.get("label", "") + "_" + _sa.get("cell_id", ""),
+                source="stats", anomaly_type=_sa.get("label", ""),
+                severity=_sa["severity"], detector=_sa.get("detector", ""),
+                cell_id=_sa.get("cell_id", ""), evidence=_sa.get("evidence", ""),
             )
 
     # ── Export Report ─────────────────────────────────────────────────
@@ -1904,13 +1909,13 @@ if is_stats and parsed_stats:
             "notes": f"{len(stats_anomalies)} anomalies detected",
         })
     _stats_meta = {
-        "Source File":   uploaded.name,
-        "Data Type":     "DU/CU Stats",
-        "Format":        r["format"].upper(),
-        "Rows":          r["rows"],
-        "Cells":         len(r["cells"]),
+        "Source File": uploaded.name,
+        "Data Type": "DU/CU Stats",
+        "Format": r["format"].upper(),
+        "Rows": r["rows"],
+        "Cells": len(r["cells"]),
         "L1/L2 Metrics": len(r["l1l2_columns"]),
-        "Anomalies":     len(stats_anomalies),
+        "Anomalies": len(stats_anomalies),
     }
     _stats_figures = (
         [{"title": f"Metric Trend: {_stats_trend_fig.layout.title.text}", "fig": _stats_trend_fig}]
@@ -1918,14 +1923,14 @@ if is_stats and parsed_stats:
     )
     _stats_anomaly_cards = [
         {
-            "severity":       a["severity"],
-            "title":          f"{a['label']} | {a['cell_id']} | {a['detector']}",
-            "evidence":       a["evidence"],
+            "severity": a["severity"],
+            "title": f"{a['label']} | {a['cell_id']} | {a['detector']}",
+            "evidence": a["evidence"],
             "recommendation": a["recommendation"],
-            "value":          a["value"],
-            "unit":           a["unit"],
-            "warning":        a["warning"],
-            "critical":       a["critical"],
+            "value": a["value"],
+            "unit": a["unit"],
+            "warning": a["warning"],
+            "critical": a["critical"],
         }
         for a in stats_anomalies[:20]
     ]
@@ -1953,7 +1958,7 @@ layer_counts = parsed.get('layer_event_counts', {})
 
 # Group by layer
 ALL_LAYERS = ["NAS", "NGAP", "RRC", "F1AP", "E1AP", "XnAP"]
-by_layer = {l: {} for l in ALL_LAYERS}
+by_layer = {lyr: {} for lyr in ALL_LAYERS}
 for proc_name, stats in procedures.items():
     layer = stats.get('layer', 'NAS')
     if layer in by_layer:
@@ -1961,8 +1966,8 @@ for proc_name, stats in procedures.items():
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Total signalling events", f"{parsed.get('total_events', 0):,}")
-col2.metric("Procedures tracked",      len(procedures))
-col3.metric("Parser version",          parsed.get('parser_version', '?'))
+col2.metric("Procedures tracked", len(procedures))
+col3.metric("Parser version", parsed.get('parser_version', '?'))
 
 col4, col5, col6, col7, col8, col9 = st.columns(6)
 for col, lyr in zip([col4, col5, col6, col7, col8, col9], ALL_LAYERS):
@@ -1979,18 +1984,18 @@ if not procedures:
     )
 else:
     LAYER_TABS = [
-        ("All Layers",          "all"),
-        ("NAS — TS 24.501",     "NAS"),
-        ("NGAP — TS 38.413",    "NGAP"),
-        ("RRC — TS 38.331",     "RRC"),
-        ("F1AP — TS 38.473",    "F1AP"),
-        ("E1AP — TS 38.463",    "E1AP"),
-        ("XnAP — TS 38.423",    "XnAP"),
+        ("All Layers", "all"),
+        ("NAS — TS 24.501", "NAS"),
+        ("NGAP — TS 38.413", "NGAP"),
+        ("RRC — TS 38.331", "RRC"),
+        ("F1AP — TS 38.473", "F1AP"),
+        ("E1AP — TS 38.463", "E1AP"),
+        ("XnAP — TS 38.423", "XnAP"),
     ]
     LAYER_CAPTIONS = {
-        "NAS":  "5G Mobility + Session Management (TS 24.501)",
+        "NAS": "5G Mobility + Session Management (TS 24.501)",
         "NGAP": "N2 interface: gNB-CU ↔ AMF (TS 38.413)",
-        "RRC":  "Uu interface: UE ↔ gNB (TS 38.331)",
+        "RRC": "Uu interface: UE ↔ gNB (TS 38.331)",
         "F1AP": "F1 interface: gNB-DU ↔ gNB-CU-CP (TS 38.473)",
         "E1AP": "E1 interface: gNB-CU-CP ↔ gNB-CU-UP (TS 38.463)",
         "XnAP": "Xn interface: gNB ↔ gNB, MR-DC (TS 38.423)",
@@ -2085,12 +2090,12 @@ with st.expander("📖 Why these 6 detectors? (reviewer rationale)", expanded=Fa
     st.markdown("""
 | # | Detector | Type | Why we use it |
 |---|----------|------|---------------|
-| 1 | **Isolation Forest** | Unsupervised / tree-based | No label data needed — anomalies are rare in telecom (most procedures succeed). Trees isolate anomalies in fewer splits. O(n log n), scales to thousands of procedures. No distribution assumption. |
-| 2 | **Statistical (Threshold + Cascade)** | Rule-based / domain knowledge | Encodes 3GPP SLA thresholds directly. 100% interpretable. Catches known patterns: timeout concentration, cascading NAS→NGAP→RRC failures. Baseline every ML method is measured against. |
-| 3 | **One-Class SVM** | Kernel / geometric boundary | Learns a non-linear boundary around normal data in kernel space. Complements IF: where IF uses tree depth, SVM uses geometric margin. Better when the normal cluster is compact and non-Gaussian. |
-| 4 | **LOF (Local Outlier Factor)** | Density / local comparison | Compares each procedure to its k-nearest neighbors. IF and SVM are *global* — LOF catches *local* outliers: a procedure with 85% SR in a cluster where all peers are >99%. |
-| 5 | **Elliptic Envelope** | Statistical / Mahalanobis | Fastest interpretable baseline. Fits a multivariate Gaussian; flags points with high Mahalanobis distance. When the normal cluster is elliptical (stable networks), this is the most reliable detector. Sanity-checks the ML methods. |
-| 6 | **LSTM Autoencoder** | Deep learning / sequential | 5G signaling is sequential: Registration→Auth→Security→PDU Session. Tabular methods treat each procedure independently. The LSTM learns *normal sequences*; unusual orderings or gaps produce high reconstruction error. Only method that catches procedure-order violations. |
+| 1 | **Isolation Forest** | Unsupervised / tree-based | No label data needed — anomalies are rare in telecom (most procedures succeed). Trees isolate anomalies in fewer splits. O(n log n), scales to thousands of procedures. No distribution assumption. |  # noqa: E501
+| 2 | **Statistical (Threshold + Cascade)** | Rule-based / domain knowledge | Encodes 3GPP SLA thresholds directly. 100% interpretable. Catches known patterns: timeout concentration, cascading NAS→NGAP→RRC failures. Baseline every ML method is measured against. |  # noqa: E501
+| 3 | **One-Class SVM** | Kernel / geometric boundary | Learns a non-linear boundary around normal data in kernel space. Complements IF: where IF uses tree depth, SVM uses geometric margin. Better when the normal cluster is compact and non-Gaussian. |  # noqa: E501
+| 4 | **LOF (Local Outlier Factor)** | Density / local comparison | Compares each procedure to its k-nearest neighbors. IF and SVM are *global* — LOF catches *local* outliers: a procedure with 85% SR in a cluster where all peers are >99%. |  # noqa: E501
+| 5 | **Elliptic Envelope** | Statistical / Mahalanobis | Fastest interpretable baseline. Fits a multivariate Gaussian; flags points with high Mahalanobis distance. When the normal cluster is elliptical (stable networks), this is the most reliable detector. Sanity-checks the ML methods. |  # noqa: E501
+| 6 | **LSTM Autoencoder** | Deep learning / sequential | 5G signaling is sequential: Registration→Auth→Security→PDU Session. Tabular methods treat each procedure independently. The LSTM learns *normal sequences*; unusual orderings or gaps produce high reconstruction error. Only method that catches procedure-order violations. |  # noqa: E501
 
 **Multi-detector agreement** — when ≥ 2 detectors flag the same procedure, confidence is higher.
 IF alone may have false positives from contamination tuning; SVM alone can over-reject at boundaries.
@@ -2099,23 +2104,23 @@ The ensemble cross-validates each finding.
 
 SEV_COLOR = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}
 
-with st.spinner("Running 6 detectors: Isolation Forest · Statistical · OC-SVM · LOF · Elliptic Envelope · LSTM Autoencoder..."):
+with st.spinner("Running 6 detectors: Isolation Forest · Statistical · OC-SVM · LOF · Elliptic Envelope · LSTM Autoencoder..."):  # noqa: E501
     by_detector = detect_anomalies_by_detector(parsed)
-    anomalies   = merge_detector_results(by_detector)
+    anomalies = merge_detector_results(by_detector)
 
 if not anomalies:
     st.success("✅ No anomalies detected across all three detectors.")
 else:
     # ── Summary metrics ───────────────────────────────────────────────
-    high   = sum(1 for a in anomalies if a["severity"] == "High")
+    high = sum(1 for a in anomalies if a["severity"] == "High")
     medium = sum(1 for a in anomalies if a["severity"] == "Medium")
-    low    = sum(1 for a in anomalies if a["severity"] == "Low")
+    low = sum(1 for a in anomalies if a["severity"] == "Low")
     confirmed = sum(1 for a in anomalies if a.get("confirmed_by", 1) > 1)
 
     mc1, mc2, mc3, mc4 = st.columns(4)
-    mc1.metric("🔴 High severity",   high)
+    mc1.metric("🔴 High severity", high)
     mc2.metric("🟡 Medium severity", medium)
-    mc3.metric("🟢 Low severity",    low)
+    mc3.metric("🟢 Low severity", low)
     mc4.metric("🔁 Multi-detector confirmed", confirmed)
 
     # ── Method comparison matrix ──────────────────────────────────────
@@ -2163,28 +2168,28 @@ else:
     )
     shown = [a for a in anomalies if sev_filter == "All" or a["severity"] == sev_filter]
     _pcap_flat = pd.DataFrame([{
-        "Severity":  a["severity"],
-        "Layer":     a.get("layer", "—"),
+        "Severity": a["severity"],
+        "Layer": a.get("layer", "—"),
         "Procedure": a.get("procedure", "—"),
-        "Type":      a["type"],
-        "Score":     round(a["score"], 3),
-        "Detector":  a["detector"],
+        "Type": a["type"],
+        "Score": round(a["score"], 3),
+        "Detector": a["detector"],
         "Confirmed": f"✅ {a['confirmed_by']} detectors" if a.get("confirmed_by", 1) > 1 else "—",
-        "Evidence":  a["evidence"][:80],
+        "Evidence": a["evidence"][:80],
     } for a in shown])
     st.dataframe(_pcap_flat, use_container_width=True, height=350)
 
     # ── Export Report ─────────────────────────────────────────────────
     _pcap_proc_df = make_proc_table(procedures)
     _pcap_anom_df = pd.DataFrame([{
-        "Severity":     a["severity"],
-        "Layer":        a.get("layer", "—"),
-        "Procedure":    a.get("procedure", "—"),
-        "Type":         a["type"],
-        "Score":        round(a["score"], 3),
-        "Detector":     a["detector"],
-        "Cell":         a.get("cell_id", "—"),
-        "Evidence":     a["evidence"],
+        "Severity": a["severity"],
+        "Layer": a.get("layer", "—"),
+        "Procedure": a.get("procedure", "—"),
+        "Type": a["type"],
+        "Score": round(a["score"], 3),
+        "Detector": a["detector"],
+        "Cell": a.get("cell_id", "—"),
+        "Evidence": a["evidence"],
         "Recommendation": a["recommendation"],
     } for a in anomalies]) if anomalies else pd.DataFrame()
 
@@ -2198,23 +2203,23 @@ else:
             "notes": f"{len(anomalies)} anomalies detected",
         })
     _pcap_meta = {
-        "Source File":        uploaded.name,
-        "Data Type":          "PCAP (5G Signalling)",
-        "Total Events":       parsed.get("total_events", 0),
+        "Source File": uploaded.name,
+        "Data Type": "PCAP (5G Signalling)",
+        "Total Events": parsed.get("total_events", 0),
         "Procedures Tracked": len(procedures),
-        "Anomalies":          len(anomalies),
-        "Parser Version":     parsed.get("parser_version", "—"),
+        "Anomalies": len(anomalies),
+        "Parser Version": parsed.get("parser_version", "—"),
     }
     _pcap_anomaly_cards = [
         {
-            "severity":       a["severity"],
-            "title":          f"{a.get('type','?')} | {a.get('procedure','?')} | {a['detector']}",
-            "evidence":       a["evidence"],
+            "severity": a["severity"],
+            "title": f"{a.get('type', '?')} | {a.get('procedure', '?')} | {a['detector']}",
+            "evidence": a["evidence"],
             "recommendation": a["recommendation"],
-            "value":          round(a["score"], 3),
-            "unit":           "score",
-            "warning":        "—",
-            "critical":       "—",
+            "value": round(a["score"], 3),
+            "unit": "score",
+            "warning": "—",
+            "critical": "—",
         }
         for a in anomalies[:20]
     ]
@@ -2238,8 +2243,8 @@ else:
     _pcap_shown = shown[:20]
     if _pcap_shown:
         _pcap_labels = [
-            f"#{i+1}  [{a['severity']}]  {a['type']}  |  "
-            f"{a.get('procedure','?')}  |  {a['detector']}"
+            f"#{i + 1}  [{a['severity']}]  {a['type']}  |  "
+            f"{a.get('procedure', '?')}  |  {a['detector']}"
             for i, a in enumerate(_pcap_shown)
         ]
         _pcap_sel = st.selectbox(
@@ -2254,7 +2259,7 @@ else:
 
         st.markdown(
             f"#### {_picon} {_pa['type']}  |  "
-            f"[{_pa.get('layer','?')}] `{_pa.get('procedure','?')}`"
+            f"[{_pa.get('layer', '?')}] `{_pa.get('procedure', '?')}`"
         )
         _pc1, _pc2 = st.columns(2)
         with _pc1:
@@ -2272,8 +2277,8 @@ else:
             st.markdown("**Recommendation**")
             st.success(_pa["recommendation"])
             st.markdown(
-                f"**Layer:** `{_pa.get('layer','?')}` &nbsp; "
-                f"**Procedure:** `{_pa.get('procedure','?')}` &nbsp; "
+                f"**Layer:** `{_pa.get('layer', '?')}` &nbsp; "
+                f"**Procedure:** `{_pa.get('procedure', '?')}` &nbsp; "
                 f"**Score:** `{_pa['score']:.3f}`"
             )
             if _pa.get("confirmed_by", 1) > 1:
@@ -2282,7 +2287,7 @@ else:
                 )
 
         st.markdown("**🤖 LLM Analysis**")
-        _pcap_exp_key = f"llm_pcap_{_pa.get('type','')}_{_pa.get('procedure','')}"
+        _pcap_exp_key = f"llm_pcap_{_pa.get('type', '')}_{_pa.get('procedure', '')}"
         if _pcap_exp_key not in st.session_state:
             with st.spinner("Retrieving 3GPP specs + generating analysis..."):
                 st.session_state[_pcap_exp_key] = explain_anomaly(_pa)
@@ -2293,7 +2298,7 @@ else:
         if _pexp.get("citations"):
             st.markdown("**3GPP Citations**")
             for _cite in _pexp["citations"]:
-                st.markdown(f"- `{_cite.get('spec','')} §{_cite.get('section','')}` — {_cite.get('quote','')}")
+                st.markdown(f"- `{_cite.get('spec', '')} §{_cite.get('section', '')}` — {_cite.get('quote', '')}")
         if _pexp.get("investigation_hints"):
             st.markdown("**Investigation Checklist**")
             for _hint in _pexp["investigation_hints"]:
@@ -2301,10 +2306,10 @@ else:
 
         st.markdown("**Engineer Feedback**")
         render_feedback_button(
-            event_id=_pa.get("type","") + "_" + _pa.get("procedure",""),
-            source="pcap", anomaly_type=_pa.get("type",""),
-            severity=_pa["severity"], detector=_pa.get("detector",""),
-            cell_id=_pa.get("cell_id","—"), evidence=_pa.get("evidence",""),
+            event_id=_pa.get("type", "") + "_" + _pa.get("procedure", ""),
+            source="pcap", anomaly_type=_pa.get("type", ""),
+            severity=_pa["severity"], detector=_pa.get("detector", ""),
+            cell_id=_pa.get("cell_id", "—"), evidence=_pa.get("evidence", ""),
         )
 
 # ── Event Router — PCAP path ──────────────────────────────────────────

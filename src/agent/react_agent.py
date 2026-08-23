@@ -33,10 +33,10 @@ _TOOL_MENU = """You have these tools available:
 
 At each step, respond with EXACTLY ONE of:
 Action: tool_name(args)
-Final Answer: {"root_cause": "...", "causal_chain": [{"event_id": "...", "role": "trigger|symptom|contributing_factor", "explanation": "..."}], "confidence": 0.0-1.0, "citations": [{"spec": "...", "section": "...", "quote": "..."}], "recommended_action": "..."}"""
+Final Answer: {"root_cause": "...", "causal_chain": [{"event_id": "...", "role": "trigger|symptom|contributing_factor", "explanation": "..."}], "confidence": 0.0-1.0, "citations": [{"spec": "...", "section": "...", "quote": "..."}], "recommended_action": "..."}"""  # noqa: E501
 
 _ACTION_RE = re.compile(r"Action:\s*(\w+)\((.*?)\)", re.DOTALL)
-_FINAL_RE  = re.compile(r"Final Answer:\s*(\{.*\})", re.DOTALL)
+_FINAL_RE = re.compile(r"Final Answer:\s*(\{.*\})", re.DOTALL)
 
 # Deterministic fallback tool order used when a step's model output can't be parsed.
 _FALLBACK_ORDER = ["get_event_details", "get_related_events", "query_3gpp_spec", "get_predictions_for_cell"]
@@ -173,9 +173,9 @@ def run_root_cause_agent(
         fallback_tool = _FALLBACK_ORDER[step % len(_FALLBACK_ORDER)]
         first = correlated_group[0] if correlated_group else {}
         arg = {
-            "get_event_details":       first.get("event_id", ""),
-            "get_related_events":      first.get("event_id", ""),
-            "query_3gpp_spec":         first.get("category", ""),
+            "get_event_details": first.get("event_id", ""),
+            "get_related_events": first.get("event_id", ""),
+            "query_3gpp_spec": first.get("category", ""),
             "get_predictions_for_cell": first.get("cell_id", ""),
         }[fallback_tool]
         observation = _dispatch_tool(fallback_tool, arg, router)

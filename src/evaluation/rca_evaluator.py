@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # ── Ground truth RCA expectations ─────────────────────────────────────────────
 GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
     "PCI_3": {
-        "trigger_layer":              "KPI",
-        "trigger_type":               "congestion",
+        "trigger_layer": "KPI",
+        "trigger_type": "congestion",
         "expected_root_cause_keywords": [
             # Fault-specific terms only — generic tokens ('cell', 'layer') excluded
             "congestion", "PRB", "throughput", "utilization", "utilisation",
@@ -26,8 +26,8 @@ GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
         "description": "DL congestion — high PRB utilisation and RRC/throughput degradation",
     },
     "PCI_12": {
-        "trigger_layer":              "KPI",
-        "trigger_type":               "outage",
+        "trigger_layer": "KPI",
+        "trigger_type": "outage",
         "expected_root_cause_keywords": [
             # Removed 'cell' (appears in every output by template) and 'avail' (redundant)
             "outage", "availability", "RACH", "failure", "collapse",
@@ -35,8 +35,8 @@ GROUND_TRUTH_RCA: Dict[str, Dict[str, Any]] = {
         "description": "Cell outage — Cell_Availability collapse, RACH/NGAP failures",
     },
     "PCI_8": {
-        "trigger_layer":              "KPI",
-        "trigger_type":               "drift",
+        "trigger_layer": "KPI",
+        "trigger_type": "drift",
         "expected_root_cause_keywords": [
             # Removed 'ho' (2-char substring matches 'should', 'threshold', etc.)
             "drift", "handover", "latency", "trend", "degradation",
@@ -60,9 +60,9 @@ def _check_keyword_match(rca_result: Dict[str, Any], expected_keywords: List[str
     matched = [kw for kw in expected_keywords if kw.lower() in text_to_search]
     return {
         "matched_keywords": matched,
-        "total_expected":   len(expected_keywords),
+        "total_expected": len(expected_keywords),
         "keyword_hit_rate": round(len(matched) / len(expected_keywords), 3) if expected_keywords else 0.0,
-        "any_match":        len(matched) > 0,
+        "any_match": len(matched) > 0,
     }
 
 
@@ -176,14 +176,14 @@ def evaluate_rca(
             if not group:
                 logger.warning(f"  No events found for {cell_id} — skipping RCA")
                 results.append({
-                    "cell_id":          cell_id,
-                    "fault_type":       gt["trigger_type"],
-                    "description":      gt["description"],
+                    "cell_id": cell_id,
+                    "fault_type": gt["trigger_type"],
+                    "description": gt["description"],
                     "event_group_size": 0,
-                    "rca_result":       None,
-                    "keyword_match":    {"any_match": False, "matched_keywords": [], "keyword_hit_rate": 0.0},
-                    "success":          False,
-                    "error":            "No anomaly events found for this cell",
+                    "rca_result": None,
+                    "keyword_match": {"any_match": False, "matched_keywords": [], "keyword_hit_rate": 0.0},
+                    "success": False,
+                    "error": "No anomaly events found for this cell",
                 })
                 continue
 
@@ -196,34 +196,34 @@ def evaluate_rca(
             )
 
             results.append({
-                "cell_id":          cell_id,
-                "fault_type":       gt["trigger_type"],
-                "description":      gt["description"],
+                "cell_id": cell_id,
+                "fault_type": gt["trigger_type"],
+                "description": gt["description"],
                 "event_group_size": len(group),
                 "rca_result": {
-                    "root_cause":         rca_result.get("root_cause", ""),
-                    "confidence":         rca_result.get("confidence", 0.0),
+                    "root_cause": rca_result.get("root_cause", ""),
+                    "confidence": rca_result.get("confidence", 0.0),
                     "recommended_action": rca_result.get("recommended_action", ""),
-                    "source":             rca_result.get("source", ""),
-                    "n_hops":             len(rca_result.get("causal_chain", [])),
-                    "n_citations":        len(rca_result.get("citations", [])),
+                    "source": rca_result.get("source", ""),
+                    "n_hops": len(rca_result.get("causal_chain", [])),
+                    "n_citations": len(rca_result.get("citations", [])),
                 },
                 "keyword_match": keyword_match,
-                "success":       keyword_match["any_match"],
-                "error":         None,
+                "success": keyword_match["any_match"],
+                "error": None,
             })
 
         except Exception as e:
             logger.error(f"  RCA evaluation failed for {cell_id}: {e}")
             results.append({
-                "cell_id":          cell_id,
-                "fault_type":       gt["trigger_type"],
-                "description":      gt["description"],
+                "cell_id": cell_id,
+                "fault_type": gt["trigger_type"],
+                "description": gt["description"],
                 "event_group_size": 0,
-                "rca_result":       None,
-                "keyword_match":    {"any_match": False, "matched_keywords": [], "keyword_hit_rate": 0.0},
-                "success":          False,
-                "error":            str(e),
+                "rca_result": None,
+                "keyword_match": {"any_match": False, "matched_keywords": [], "keyword_hit_rate": 0.0},
+                "success": False,
+                "error": str(e),
             })
 
     return results

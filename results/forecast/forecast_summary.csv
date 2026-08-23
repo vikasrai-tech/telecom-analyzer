@@ -1,4 +1,5 @@
-method,n_series,avg_mae,avg_rmse,avg_mape,lead_time_detected,lead_time_total,total_false_alarms
-prophet,220,22.4298,31.1379,72.8,1,6,1
-holt_winters,220,14.969,20.3905,45.1,0,6,0
-lstm,220,19.7798,23.6287,55.76,0,6,0
+method,n_series,n_mape,avg_mae,avg_rmse,avg_mape,lead_time_detected,lead_time_total,total_false_alarms
+prophet,220,220,22.4298,31.1379,72.8,1,6,1
+holt_winters,220,220,14.969,20.3905,45.1,0,6,0
+lstm,220,220,20.0421,23.8789,56.58,0,6,0
+timesfm,220,220,16.0813,21.3967,44.48,0,6,0

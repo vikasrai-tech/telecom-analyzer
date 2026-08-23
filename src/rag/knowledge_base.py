@@ -254,7 +254,7 @@ SPEC_CHUNKS: List[Dict[str, Any]] = [
             "Too large an A3 offset → late handovers → RLF. "
             "Too small an A3 offset → ping-pong handovers → unnecessary HOs. "
             "Too long TTT → late HOs in fast-moving UEs. "
-            "A5 event: serving cell below threshold 1 AND target cell above threshold 2 — used for coverage-triggered HOs."
+            "A5 event: serving cell below threshold 1 AND target cell above threshold 2 — used for coverage-triggered HOs."  # noqa: E501
         ),
     },
 

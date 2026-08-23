@@ -25,8 +25,8 @@ class SpecEmbedder:
 
     def __init__(self, model_name: str = MODEL_NAME):
         logger.info(f"Loading embedding model: {model_name}")
-        self.model  = SentenceTransformer(model_name)
-        self.index  = None
+        self.model = SentenceTransformer(model_name)
+        self.index = None
         self.chunks: List[Dict[str, Any]] = []
 
     def build_index(self, chunks: List[Dict[str, Any]] = None) -> None:

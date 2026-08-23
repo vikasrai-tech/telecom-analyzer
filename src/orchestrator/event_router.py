@@ -39,6 +39,7 @@ SEV_RANK = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
 # ── EventRecord schema ────────────────────────────────────────────────
 # All fields are plain Python types (JSON-serialisable).
 
+
 def _new_event(
     source: str,
     anomaly: Dict[str, Any],
@@ -54,50 +55,50 @@ def _new_event(
       KPI:   label, category, cell_id, value, unit
     """
     # ── Common fields ─────────────────────────────────────────────────
-    severity    = anomaly.get("severity", "Low")
-    detector    = anomaly.get("detector", "unknown")
-    evidence    = anomaly.get("evidence", "")
-    score       = float(anomaly.get("score", 0.0))
+    severity = anomaly.get("severity", "Low")
+    detector = anomaly.get("detector", "unknown")
+    evidence = anomaly.get("evidence", "")
+    score = float(anomaly.get("score", 0.0))
     # Prefer the anomaly's own lead_time_h (e.g. predictor.py stamps the
     # real forecast horizon on each item) over the caller-supplied default.
     lead_time_h = anomaly.get("lead_time_h", lead_time_h)
 
     # ── Source-specific field extraction ─────────────────────────────
     if source == "pcap":
-        category  = anomaly.get("type",      anomaly.get("label", ""))
-        cell_id   = anomaly.get("cell_id",   "—")
-        metric    = anomaly.get("procedure", "")
-        layer     = anomaly.get("layer",     "")
-        unit      = ""
-        value     = None
+        category = anomaly.get("type", anomaly.get("label", ""))
+        cell_id = anomaly.get("cell_id", "—")
+        metric = anomaly.get("procedure", "")
+        layer = anomaly.get("layer", "")
+        unit = ""
+        value = None
     else:
-        category  = anomaly.get("label",     anomaly.get("type", ""))
-        cell_id   = str(anomaly.get("cell_id", "—"))
-        metric    = anomaly.get("category",  "")
-        layer     = source.upper()
-        unit      = anomaly.get("unit", "")
-        value     = anomaly.get("value")
+        category = anomaly.get("label", anomaly.get("type", ""))
+        cell_id = str(anomaly.get("cell_id", "—"))
+        metric = anomaly.get("category", "")
+        layer = source.upper()
+        unit = anomaly.get("unit", "")
+        value = anomaly.get("value")
 
     return {
-        "event_id":               str(uuid.uuid4())[:12],
-        "created_at":             datetime.now(timezone.utc).isoformat(),
-        "source":                 source,            # pcap | stats | kpi
-        "state":                  state,             # current | predicted
-        "lead_time_h":            lead_time_h,       # 0 = now; N = N hrs ahead
-        "severity":               severity,
-        "category":               category,
-        "cell_id":                cell_id,
-        "metric":                 metric,
-        "layer":                  layer,
-        "value":                  value,
-        "unit":                   unit,
-        "evidence":               evidence,
-        "detector":               detector,
-        "score":                  score,
+        "event_id": str(uuid.uuid4())[:12],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source": source,            # pcap | stats | kpi
+        "state": state,             # current | predicted
+        "lead_time_h": lead_time_h,       # 0 = now; N = N hrs ahead
+        "severity": severity,
+        "category": category,
+        "cell_id": cell_id,
+        "metric": metric,
+        "layer": layer,
+        "value": value,
+        "unit": unit,
+        "evidence": evidence,
+        "detector": detector,
+        "score": score,
         # Correlation fields — filled in by the router
-        "correlated_sources":     [],
+        "correlated_sources": [],
         "correlation_confidence": 0.0,
-        "raw_anomaly":            anomaly,
+        "raw_anomaly": anomaly,
     }
 
 
@@ -252,16 +253,16 @@ class EventRouter:
                             # timestamp of its own can't be excluded by time.
                             timestamps[id(other)] is None
                             or abs((timestamps[id(other)] - t0).total_seconds())
-                                <= self._correlation_window_h * 3600
+                            <= self._correlation_window_h * 3600
                         )
                     ]
                 sources = list({e["source"] for e in window_events})
                 if len(sources) < 2:
                     # Reset if previously correlated (e.g., after re-ingest)
-                    ev["correlated_sources"]     = []
+                    ev["correlated_sources"] = []
                     ev["correlation_confidence"] = 0.0
                 else:
-                    ev["correlated_sources"]     = [s for s in sources if s != ev["source"]]
+                    ev["correlated_sources"] = [s for s in sources if s != ev["source"]]
                     ev["correlation_confidence"] = round(len(sources) / 3.0, 2)
 
     # ── Queries ───────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ class EventRouter:
     def get_events(
         self,
         source: Optional[str] = None,
-        state:  Optional[str] = None,
+        state: Optional[str] = None,
         min_severity: str = "Low",
     ) -> List[Dict[str, Any]]:
         """
@@ -281,7 +282,7 @@ class EventRouter:
             ev for ev in self._events
             if SEV_RANK.get(ev["severity"], 0) >= min_rank
             and (source is None or ev["source"] == source)
-            and (state  is None or ev["state"]  == state)
+            and (state is None or ev["state"] == state)
         ]
         return sorted(
             events,
@@ -310,21 +311,21 @@ class EventRouter:
 
     def summary(self) -> Dict[str, Any]:
         """High-level counts for the dashboard header."""
-        total       = len(self._events)
+        total = len(self._events)
         corr_events = self.get_correlated()
-        correlated  = len(corr_events)
+        correlated = len(corr_events)
         # correlated_unique_cells: distinct cell_ids that have ≥2 source domains.
         # This is the cell-level view; `correlated` is the event-level count (higher
         # because each correlated event — kpi AND stats — is counted separately).
         correlated_unique_cells = len({ev["cell_id"] for ev in corr_events})
-        predicted   = sum(1 for e in self._events if e["state"] == "predicted")
-        current     = total - predicted
+        predicted = sum(1 for e in self._events if e["state"] == "predicted")
+        current = total - predicted
 
         by_sev = {s: 0 for s in ("Critical", "High", "Medium", "Low")}
         by_src = {"pcap": 0, "stats": 0, "kpi": 0}
         for ev in self._events:
             by_sev[ev["severity"]] = by_sev.get(ev["severity"], 0) + 1
-            by_src[ev["source"]]   = by_src.get(ev["source"],   0) + 1
+            by_src[ev["source"]] = by_src.get(ev["source"], 0) + 1
 
         top_cells: Dict[str, int] = {}
         for ev in self._events:
@@ -332,14 +333,14 @@ class EventRouter:
         top_cells = dict(sorted(top_cells.items(), key=lambda x: x[1], reverse=True)[:5])
 
         return {
-            "total":                   total,
-            "current":                 current,
-            "predicted":               predicted,
-            "correlated":              correlated,              # event-level count
-            "correlated_unique_cells": correlated_unique_cells, # cell-level count
-            "by_severity":             by_sev,
-            "by_source":               by_src,
-            "top_cells":               top_cells,
+            "total": total,
+            "current": current,
+            "predicted": predicted,
+            "correlated": correlated,              # event-level count
+            "correlated_unique_cells": correlated_unique_cells,  # cell-level count
+            "by_severity": by_sev,
+            "by_source": by_src,
+            "top_cells": top_cells,
         }
 
     def clear(self) -> None:
@@ -350,9 +351,9 @@ class EventRouter:
 # ── Module-level convenience ──────────────────────────────────────────
 
 def route_events(
-    pcap_anomalies:  Optional[List[Dict]] = None,
+    pcap_anomalies: Optional[List[Dict]] = None,
     stats_anomalies: Optional[List[Dict]] = None,
-    kpi_anomalies:   Optional[List[Dict]] = None,
+    kpi_anomalies: Optional[List[Dict]] = None,
 ) -> EventRouter:
     """
     One-shot helper: build a router, ingest all three sources, return it.
@@ -366,9 +367,9 @@ def route_events(
     """
     router = EventRouter()
     if pcap_anomalies:
-        router.ingest(pcap_anomalies,  source="pcap")
+        router.ingest(pcap_anomalies, source="pcap")
     if stats_anomalies:
         router.ingest(stats_anomalies, source="stats")
     if kpi_anomalies:
-        router.ingest(kpi_anomalies,   source="kpi")
+        router.ingest(kpi_anomalies, source="kpi")
     return router

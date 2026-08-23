@@ -19,7 +19,7 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
-from src.parsers.stats_parser import L1L2_META, get_meta
+from src.parsers.stats_parser import get_meta
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,7 @@ def _sev(value, meta) -> str:
         "dl harq nack rate", "ul harq nack rate",
         "dl harq nack count (raw)", "ul harq nack count (raw)",
     ) or "bler" in meta.get("desc", "").lower() or "prb" in meta.get("desc", "").lower() \
-      or "nack" in meta.get("desc", "").lower()
-
-    worse_when_low = not worse_when_high
+        or "nack" in meta.get("desc", "").lower()
 
     if worse_when_high:
         if c is not None and value >= c:
@@ -59,20 +57,20 @@ def _sev(value, meta) -> str:
 def _make_anomaly(col, cell, value, sev, evidence, recommendation, detector, score=0.0, **kwargs):
     meta = get_meta(col)
     return {
-        "label":          col,
-        "category":       meta.get("desc", col),
-        "cell_id":        str(cell),
-        "gnb_id":         str(cell),
-        "value":          round(float(value), 3) if value is not None else None,
-        "unit":           meta.get("unit", ""),
-        "warning":        meta.get("warning"),
-        "critical":       meta.get("critical"),
-        "severity":       sev,
-        "evidence":       evidence,
+        "label": col,
+        "category": meta.get("desc", col),
+        "cell_id": str(cell),
+        "gnb_id": str(cell),
+        "value": round(float(value), 3) if value is not None else None,
+        "unit": meta.get("unit", ""),
+        "warning": meta.get("warning"),
+        "critical": meta.get("critical"),
+        "severity": sev,
+        "evidence": evidence,
         "recommendation": recommendation,
-        "detector":       detector,
-        "score":          score,
-        "source":         "stats",
+        "detector": detector,
+        "score": score,
+        "source": "stats",
         **kwargs,
     }
 
@@ -89,8 +87,8 @@ def _get_df(parsed: Dict[str, Any]) -> pd.DataFrame:
 
 def detect_threshold(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
 
     for col in cols:
@@ -107,9 +105,9 @@ def detect_threshold(parsed: Dict[str, Any]) -> List[Dict]:
                 anomalies.append(_make_anomaly(
                     col, cell, mean_val, sev,
                     evidence=f"Mean {col} = {mean_val:.2f} {meta['unit']} "
-                             f"(warning={meta['warning']}, critical={meta['critical']})",
+                    f"(warning={meta['warning']}, critical={meta['critical']})",
                     recommendation=f"Investigate {meta['desc']} on cell {cell}. "
-                                   f"Check hardware alarms and scheduler configuration.",
+                    f"Check hardware alarms and scheduler configuration.",
                     detector="Threshold",
                     score=abs(mean_val - (meta["warning"] or 0)),
                 ))
@@ -120,8 +118,8 @@ def detect_threshold(parsed: Dict[str, Any]) -> List[Dict]:
 
 def detect_peer_comparison(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
     if not cell_col or df[cell_col].nunique() < 2:
         return anomalies
@@ -140,9 +138,9 @@ def detect_peer_comparison(parsed: Dict[str, Any]) -> List[Dict]:
             anomalies.append(_make_anomaly(
                 col, cell, val, sev,
                 evidence=f"{col} z-score={z:.2f} (cell mean={val:.2f}, "
-                         f"fleet mean={cell_means.mean():.2f} {meta['unit']})",
+                f"fleet mean={cell_means.mean():.2f} {meta['unit']})",
                 recommendation=f"Cell {cell} is a statistical outlier for {meta['desc']}. "
-                               f"Compare antenna config and scheduler settings with peer cells.",
+                f"Compare antenna config and scheduler settings with peer cells.",
                 detector="Peer Comparison",
                 score=abs(z),
             ))
@@ -153,10 +151,10 @@ def detect_peer_comparison(parsed: Dict[str, Any]) -> List[Dict]:
 
 def detect_trend(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     if not ts_col or ts_col not in df.columns:
         return anomalies
 
@@ -179,7 +177,7 @@ def detect_trend(parsed: Dict[str, Any]) -> List[Dict]:
                 col, cell, grp[col].iloc[-1], sev,
                 evidence=f"{col} trend slope={slope:.3f} {meta['unit']}/hr ({direction})",
                 recommendation=f"Sustained {direction} trend in {meta['desc']} on cell {cell}. "
-                               f"Schedule maintenance check before threshold breach.",
+                f"Schedule maintenance check before threshold breach.",
                 detector="Trend",
                 score=abs(slope),
             ))
@@ -190,8 +188,8 @@ def detect_trend(parsed: Dict[str, Any]) -> List[Dict]:
 
 def detect_iqr(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
 
     for col in cols:
@@ -213,9 +211,9 @@ def detect_iqr(parsed: Dict[str, Any]) -> List[Dict]:
             anomalies.append(_make_anomaly(
                 col, cell, outliers.mean(), sev,
                 evidence=f"{col} IQR fence [{lo:.1f}, {hi:.1f}]: "
-                         f"{len(outliers)} outliers ({pct:.1f}%) on cell {cell}",
+                f"{len(outliers)} outliers ({pct:.1f}%) on cell {cell}",
                 recommendation=f"Distribution outliers detected in {meta['desc']}. "
-                               f"Check for configuration changes or hardware faults.",
+                f"Check for configuration changes or hardware faults.",
                 detector="IQR",
                 score=pct,
             ))
@@ -226,21 +224,21 @@ def detect_iqr(parsed: Dict[str, Any]) -> List[Dict]:
 
 def detect_cusum(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
 
     for col in cols:
-        meta   = get_meta(col)
-        slack  = 0.5
+        meta = get_meta(col)
+        slack = 0.5
         thresh = 4.0
         for cell, grp in df.groupby(cell_col) if cell_col else [("ALL", df)]:
             vals = grp[col].dropna()
             if len(vals) < 15:
                 continue
-            mu  = vals.mean()
+            mu = vals.mean()
             sig = vals.std() or 1.0
-            z   = (vals - mu) / sig
+            z = (vals - mu) / sig
             cusum_pos = np.maximum.accumulate(np.maximum(z - slack, 0))
             cusum_neg = np.maximum.accumulate(np.maximum(-z - slack, 0))
             max_c = max(cusum_pos.max(), cusum_neg.max())
@@ -251,7 +249,7 @@ def detect_cusum(parsed: Dict[str, Any]) -> List[Dict]:
                 col, cell, vals.iloc[-1], sev,
                 evidence=f"{col} CUSUM={max_c:.2f} (threshold={thresh}) on cell {cell}",
                 recommendation=f"Cumulative drift detected in {meta['desc']}. "
-                               f"Check for gradual hardware degradation or parameter drift.",
+                f"Check for gradual hardware degradation or parameter drift.",
                 detector="CUSUM",
                 score=max_c,
             ))
@@ -262,15 +260,15 @@ def detect_cusum(parsed: Dict[str, Any]) -> List[Dict]:
 
 def detect_bollinger(parsed: Dict[str, Any]) -> List[Dict]:
     anomalies = []
-    df       = _get_df(parsed)
-    cols     = parsed.get("l1l2_columns", [])
+    df = _get_df(parsed)
+    cols = parsed.get("l1l2_columns", [])
     cell_col = parsed.get("cell_col", "")
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
 
     for col in cols:
-        meta   = get_meta(col)
+        meta = get_meta(col)
         window = 5
-        k      = 2.5
+        k = 2.5
         for cell, grp in (df.groupby(cell_col) if cell_col else [("ALL", df)]):
             if ts_col and ts_col in grp.columns:
                 sub = grp.sort_values(ts_col)[col].dropna()
@@ -292,9 +290,9 @@ def detect_bollinger(parsed: Dict[str, Any]) -> List[Dict]:
             anomalies.append(_make_anomaly(
                 col, cell, sub.iloc[-1], sev,
                 evidence=f"{col} Bollinger break: {outside} points ({pct:.1f}%) "
-                         f"outside {k}σ band on cell {cell}",
+                f"outside {k}σ band on cell {cell}",
                 recommendation=f"Burst anomaly detected in {meta['desc']}. "
-                               f"Check for interference events or transient load spikes.",
+                f"Check for interference events or transient load spikes.",
                 detector="Bollinger Bands",
                 score=pct,
             ))
@@ -304,11 +302,11 @@ def detect_bollinger(parsed: Dict[str, Any]) -> List[Dict]:
 # ── Public API ────────────────────────────────────────────────────────
 
 DETECTORS = {
-    "Threshold":       detect_threshold,
+    "Threshold": detect_threshold,
     "Peer Comparison": detect_peer_comparison,
-    "Trend":           detect_trend,
-    "IQR":             detect_iqr,
-    "CUSUM":           detect_cusum,
+    "Trend": detect_trend,
+    "IQR": detect_iqr,
+    "CUSUM": detect_cusum,
     "Bollinger Bands": detect_bollinger,
 }
 

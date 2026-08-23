@@ -10,8 +10,8 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 
 # ── Layer / role integer encodings ────────────────────────────────────
-LAYER_IDS  = {"NAS": 0, "NGAP": 1, "RRC": 2, "F1AP": 3, "E1AP": 4, "XnAP": 5}
-ROLE_IDS   = {
+LAYER_IDS = {"NAS": 0, "NGAP": 1, "RRC": 2, "F1AP": 3, "E1AP": 4, "XnAP": 5}
+ROLE_IDS = {
     "request": 0, "command": 0,            # initiating
     "response": 1, "accept": 1,
     "complete": 1, "result": 1,            # success
@@ -26,7 +26,7 @@ PROC_FEATURE_NAMES = [
     "attempt_share",         # this proc's attempts / all attempts
     "failure_count",         # raw failure count
     "cause_diversity",       # distinct cause codes / max(failure, 1)
-    "top_cause_concentration",# most common cause / max(failure, 1)
+    "top_cause_concentration",  # most common cause / max(failure, 1)
     "timeout_ratio",         # timeout failures / max(failure, 1)
     "has_any_failure",       # 0 or 1
 ]
@@ -55,8 +55,8 @@ def extract_procedure_features(parsed: Dict[str, Any]) -> Tuple[List[str], np.nd
 
     proc_names, rows = [], []
     for name, stats in procedures.items():
-        fail      = stats["failure"]
-        causes    = stats.get("failure_causes", {})
+        fail = stats["failure"]
+        causes = stats.get("failure_causes", {})
         timeout_n = causes.get("timeout", 0)
         top_cause = max(causes.values()) if causes else 0
 
@@ -102,15 +102,15 @@ def extract_sequence_features(
     prev_ts = log[0]["timestamp"]
     for entry in log:
         layer_id = LAYER_IDS.get(entry.get("layer", "NAS"), 0)
-        proc_id  = proc_vocab.get(entry.get("procedure", ""), 0)
-        role_id  = ROLE_IDS.get(entry.get("role", "request"), 0)
-        dt       = min(entry["timestamp"] - prev_ts, 60.0)   # cap at 60s
-        prev_ts  = entry["timestamp"]
+        proc_id = proc_vocab.get(entry.get("procedure", ""), 0)
+        role_id = ROLE_IDS.get(entry.get("role", "request"), 0)
+        dt = min(entry["timestamp"] - prev_ts, 60.0)   # cap at 60s
+        prev_ts = entry["timestamp"]
         events.append([
             layer_id / 5.0,
-            proc_id  / n_procs,
-            role_id  / 3.0,
-            dt       / 60.0,
+            proc_id / n_procs,
+            role_id / 3.0,
+            dt / 60.0,
         ])
 
     events = np.array(events, dtype=np.float32)
@@ -118,14 +118,14 @@ def extract_sequence_features(
     # Slide window
     windows, meta = [], []
     for i in range(len(events) - window):
-        windows.append(events[i : i + window])
+        windows.append(events[i: i + window])
         meta.append({
             "start_idx": i,
-            "end_idx":   i + window,
-            "layer":     log[i + window - 1].get("layer", "?"),
+            "end_idx": i + window,
+            "layer": log[i + window - 1].get("layer", "?"),
             "procedure": log[i + window - 1].get("procedure", "?"),
-            "role":      log[i + window - 1].get("role", "?"),
-            "ue_id":     log[i + window - 1].get("ue_id", "?"),
+            "role": log[i + window - 1].get("role", "?"),
+            "ue_id": log[i + window - 1].get("ue_id", "?"),
             "timestamp": log[i + window - 1].get("timestamp", 0),
         })
 

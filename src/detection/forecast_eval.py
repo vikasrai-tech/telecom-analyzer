@@ -31,6 +31,7 @@ from src.detection.predictor import (
     _holt_winters_point_forecast,
     _LSTMForecaster,
     _get_timesfm,
+    _chronos_point_forecast,
     _get_thresholds,
     _sev_from_forecast,
     _infer_freq_seconds,
@@ -38,31 +39,31 @@ from src.detection.predictor import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm")
+DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm", "chronos")
 
 
 # ── Result schemas ──────────────────────────────────────────────────────
 
 @dataclass
 class ForecastMetrics:
-    method:    str
-    cell_id:   str
-    column:    str
-    mae:       float
-    rmse:      float
-    mape:      Optional[float]
+    method: str
+    cell_id: str
+    column: str
+    mae: float
+    rmse: float
+    mape: Optional[float]
     n_origins: int
 
 
 @dataclass
 class LeadTimeMetrics:
-    method:         str
+    method: str
     injected_event: str
-    cell_id:        str
-    column:         str
-    detected:       bool
-    lead_time_h:    Optional[float]
-    false_alarms:   int
+    cell_id: str
+    column: str
+    detected: bool
+    lead_time_h: Optional[float]
+    false_alarms: int
 
 
 # ── Ground truth: injected anomaly windows from generate_kpi_timeseries.py ──
@@ -85,19 +86,19 @@ class LeadTimeMetrics:
 # what it can honestly show: whether a method stays quiet (few false
 # alarms) on the lead-up to and away from each window.
 KPI_10HR_GROUND_TRUTH: List[Dict[str, Any]] = [
-    {"cell_id": "PCI_5", "column": "Handover_Success_Rate_%", "start_h": 4.5,  "end_h": 5.5,  "kind": "congestion"},
-    {"cell_id": "PCI_5", "column": "DL_Throughput_Mbps",       "start_h": 4.5,  "end_h": 5.5,  "kind": "congestion"},
-    {"cell_id": "PCI_8", "column": "Cell_Availability_%",      "start_h": 7.0,  "end_h": 7.33, "kind": "outage"},
-    {"cell_id": "PCI_8", "column": "RACH_Success_Rate_%",      "start_h": 7.0,  "end_h": 7.33, "kind": "outage"},
-    {"cell_id": "PCI_2", "column": "Handover_Success_Rate_%",  "start_h": 8.0,  "end_h": 10.0, "kind": "drift"},
-    {"cell_id": "PCI_2", "column": "Latency_ms",               "start_h": 8.0,  "end_h": 10.0, "kind": "drift"},
+    {"cell_id": "PCI_5", "column": "Handover_Success_Rate_%", "start_h": 4.5, "end_h": 5.5, "kind": "congestion"},
+    {"cell_id": "PCI_5", "column": "DL_Throughput_Mbps", "start_h": 4.5, "end_h": 5.5, "kind": "congestion"},
+    {"cell_id": "PCI_8", "column": "Cell_Availability_%", "start_h": 7.0, "end_h": 7.33, "kind": "outage"},
+    {"cell_id": "PCI_8", "column": "RACH_Success_Rate_%", "start_h": 7.0, "end_h": 7.33, "kind": "outage"},
+    {"cell_id": "PCI_2", "column": "Handover_Success_Rate_%", "start_h": 8.0, "end_h": 10.0, "kind": "drift"},
+    {"cell_id": "PCI_2", "column": "Latency_ms", "start_h": 8.0, "end_h": 10.0, "kind": "drift"},
 ]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
 def _point_forecast(method: str, sub: pd.DataFrame, ts_col: str, col: str,
-                     horizon_periods: int, freq_s: float) -> Optional[np.ndarray]:
+                    horizon_periods: int, freq_s: float) -> Optional[np.ndarray]:
     """Dispatch to the raw point-forecast helper for a given method. Returns
     a horizon-length array, or None if the method can't produce a forecast
     (missing dependency, insufficient data, fit failure)."""
@@ -136,12 +137,15 @@ def _point_forecast(method: str, sub: pd.DataFrame, ts_col: str, col: str,
             logger.debug(f"[timesfm] point_forecast failed: {e}")
             return None
 
+    if method == "chronos":
+        return _chronos_point_forecast(series, horizon_periods)
+
     raise ValueError(f"Unknown method: {method}")
 
 
 def _series_for(parsed: Dict[str, Any], cell_id: str, column: str) -> Optional[pd.DataFrame]:
     """Return a ts_col/column dataframe for one cell, sorted by time."""
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
     df = pd.DataFrame(parsed["df_records"])
     if ts_col not in df.columns or column not in df.columns:
@@ -151,8 +155,6 @@ def _series_for(parsed: Dict[str, Any], cell_id: str, column: str) -> Optional[p
     if cell_col and cell_col in df.columns:
         df = df[df[cell_col] == cell_id]
     return df[[ts_col, column]].sort_values(ts_col).reset_index(drop=True)
-
-
 
 
 # ── Rolling-origin backtest ──────────────────────────────────────────────
@@ -171,9 +173,9 @@ def rolling_origin_backtest(
     horizon_h ahead, and score MAE/RMSE/MAPE against the actual held-out
     values. Returns one ForecastMetrics per (method, cell, column).
     """
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
-    cols     = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
     if not ts_col or not cols:
         return []
 
@@ -185,7 +187,7 @@ def rolling_origin_backtest(
     if not freq_s:
         return []
     horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
-    step_periods    = max(1, int(step_h * 3600 / freq_s))
+    step_periods = max(1, int(step_h * 3600 / freq_s))
 
     groups = df_all.groupby(cell_col) if cell_col else [("ALL", df_all)]
     results: List[ForecastMetrics] = []
@@ -206,7 +208,7 @@ def rolling_origin_backtest(
                 usable_origins = n_origins
 
             for method in methods:
-                errors  = []
+                errors = []
                 actuals = []
                 for k in range(usable_origins):
                     origin = n - horizon_periods - k * step_periods
@@ -227,7 +229,7 @@ def rolling_origin_backtest(
                     continue
                 err = np.concatenate(errors)
                 actual_concat = np.concatenate(actuals)
-                mae  = float(np.mean(np.abs(err)))
+                mae = float(np.mean(np.abs(err)))
                 rmse = float(np.sqrt(np.mean(err ** 2)))
                 nonzero = actual_concat != 0
                 mape = (
@@ -263,7 +265,7 @@ def evaluate_anomaly_lead_time(
     no nearby ground-truth window where the method still predicts High/
     Critical severity.
     """
-    ts_col   = parsed.get("timestamp_col", "")
+    ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
     if not ts_col:
         return []
@@ -349,7 +351,7 @@ def run_benchmark_report(
 ) -> Dict[str, Any]:
     """One-call entry point: backtest accuracy + lead-time evaluation,
     flattened into a summary table suitable for the dashboard/report."""
-    accuracy  = rolling_origin_backtest(parsed, methods=methods, horizon_h=horizon_h)
+    accuracy = rolling_origin_backtest(parsed, methods=methods, horizon_h=horizon_h)
     lead_time = (
         evaluate_anomaly_lead_time(parsed, ground_truth_events, methods=methods, horizon_h=horizon_h)
         if ground_truth_events else []
@@ -358,15 +360,15 @@ def run_benchmark_report(
     by_method: Dict[str, Dict[str, float]] = {}
     for m in accuracy:
         agg = by_method.setdefault(m.method, {"mae_sum": 0.0, "rmse_sum": 0.0, "n": 0})
-        agg["mae_sum"]  += m.mae
+        agg["mae_sum"] += m.mae
         agg["rmse_sum"] += m.rmse
-        agg["n"]        += 1
+        agg["n"] += 1
     summary_table = [
         {
-            "method":    method,
-            "avg_mae":   round(agg["mae_sum"] / agg["n"], 4),
-            "avg_rmse":  round(agg["rmse_sum"] / agg["n"], 4),
-            "n_series":  agg["n"],
+            "method": method,
+            "avg_mae": round(agg["mae_sum"] / agg["n"], 4),
+            "avg_rmse": round(agg["rmse_sum"] / agg["n"], 4),
+            "n_series": agg["n"],
             "lead_time_detected": sum(
                 1 for lt in lead_time if lt.method == method and lt.detected
             ),
@@ -377,6 +379,6 @@ def run_benchmark_report(
 
     return {
         "forecast_accuracy": [asdict(m) for m in accuracy],
-        "lead_time":          [asdict(m) for m in lead_time],
-        "summary_table":      summary_table,
+        "lead_time": [asdict(m) for m in lead_time],
+        "summary_table": summary_table,
     }

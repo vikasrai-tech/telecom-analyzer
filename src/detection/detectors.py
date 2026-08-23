@@ -19,9 +19,8 @@ All return a list of anomaly dicts with a common schema:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
-import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import OneClassSVM
@@ -34,7 +33,7 @@ import torch.nn as nn
 from .features import (
     extract_procedure_features,
     extract_sequence_features,
-    PROC_FEATURE_NAMES, SEQ_FEATURE_NAMES, WINDOW_SIZE,
+    PROC_FEATURE_NAMES, WINDOW_SIZE,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,25 +42,25 @@ logger = logging.getLogger(__name__)
 # ── Shared helpers ────────────────────────────────────────────────────
 
 CAUSE_RECOMMENDATIONS: Dict[str, str] = {
-    "congestion":                     "Check AMF/UPF load; consider increasing capacity or load-balancing.",
-    "timeout":                        "Investigate N2/F1/E1/Xn link latency; verify timer T3xx configuration.",
-    "auth-failure":                   "Check HSS/AUSF reachability; verify UE SIM profile and SUPI.",
+    "congestion": "Check AMF/UPF load; consider increasing capacity or load-balancing.",
+    "timeout": "Investigate N2/F1/E1/Xn link latency; verify timer T3xx configuration.",
+    "auth-failure": "Check HSS/AUSF reachability; verify UE SIM profile and SUPI.",
     "semantically-incorrect-message": "Inspect NAS message encoding; check AMF/SMF software version compatibility.",
-    "radio-connection-with-ue-lost":  "Analyse RF coverage; check DRX parameters and handover thresholds.",
-    "user-inactivity":                "Review inactivity timer configuration in AMF/gNB.",
-    "radio-resources-not-available":  "Check PRB utilisation; consider adding carriers or cells.",
-    "procedure-cancelled":            "Verify gNB-DU/CU interface stability; review F1AP trace.",
-    "ue-context-release":             "Check bearer lifecycle; verify UPF session anchor consistency.",
-    "other-failure":                  "Collect RRC logs and UE traces for root cause analysis.",
-    "rlf-report-available":           "Review RLF reports; check A3/A5 measurement configuration.",
-    "radio-connection-with-UE-lost":  "Check Xn interface and handover configuration between gNBs.",
-    "unknown":                        "Enable detailed tracing on the affected network function.",
+    "radio-connection-with-ue-lost": "Analyse RF coverage; check DRX parameters and handover thresholds.",
+    "user-inactivity": "Review inactivity timer configuration in AMF/gNB.",
+    "radio-resources-not-available": "Check PRB utilisation; consider adding carriers or cells.",
+    "procedure-cancelled": "Verify gNB-DU/CU interface stability; review F1AP trace.",
+    "ue-context-release": "Check bearer lifecycle; verify UPF session anchor consistency.",
+    "other-failure": "Collect RRC logs and UE traces for root cause analysis.",
+    "rlf-report-available": "Review RLF reports; check A3/A5 measurement configuration.",
+    "radio-connection-with-UE-lost": "Check Xn interface and handover configuration between gNBs.",
+    "unknown": "Enable detailed tracing on the affected network function.",
 }
 
 LAYER_RECOMMENDATIONS: Dict[str, str] = {
-    "NAS":  "Review AMF/SMF logs and NAS trace for affected UE.",
+    "NAS": "Review AMF/SMF logs and NAS trace for affected UE.",
     "NGAP": "Check N2 interface and AMF capacity; review NGAP trace.",
-    "RRC":  "Analyse gNB RRC logs; check radio coverage and cell config.",
+    "RRC": "Analyse gNB RRC logs; check radio coverage and cell config.",
     "F1AP": "Inspect F1 interface; verify gNB-DU software and configuration.",
     "E1AP": "Inspect E1 interface; verify gNB-CU-UP reachability.",
     "XnAP": "Check Xn interface configuration between gNBs.",
@@ -71,7 +70,7 @@ SEVERITY_THRESHOLDS = {           # success_rate → severity
     98.0: None,                   # ≥ 98% → clean
     95.0: "Low",
     85.0: "Medium",
-    0.0:  "High",
+    0.0: "High",
 }
 
 
@@ -93,14 +92,14 @@ def _build_anomaly(
         or "Enable detailed tracing on the affected network function."
     )
     return {
-        "type":           f"{proc_name} anomaly",
-        "severity":       severity,
-        "score":          round(score, 3),
-        "detector":       detector,
-        "evidence":       evidence,
-        "procedure":      proc_name,
-        "layer":          stats.get("layer", "?"),
-        "cell_id":        stats.get("cell_id", "—"),
+        "type": f"{proc_name} anomaly",
+        "severity": severity,
+        "score": round(score, 3),
+        "detector": detector,
+        "evidence": evidence,
+        "procedure": proc_name,
+        "layer": stats.get("layer", "?"),
+        "cell_id": stats.get("cell_id", "—"),
         "failure_causes": stats.get("failure_causes", {}),
         "recommendation": rec,
     }
@@ -124,7 +123,7 @@ class IsolationForestDetector:
 
     def __init__(self, contamination: float = 0.15, random_state: int = 42):
         self.contamination = contamination
-        self.random_state  = random_state
+        self.random_state = random_state
 
     def detect(self, parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
         procedures = parsed.get("procedures", {})
@@ -134,7 +133,7 @@ class IsolationForestDetector:
             logger.info("IF: fewer than 3 procedures — skipping")
             return []
 
-        scaler  = StandardScaler()
+        scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
         clf = IsolationForest(
@@ -142,12 +141,12 @@ class IsolationForestDetector:
             random_state=self.random_state,
             n_estimators=200,
         )
-        preds  = clf.fit_predict(X_scaled)   # -1 = anomaly, 1 = normal
+        preds = clf.fit_predict(X_scaled)   # -1 = anomaly, 1 = normal
         raw_scores = clf.score_samples(X_scaled)  # more negative = more anomalous
 
         # Normalise scores to [0, 1]  (1 = most anomalous)
         s_min, s_max = raw_scores.min(), raw_scores.max()
-        norm_scores  = 1.0 - (raw_scores - s_min) / (s_max - s_min + 1e-10)
+        norm_scores = 1.0 - (raw_scores - s_min) / (s_max - s_min + 1e-10)
 
         anomalies = []
         for i, (pred, nscore) in enumerate(zip(preds, norm_scores)):
@@ -155,19 +154,19 @@ class IsolationForestDetector:
                 continue
 
             proc_name = proc_names[i]
-            stats     = procedures[proc_name]
-            fail      = stats["failure"]
-            sr        = stats["success_rate"]
-            causes    = stats.get("failure_causes", {})
+            stats = procedures[proc_name]
+            fail = stats["failure"]
+            sr = stats["success_rate"]
+            causes = stats.get("failure_causes", {})
             top_cause = max(causes, key=causes.get) if causes else ""
 
             # Build human-readable evidence from feature vector
-            feat_vals  = dict(zip(PROC_FEATURE_NAMES, X[i]))
-            ev_parts   = [f"success_rate={sr:.1f}%", f"failures={fail}"]
+            feat_vals = dict(zip(PROC_FEATURE_NAMES, X[i]))
+            ev_parts = [f"success_rate={sr:.1f}%", f"failures={fail}"]
             if feat_vals["timeout_ratio"] > 0:
                 ev_parts.append(f"timeouts={causes.get('timeout', 0)}")
             if feat_vals["top_cause_concentration"] > 0.7:
-                ev_parts.append(f"dominant_cause={top_cause!r} ({causes.get(top_cause,0)}×)")
+                ev_parts.append(f"dominant_cause={top_cause!r} ({causes.get(top_cause, 0)}×)")
             evidence = "; ".join(ev_parts)
 
             severity = "High" if nscore > 0.75 else ("Medium" if nscore > 0.5 else "Low")
@@ -198,9 +197,9 @@ class StatisticalDetector:
     """
 
     # Telecom-grade thresholds (adjust per network SLA)
-    SR_LOW    = 98.0
+    SR_LOW = 98.0
     SR_MEDIUM = 95.0
-    SR_HIGH   = 85.0
+    SR_HIGH = 85.0
     CONCENTRATION_THRESHOLD = 0.80
 
     def detect(self, parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -208,9 +207,9 @@ class StatisticalDetector:
         anomalies: List[Dict[str, Any]] = []
 
         for proc_name, stats in procedures.items():
-            sr     = stats["success_rate"]
-            fail   = stats["failure"]
-            att    = stats["attempts"]
+            sr = stats["success_rate"]
+            fail = stats["failure"]
+            att = stats["attempts"]
             causes = stats.get("failure_causes", {})
 
             # R1 — success rate threshold
@@ -225,8 +224,8 @@ class StatisticalDetector:
 
             if severity:
                 top_cause = max(causes, key=causes.get) if causes else "unknown"
-                score     = round(1.0 - sr / 100.0, 3)
-                evidence  = (
+                score = round(1.0 - sr / 100.0, 3)
+                evidence = (
                     f"success_rate={sr:.1f}% "
                     f"({fail}/{att} failures)"
                     + (f"; top_cause={top_cause!r}" if causes else "")
@@ -283,24 +282,24 @@ class StatisticalDetector:
             ("F1AP_UEContextSetup", "F1AP_DLRRCMessageTransfer"),
         ]
         for upstream, downstream in CHAIN:
-            up   = procedures.get(upstream)
+            up = procedures.get(upstream)
             down = procedures.get(downstream)
             if not up or not down:
                 continue
             up_fail_rate = up["failure"] / max(up["attempts"], 1)
             if up_fail_rate > 0.20 and down["attempts"] > 0:
                 anomalies.append({
-                    "type":           f"Cascading failure: {upstream} → {downstream}",
-                    "severity":       "Medium",
-                    "score":          round(up_fail_rate, 3),
-                    "detector":       "Statistical (cascade rule)",
-                    "evidence":       (
-                        f"{upstream} failure_rate={up_fail_rate*100:.0f}% "
+                    "type": f"Cascading failure: {upstream} → {downstream}",
+                    "severity": "Medium",
+                    "score": round(up_fail_rate, 3),
+                    "detector": "Statistical (cascade rule)",
+                    "evidence": (
+                        f"{upstream} failure_rate={up_fail_rate * 100:.0f}% "
                         f"while {downstream} still has {down['attempts']} attempts"
                     ),
-                    "procedure":      upstream,
-                    "layer":          up.get("layer", "?"),
-                    "cell_id":        up.get("cell_id", "—"),
+                    "procedure": upstream,
+                    "layer": up.get("layer", "?"),
+                    "cell_id": up.get("cell_id", "—"),
                     "failure_causes": up.get("failure_causes", {}),
                     "recommendation": (
                         f"Investigate {upstream} failures first; "
@@ -324,17 +323,17 @@ class _LSTMAutoencoder(nn.Module):
     def __init__(self, n_features: int = 4, hidden: int = 32, n_layers: int = 1):
         super().__init__()
         self.n_features = n_features
-        self.hidden     = hidden
-        self.encoder    = nn.LSTM(n_features, hidden, n_layers, batch_first=True)
-        self.decoder    = nn.LSTM(hidden,     hidden, n_layers, batch_first=True)
-        self.output     = nn.Linear(hidden, n_features)
+        self.hidden = hidden
+        self.encoder = nn.LSTM(n_features, hidden, n_layers, batch_first=True)
+        self.decoder = nn.LSTM(hidden, hidden, n_layers, batch_first=True)
+        self.output = nn.Linear(hidden, n_features)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (batch, seq_len, n_features)
         _, (h, c) = self.encoder(x)
         # Repeat hidden state seq_len times to feed decoder
-        seq_len  = x.size(1)
-        dec_in   = h[-1].unsqueeze(1).repeat(1, seq_len, 1)
+        seq_len = x.size(1)
+        dec_in = h[-1].unsqueeze(1).repeat(1, seq_len, 1)
         dec_out, _ = self.decoder(dec_in, (h, c))
         return self.output(dec_out)   # (batch, seq_len, n_features)
 
@@ -353,16 +352,16 @@ class LSTMAutoencoderDetector:
 
     def __init__(
         self,
-        hidden:  int   = 32,
-        epochs:  int   = 60,
-        lr:      float = 1e-3,
-        window:  int   = WINDOW_SIZE,
+        hidden: int = 32,
+        epochs: int = 60,
+        lr: float = 1e-3,
+        window: int = WINDOW_SIZE,
         z_score: float = 2.0,          # flag windows > mean + z*std
     ):
-        self.hidden  = hidden
-        self.epochs  = epochs
-        self.lr      = lr
-        self.window  = window
+        self.hidden = hidden
+        self.epochs = epochs
+        self.lr = lr
+        self.window = window
         self.z_score = z_score
 
     def detect(self, parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -373,8 +372,8 @@ class LSTMAutoencoderDetector:
             return []
 
         n_feat = windows.shape[2]
-        model  = _LSTMAutoencoder(n_features=n_feat, hidden=self.hidden)
-        opt    = torch.optim.Adam(model.parameters(), lr=self.lr)
+        model = _LSTMAutoencoder(n_features=n_feat, hidden=self.hidden)
+        opt = torch.optim.Adam(model.parameters(), lr=self.lr)
         loss_fn = nn.MSELoss()
 
         X = torch.tensor(windows)      # (N, W, F)
@@ -384,11 +383,11 @@ class LSTMAutoencoderDetector:
         for epoch in range(self.epochs):
             opt.zero_grad()
             recon = model(X)
-            loss  = loss_fn(recon, X)
+            loss = loss_fn(recon, X)
             loss.backward()
             opt.step()
             if (epoch + 1) % 20 == 0:
-                logger.info(f"LSTM-AE epoch {epoch+1}/{self.epochs} loss={loss.item():.5f}")
+                logger.info(f"LSTM-AE epoch {epoch + 1}/{self.epochs} loss={loss.item():.5f}")
 
         # ── Inference ────────────────────────────────────────────────
         model.eval()
@@ -412,23 +411,23 @@ class LSTMAutoencoderDetector:
                 continue
 
             proc_name = m["procedure"]
-            stats     = procedures.get(proc_name, {})
-            score     = round(float(err / (threshold + 1e-10)), 3)
-            severity  = "High" if score > 2.0 else ("Medium" if score > 1.5 else "Low")
+            stats = procedures.get(proc_name, {})
+            score = round(float(err / (threshold + 1e-10)), 3)
+            severity = "High" if score > 2.0 else ("Medium" if score > 1.5 else "Low")
 
             anomalies.append({
-                "type":           f"Anomalous message sequence near {proc_name}",
-                "severity":       severity,
-                "score":          min(score, 1.0),
-                "detector":       "LSTM Autoencoder",
-                "evidence":       (
+                "type": f"Anomalous message sequence near {proc_name}",
+                "severity": severity,
+                "score": min(score, 1.0),
+                "detector": "LSTM Autoencoder",
+                "evidence": (
                     f"Window {i} (events {m['start_idx']}–{m['end_idx']}): "
                     f"reconstruction_error={err:.5f} > threshold={threshold:.5f}; "
                     f"layer={m['layer']} procedure={m['procedure']} role={m['role']}"
                 ),
-                "procedure":      proc_name,
-                "layer":          m.get("layer", "?"),
-                "cell_id":        stats.get("cell_id", "—"),
+                "procedure": proc_name,
+                "layer": m.get("layer", "?"),
+                "cell_id": stats.get("cell_id", "—"),
                 "failure_causes": stats.get("failure_causes", {}),
                 "recommendation": (
                     LAYER_RECOMMENDATIONS.get(m.get("layer", ""), "")
@@ -457,7 +456,7 @@ class OneClassSVMDetector:
     """
 
     def __init__(self, nu: float = 0.15, kernel: str = "rbf"):
-        self.nu     = nu
+        self.nu = nu
         self.kernel = kernel
 
     def detect(self, parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -468,25 +467,25 @@ class OneClassSVMDetector:
             logger.info("OC-SVM: fewer than 3 procedures — skipping")
             return []
 
-        scaler   = StandardScaler()
+        scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        clf    = OneClassSVM(nu=self.nu, kernel=self.kernel, gamma="scale")
-        preds  = clf.fit_predict(X_scaled)         # -1 = anomaly
+        clf = OneClassSVM(nu=self.nu, kernel=self.kernel, gamma="scale")
+        preds = clf.fit_predict(X_scaled)         # -1 = anomaly
         scores = clf.decision_function(X_scaled)   # more negative = more anomalous
 
         s_min, s_max = scores.min(), scores.max()
-        norm_scores  = 1.0 - (scores - s_min) / (s_max - s_min + 1e-10)
+        norm_scores = 1.0 - (scores - s_min) / (s_max - s_min + 1e-10)
 
         anomalies = []
         for i, (pred, nscore) in enumerate(zip(preds, norm_scores)):
             if pred != -1:
                 continue
             proc_name = proc_names[i]
-            stats     = procedures[proc_name]
-            sr        = stats["success_rate"]
-            fail      = stats["failure"]
-            causes    = stats.get("failure_causes", {})
+            stats = procedures[proc_name]
+            sr = stats["success_rate"]
+            fail = stats["failure"]
+            causes = stats.get("failure_causes", {})
             top_cause = max(causes, key=causes.get) if causes else ""
 
             severity = "High" if nscore > 0.75 else ("Medium" if nscore > 0.5 else "Low")
@@ -522,7 +521,7 @@ class LOFDetector:
     """
 
     def __init__(self, n_neighbors: int = 5, contamination: float = 0.15):
-        self.n_neighbors   = n_neighbors
+        self.n_neighbors = n_neighbors
         self.contamination = contamination
 
     def detect(self, parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -534,28 +533,28 @@ class LOFDetector:
             return []
 
         n_neighbors = min(self.n_neighbors, len(proc_names) - 1)
-        scaler      = StandardScaler()
-        X_scaled    = scaler.fit_transform(X)
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
 
-        clf   = LocalOutlierFactor(
+        clf = LocalOutlierFactor(
             n_neighbors=n_neighbors,
             contamination=self.contamination,
         )
-        preds      = clf.fit_predict(X_scaled)        # -1 = anomaly
+        preds = clf.fit_predict(X_scaled)        # -1 = anomaly
         lof_scores = -clf.negative_outlier_factor_    # higher = more anomalous
 
         s_min, s_max = lof_scores.min(), lof_scores.max()
-        norm_scores  = (lof_scores - s_min) / (s_max - s_min + 1e-10)
+        norm_scores = (lof_scores - s_min) / (s_max - s_min + 1e-10)
 
         anomalies = []
         for i, (pred, nscore) in enumerate(zip(preds, norm_scores)):
             if pred != -1:
                 continue
             proc_name = proc_names[i]
-            stats     = procedures[proc_name]
-            sr        = stats["success_rate"]
-            fail      = stats["failure"]
-            causes    = stats.get("failure_causes", {})
+            stats = procedures[proc_name]
+            sr = stats["success_rate"]
+            fail = stats["failure"]
+            causes = stats.get("failure_causes", {})
             top_cause = max(causes, key=causes.get) if causes else ""
 
             severity = "High" if nscore > 0.75 else ("Medium" if nscore > 0.5 else "Low")
@@ -605,14 +604,14 @@ class EllipticEnvelopeDetector:
             )
             return []
 
-        scaler   = StandardScaler()
+        scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
         import warnings
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")   # MCD convergence noise on small samples
-                clf   = EllipticEnvelope(contamination=self.contamination, random_state=42)
+                clf = EllipticEnvelope(contamination=self.contamination, random_state=42)
                 preds = clf.fit_predict(X_scaled)
                 mahal = clf.mahalanobis(X_scaled)
         except Exception as e:
@@ -620,23 +619,23 @@ class EllipticEnvelopeDetector:
             return []
 
         s_min, s_max = mahal.min(), mahal.max()
-        norm_scores  = (mahal - s_min) / (s_max - s_min + 1e-10)
+        norm_scores = (mahal - s_min) / (s_max - s_min + 1e-10)
 
         anomalies = []
         for i, (pred, nscore) in enumerate(zip(preds, norm_scores)):
             if pred != -1:
                 continue
             proc_name = proc_names[i]
-            stats     = procedures[proc_name]
-            sr        = stats["success_rate"]
-            fail      = stats["failure"]
-            causes    = stats.get("failure_causes", {})
+            stats = procedures[proc_name]
+            sr = stats["success_rate"]
+            fail = stats["failure"]
+            causes = stats.get("failure_causes", {})
             top_cause = max(causes, key=causes.get) if causes else ""
 
             severity = "High" if nscore > 0.75 else ("Medium" if nscore > 0.5 else "Low")
             evidence = (
                 f"success_rate={sr:.1f}%; failures={fail}; "
-                f"Mahalanobis²={mahal[i]:.2f} (outside {int((1-self.contamination)*100)}th-pct Gaussian envelope)"
+                f"Mahalanobis²={mahal[i]:.2f} (outside {int((1 - self.contamination) * 100)}th-pct Gaussian envelope)"
             )
             anomalies.append(
                 _build_anomaly(proc_name, stats, severity, nscore,

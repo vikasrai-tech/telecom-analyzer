@@ -29,38 +29,38 @@ from typing import Any, Dict, List, Tuple
 # ── Layer registry ────────────────────────────────────────────────────
 
 LAYER_RANK: Dict[str, int] = {
-    "PHY":   0,
-    "L1":    0,
-    "MAC":   1,
-    "RLC":   1,
-    "PDCP":  1,
-    "L2":    1,
+    "PHY": 0,
+    "L1": 0,
+    "MAC": 1,
+    "RLC": 1,
+    "PDCP": 1,
+    "L2": 1,
     "STATS": 1,   # stats source default when no PHY-ish keyword matches
-    "RRC":   2,
-    "F1AP":  3,
-    "E1AP":  4,
-    "XNAP":  5,
-    "NGAP":  6,
-    "NAS":   7,
-    "KPI":   8,
-    "?":     5,   # unknown -> mid-stack
+    "RRC": 2,
+    "F1AP": 3,
+    "E1AP": 4,
+    "XNAP": 5,
+    "NGAP": 6,
+    "NAS": 7,
+    "KPI": 8,
+    "?": 5,   # unknown -> mid-stack
 }
 
 LAYER_LABELS: Dict[str, str] = {
-    "PHY":   "Physical Layer (RF)",
-    "L1":    "Physical Layer (RF)",
-    "MAC":   "MAC/RLC/PDCP (L2)",
-    "RLC":   "MAC/RLC/PDCP (L2)",
-    "PDCP":  "MAC/RLC/PDCP (L2)",
-    "L2":    "MAC/RLC/PDCP (L2)",
+    "PHY": "Physical Layer (RF)",
+    "L1": "Physical Layer (RF)",
+    "MAC": "MAC/RLC/PDCP (L2)",
+    "RLC": "MAC/RLC/PDCP (L2)",
+    "PDCP": "MAC/RLC/PDCP (L2)",
+    "L2": "MAC/RLC/PDCP (L2)",
     "STATS": "DU/CU Statistics (L2)",
-    "RRC":   "RRC (TS 38.331)",
-    "F1AP":  "F1AP (TS 38.473)",
-    "E1AP":  "E1AP (TS 38.463)",
-    "XNAP":  "XnAP (TS 38.423)",
-    "NGAP":  "NGAP (TS 38.413)",
-    "NAS":   "NAS (TS 24.501)",
-    "KPI":   "KPI (aggregate)",
+    "RRC": "RRC (TS 38.331)",
+    "F1AP": "F1AP (TS 38.473)",
+    "E1AP": "E1AP (TS 38.463)",
+    "XNAP": "XnAP (TS 38.423)",
+    "NGAP": "NGAP (TS 38.413)",
+    "NAS": "NAS (TS 24.501)",
+    "KPI": "KPI (aggregate)",
 }
 
 _PHY_KEYWORDS = ("bler", "snr", "rsrp", "rsrq", "pusch", "pucch", "cqi")
@@ -92,7 +92,7 @@ class CausalRule:
     name: str
     description: str
     root_layer: str          # layer of the root cause (key into LAYER_RANK)
-    effect_layers: List[str] # layers this cause can propagate to
+    effect_layers: List[str]  # layers this cause can propagate to
     keywords: List[str]      # matched against category/evidence/metric text
     confidence: float        # base confidence [0, 1]
     spec_ref: str            # 3GPP spec reference (fallback if RAG retrieval is empty)

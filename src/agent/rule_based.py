@@ -57,9 +57,9 @@ def rule_based_root_cause(
         for c in chunks:
             if c.get("spec"):
                 citations.append({
-                    "spec":    c.get("spec", ""),
+                    "spec": c.get("spec", ""),
                     "section": c.get("section", ""),
-                    "quote":   c.get("text", "")[:150].rstrip(".") + ".",
+                    "quote": c.get("text", "")[:150].rstrip(".") + ".",
                 })
 
     # Events strictly between the root and the last hop are contributing

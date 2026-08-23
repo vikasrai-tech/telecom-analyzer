@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 # TDD: DL=1400, UL=100   |   FDD: DL=84, UL=50
 CHANNEL_TYPE_CAPACITY: Dict[str, Dict[str, float]] = {
     "TDD": {"dl": 1400.0, "ul": 100.0},
-    "FDD": {"dl":   84.0, "ul":  50.0},
+    "FDD": {"dl": 84.0, "ul": 50.0},
 }
 
 # ── Throughput KPI classification ─────────────────────────────────────────────
@@ -69,8 +69,8 @@ CHANNEL_TYPE_CAPACITY: Dict[str, Dict[str, float]] = {
 # Only KPIs listed here receive capacity normalization; everything else
 # passes through unchanged.
 THROUGHPUT_KPI_TYPE: Dict[str, str] = {
-    "DL_Throughput_Mbps":          "dl",
-    "UL_Throughput_Mbps":          "ul",
+    "DL_Throughput_Mbps": "dl",
+    "UL_Throughput_Mbps": "ul",
     "Cell_MAC_DL_Throughput_Mbps": "dl",
     "Cell_MAC_UL_Throughput_Mbps": "ul",
 }
@@ -87,12 +87,12 @@ _TDD_DL_CAP = CHANNEL_TYPE_CAPACITY["TDD"]["dl"]   # 1400.0
 _TDD_UL_CAP = CHANNEL_TYPE_CAPACITY["TDD"]["ul"]   # 100.0
 NORMALIZED_THRESHOLDS: Dict[str, Dict[str, float]] = {
     "dl": {
-        "warning":  round(100.0 / _TDD_DL_CAP * 100, 4),   # 7.1429 %
-        "critical": round( 50.0 / _TDD_DL_CAP * 100, 4),   # 3.5714 %
+        "warning": round(100.0 / _TDD_DL_CAP * 100, 4),   # 7.1429 %
+        "critical": round(50.0 / _TDD_DL_CAP * 100, 4),   # 3.5714 %
     },
     "ul": {
-        "warning":  round( 50.0 / _TDD_UL_CAP * 100, 4),   # 50.0 %
-        "critical": round( 20.0 / _TDD_UL_CAP * 100, 4),   # 20.0 %
+        "warning": round(50.0 / _TDD_UL_CAP * 100, 4),   # 50.0 %
+        "critical": round(20.0 / _TDD_UL_CAP * 100, 4),   # 20.0 %
     },
 }
 
@@ -149,7 +149,7 @@ def build_capacity_map(
         if not cell or cell in capacity_map:
             continue
         ctype = row.get(channel_type_col)
-        cap   = get_cell_capacity(ctype)
+        cap = get_cell_capacity(ctype)
         if cap is not None:
             capacity_map[cell] = cap
     logger.debug(f"Built capacity map for {len(capacity_map)} cells: {list(capacity_map)[:4]}…")
@@ -210,11 +210,11 @@ def normalize_throughput(
     normalized_pct = (raw_value / cap_mbps) * 100.0
 
     return {
-        "raw_value":       raw_value,
-        "capacity_mbps":   cap_mbps,
-        "normalized_pct":  round(normalized_pct, 4),
+        "raw_value": raw_value,
+        "capacity_mbps": cap_mbps,
+        "normalized_pct": round(normalized_pct, 4),
         "normalized_unit": "% of capacity",
-        "direction":       direction,
+        "direction": direction,
         "thresholds": NORMALIZED_THRESHOLDS[direction],
     }
 
@@ -288,10 +288,10 @@ def is_throughput_kpi(kpi_name: str) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _UL_MIN_PRB_FOR_CHECK: float = 5.0
-_UL_EFFICIENCY_WARN:   float = 0.50
-_UL_EFFICIENCY_CRIT:   float = 0.20
-_UL_FLOOR_WARN_PCT:    float = 5.0
-_UL_FLOOR_CRIT_PCT:    float = 2.0
+_UL_EFFICIENCY_WARN: float = 0.50
+_UL_EFFICIENCY_CRIT: float = 0.20
+_UL_FLOOR_WARN_PCT: float = 5.0
+_UL_FLOOR_CRIT_PCT: float = 2.0
 
 
 def load_aware_ul_severity(
@@ -326,9 +326,9 @@ def load_aware_ul_severity(
         pass
 
     if use_prb:
-        efficiency   = normalized_pct / prb_val
-        dyn_warn     = max(_UL_FLOOR_WARN_PCT, prb_val * _UL_EFFICIENCY_WARN)
-        dyn_crit     = max(_UL_FLOOR_CRIT_PCT, prb_val * _UL_EFFICIENCY_CRIT)
+        efficiency = normalized_pct / prb_val
+        dyn_warn = max(_UL_FLOOR_WARN_PCT, prb_val * _UL_EFFICIENCY_WARN)
+        dyn_crit = max(_UL_FLOOR_CRIT_PCT, prb_val * _UL_EFFICIENCY_CRIT)
 
         if normalized_pct <= dyn_crit:
             note = (

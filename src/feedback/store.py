@@ -43,33 +43,33 @@ def _ensure_store(path: Path) -> None:
 
 
 def save_feedback(
-    event_id:     str,
-    source:       str,
+    event_id: str,
+    source: str,
     anomaly_type: str,
-    severity:     str,
-    detector:     str,
-    cell_id:      str,
-    evidence:     str,
-    verdict:      str,                    # correct | false_positive | uncertain
-    comment:      str = "",
-    session_id:   str = "",
-    store_path:   Path = DEFAULT_STORE,
+    severity: str,
+    detector: str,
+    cell_id: str,
+    evidence: str,
+    verdict: str,                    # correct | false_positive | uncertain
+    comment: str = "",
+    session_id: str = "",
+    store_path: Path = DEFAULT_STORE,
 ) -> Dict[str, Any]:
     """Append one feedback record. Returns the saved record."""
     _ensure_store(store_path)
     record = {
-        "feedback_id":  str(uuid.uuid4())[:12],
-        "timestamp":    datetime.now(timezone.utc).isoformat(),
-        "session_id":   session_id,
-        "event_id":     event_id,
-        "source":       source,
+        "feedback_id": str(uuid.uuid4())[:12],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "session_id": session_id,
+        "event_id": event_id,
+        "source": source,
         "anomaly_type": anomaly_type,
-        "severity":     severity,
-        "detector":     detector,
-        "cell_id":      cell_id,
-        "verdict":      verdict,
-        "comment":      comment,
-        "evidence":     evidence[:200],
+        "severity": severity,
+        "detector": detector,
+        "cell_id": cell_id,
+        "verdict": verdict,
+        "comment": comment,
+        "evidence": evidence[:200],
     }
     with open(store_path, "a") as f:
         f.write(json.dumps(record) + "\n")
@@ -107,8 +107,8 @@ def feedback_stats(store_path: Path = DEFAULT_STORE) -> Dict[str, Any]:
         }
 
     verdicts = [r["verdict"] for r in records]
-    correct   = verdicts.count("correct")
-    fp        = verdicts.count("false_positive")
+    correct = verdicts.count("correct")
+    fp = verdicts.count("false_positive")
     uncertain = verdicts.count("uncertain")
     precision = round(correct / (correct + fp), 3) if (correct + fp) > 0 else None
 
@@ -124,11 +124,11 @@ def feedback_stats(store_path: Path = DEFAULT_STORE) -> Dict[str, Any]:
         by_src[s][v] = by_src[s].get(v, 0) + 1
 
     return {
-        "total":        len(records),
-        "correct":      correct,
+        "total": len(records),
+        "correct": correct,
         "false_positive": fp,
-        "uncertain":    uncertain,
-        "precision":    precision,
-        "by_detector":  by_det,
-        "by_source":    by_src,
+        "uncertain": uncertain,
+        "precision": precision,
+        "by_detector": by_det,
+        "by_source": by_src,
     }

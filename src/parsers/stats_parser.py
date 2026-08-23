@@ -35,41 +35,41 @@ logger = logging.getLogger(__name__)
 # ── Canonical column definitions ─────────────────────────────────────
 # (canonical_name, unit, description)
 L1L2_META: Dict[str, Dict] = {
-    "dl_prb_util":      {"unit": "%",    "desc": "DL PRB Utilisation",       "warning": 80,  "critical": 90},
-    "ul_prb_util":      {"unit": "%",    "desc": "UL PRB Utilisation",       "warning": 80,  "critical": 90},
-    "dl_bler":          {"unit": "%",    "desc": "DL Block Error Rate",       "warning": 10,  "critical": 20},
-    "ul_bler":          {"unit": "%",    "desc": "UL Block Error Rate",       "warning": 10,  "critical": 20},
-    "dl_mcs":           {"unit": "idx",  "desc": "DL Modulation Coding Scheme", "warning": 6, "critical": 4},
-    "ul_mcs":           {"unit": "idx",  "desc": "UL Modulation Coding Scheme", "warning": 6, "critical": 4},
-    "dl_harq_nack_rate":{"unit": "%",    "desc": "DL HARQ NACK Rate",         "warning": 15,  "critical": 25},
-    "ul_harq_nack_rate":{"unit": "%",    "desc": "UL HARQ NACK Rate",         "warning": 15,  "critical": 25},
-    "dl_throughput_mbps":{"unit": "Mbps","desc": "DL Throughput",             "warning": None,"critical": None},
-    "ul_throughput_mbps":{"unit": "Mbps","desc": "UL Throughput",             "warning": None,"critical": None},
-    "pusch_snr_db":     {"unit": "dB",   "desc": "UL PUSCH SINR",             "warning": 5,   "critical": 0},
-    "pucch_snr_db":     {"unit": "dB",   "desc": "UL PUCCH SINR",             "warning": 5,   "critical": 0},
-    "snr_db":           {"unit": "dB",   "desc": "SNR",                       "warning": 5,   "critical": 0},
-    "rsrp_dbm":         {"unit": "dBm",  "desc": "Reference Signal Received Power","warning":-105,"critical":-115},
-    "rsrq_db":          {"unit": "dB",   "desc": "Reference Signal Received Quality","warning":-14,"critical":-18},
-    "nof_ue":           {"unit": "count","desc": "Active UE Count",            "warning": None,"critical": None},
-    "dl_harq_nack":          {"unit": "count","desc": "DL HARQ NACK count (raw)",         "warning": None, "critical": None},
-    "ul_harq_nack":          {"unit": "count","desc": "UL HARQ NACK count (raw)",         "warning": None, "critical": None},
+    "dl_prb_util": {"unit": "%", "desc": "DL PRB Utilisation", "warning": 80, "critical": 90},
+    "ul_prb_util": {"unit": "%", "desc": "UL PRB Utilisation", "warning": 80, "critical": 90},
+    "dl_bler": {"unit": "%", "desc": "DL Block Error Rate", "warning": 10, "critical": 20},
+    "ul_bler": {"unit": "%", "desc": "UL Block Error Rate", "warning": 10, "critical": 20},
+    "dl_mcs": {"unit": "idx", "desc": "DL Modulation Coding Scheme", "warning": 6, "critical": 4},
+    "ul_mcs": {"unit": "idx", "desc": "UL Modulation Coding Scheme", "warning": 6, "critical": 4},
+    "dl_harq_nack_rate": {"unit": "%", "desc": "DL HARQ NACK Rate", "warning": 15, "critical": 25},
+    "ul_harq_nack_rate": {"unit": "%", "desc": "UL HARQ NACK Rate", "warning": 15, "critical": 25},
+    "dl_throughput_mbps": {"unit": "Mbps", "desc": "DL Throughput", "warning": None, "critical": None},
+    "ul_throughput_mbps": {"unit": "Mbps", "desc": "UL Throughput", "warning": None, "critical": None},
+    "pusch_snr_db": {"unit": "dB", "desc": "UL PUSCH SINR", "warning": 5, "critical": 0},
+    "pucch_snr_db": {"unit": "dB", "desc": "UL PUCCH SINR", "warning": 5, "critical": 0},
+    "snr_db": {"unit": "dB", "desc": "SNR", "warning": 5, "critical": 0},
+    "rsrp_dbm": {"unit": "dBm", "desc": "Reference Signal Received Power", "warning": -105, "critical": -115},
+    "rsrq_db": {"unit": "dB", "desc": "Reference Signal Received Quality", "warning": -14, "critical": -18},
+    "nof_ue": {"unit": "count", "desc": "Active UE Count", "warning": None, "critical": None},
+    "dl_harq_nack": {"unit": "count", "desc": "DL HARQ NACK count (raw)", "warning": None, "critical": None},
+    "ul_harq_nack": {"unit": "count", "desc": "UL HARQ NACK count (raw)", "warning": None, "critical": None},
     # Derived — Method 4 (rolling baseline delta)
-    "dl_prb_util_baseline_delta": {"unit": "%", "desc": "DL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},
-    "ul_prb_util_baseline_delta": {"unit": "%", "desc": "UL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},
-    "dl_bler_baseline_delta":     {"unit": "%", "desc": "DL BLER delta from rolling mean",        "warning": 5,  "critical": 10},
-    "ul_bler_baseline_delta":     {"unit": "%", "desc": "UL BLER delta from rolling mean",        "warning": 5,  "critical": 10},
-    "prb_baseline_delta":         {"unit": "%", "desc": "DL PRB utilisation vs rolling baseline", "warning": 15, "critical": 25},
+    "dl_prb_util_baseline_delta": {"unit": "%", "desc": "DL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},  # noqa: E501
+    "ul_prb_util_baseline_delta": {"unit": "%", "desc": "UL PRB delta from 60-row rolling mean", "warning": 15, "critical": 25},  # noqa: E501
+    "dl_bler_baseline_delta": {"unit": "%", "desc": "DL BLER delta from rolling mean", "warning": 5, "critical": 10},
+    "ul_bler_baseline_delta": {"unit": "%", "desc": "UL BLER delta from rolling mean", "warning": 5, "critical": 10},
+    "prb_baseline_delta": {"unit": "%", "desc": "DL PRB utilisation vs rolling baseline", "warning": 15, "critical": 25},  # noqa: E501
     # Derived — Method 6 (feature engineering)
-    "congestion_score":  {"unit": "binary","desc": "PRB>80% AND BLER>5% simultaneously", "warning": 0.5, "critical": 1.0},
-    "hour_of_day":       {"unit": "h",    "desc": "Hour of day (0-23) — time context",   "warning": None, "critical": None},
-    "day_of_week":       {"unit": "day",  "desc": "Day of week (0=Mon, 6=Sun)",           "warning": None, "critical": None},
+    "congestion_score": {"unit": "binary", "desc": "PRB>80% AND BLER>5% simultaneously", "warning": 0.5, "critical": 1.0},  # noqa: E501
+    "hour_of_day": {"unit": "h", "desc": "Hour of day (0-23) — time context", "warning": None, "critical": None},
+    "day_of_week": {"unit": "day", "desc": "Day of week (0=Mon, 6=Sun)", "warning": None, "critical": None},
 }
 
 # ── Format fingerprints ───────────────────────────────────────────────
-_SRSRAN_KEYS  = {"dl_nof_ok", "dl_nof_nok", "ul_nof_ok", "ul_nof_nok",
-                 "pusch_snr_db", "dl_brate", "ul_brate", "pci"}
-_OAI_KEYS     = {"dlsch_total", "dlsch_errors", "dl_mcs1", "prb_dl", "snr"}
-_NIST_KEYS    = {"rsrp_dbm", "dl_bler_pct", "prb_utilization_pct", "harq_nack_dl"}
+_SRSRAN_KEYS = {"dl_nof_ok", "dl_nof_nok", "ul_nof_ok", "ul_nof_nok",
+                "pusch_snr_db", "dl_brate", "ul_brate", "pci"}
+_OAI_KEYS = {"dlsch_total", "dlsch_errors", "dl_mcs1", "prb_dl", "snr"}
+_NIST_KEYS = {"rsrp_dbm", "dl_bler_pct", "prb_utilization_pct", "harq_nack_dl"}
 
 
 def _detect_format(cols: List[str]) -> str:
@@ -94,7 +94,7 @@ def _find_col(df: pd.DataFrame, candidates: List[str]) -> str:
 
 def _normalize_srsran(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
     """Map srsRAN columns → canonical names. Returns (df, ts_col, cell_col)."""
-    ts_col   = _find_col(df, ["timestamp", "time", "t"])
+    ts_col = _find_col(df, ["timestamp", "time", "t"])
     cell_col = _find_col(df, ["pci", "cell_id", "cell"])
 
     rename: Dict[str, str] = {}
@@ -115,18 +115,18 @@ def _normalize_srsran(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
             rename[ul_prb] = "ul_prb_util"
 
     # BLER from HARQ ok/nok counts
-    dl_ok  = _find_col(df, ["dl_nof_ok"])
+    dl_ok = _find_col(df, ["dl_nof_ok"])
     dl_nok = _find_col(df, ["dl_nof_nok"])
-    ul_ok  = _find_col(df, ["ul_nof_ok"])
+    ul_ok = _find_col(df, ["ul_nof_ok"])
     ul_nok = _find_col(df, ["ul_nof_nok"])
     if dl_ok and dl_nok:
         total = df[dl_ok] + df[dl_nok]
-        df["dl_bler"]          = (df[dl_nok] / total.replace(0, np.nan) * 100).round(2)
-        df["dl_harq_nack_rate"]= df["dl_bler"]
+        df["dl_bler"] = (df[dl_nok] / total.replace(0, np.nan) * 100).round(2)
+        df["dl_harq_nack_rate"] = df["dl_bler"]
     if ul_ok and ul_nok:
         total = df[ul_ok] + df[ul_nok]
-        df["ul_bler"]          = (df[ul_nok] / total.replace(0, np.nan) * 100).round(2)
-        df["ul_harq_nack_rate"]= df["ul_bler"]
+        df["ul_bler"] = (df[ul_nok] / total.replace(0, np.nan) * 100).round(2)
+        df["ul_harq_nack_rate"] = df["ul_bler"]
 
     # MCS
     for src, dst in [("dl_mcs", "dl_mcs"), ("ul_mcs", "ul_mcs")]:
@@ -159,7 +159,7 @@ def _normalize_srsran(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
 
 
 def _normalize_oai(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
-    ts_col   = _find_col(df, ["timestamp", "time"])
+    ts_col = _find_col(df, ["timestamp", "time"])
     cell_col = _find_col(df, ["cell_id", "cell", "ue_id", "imsi"])
 
     rename: Dict[str, str] = {}
@@ -212,24 +212,24 @@ def _normalize_oai(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
 
 
 def _normalize_nist(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
-    ts_col   = _find_col(df, ["Time", "timestamp", "time"])
+    ts_col = _find_col(df, ["Time", "timestamp", "time"])
     cell_col = _find_col(df, ["Cell", "cell_id", "cell", "IMSI"])
 
     rename: Dict[str, str] = {}
 
     mappings = [
-        (["RSRP_dBm", "rsrp_dbm", "RSRP"],                 "rsrp_dbm"),
-        (["RSRQ_dB",  "rsrq_db",  "RSRQ"],                 "rsrq_db"),
-        (["SNR_dB",   "snr_db",   "SNR"],                   "snr_db"),
-        (["DL_BLER_pct", "DL_BLER", "dl_bler"],             "dl_bler"),
-        (["UL_BLER_pct", "UL_BLER", "ul_bler"],             "ul_bler"),
-        (["PRB_Utilization_pct", "PRB_util", "prb_util"],   "dl_prb_util"),
-        (["DL_MCS", "dl_mcs"],                              "dl_mcs"),
-        (["UL_MCS", "ul_mcs"],                              "ul_mcs"),
-        (["DL_Throughput_Mbps", "dl_throughput"],           "dl_throughput_mbps"),
-        (["UL_Throughput_Mbps", "ul_throughput"],           "ul_throughput_mbps"),
-        (["HARQ_NACK_DL", "harq_nack_dl"],                  "dl_harq_nack"),
-        (["HARQ_NACK_UL", "harq_nack_ul"],                  "ul_harq_nack"),
+        (["RSRP_dBm", "rsrp_dbm", "RSRP"], "rsrp_dbm"),
+        (["RSRQ_dB", "rsrq_db", "RSRQ"], "rsrq_db"),
+        (["SNR_dB", "snr_db", "SNR"], "snr_db"),
+        (["DL_BLER_pct", "DL_BLER", "dl_bler"], "dl_bler"),
+        (["UL_BLER_pct", "UL_BLER", "ul_bler"], "ul_bler"),
+        (["PRB_Utilization_pct", "PRB_util", "prb_util"], "dl_prb_util"),
+        (["DL_MCS", "dl_mcs"], "dl_mcs"),
+        (["UL_MCS", "ul_mcs"], "ul_mcs"),
+        (["DL_Throughput_Mbps", "dl_throughput"], "dl_throughput_mbps"),
+        (["UL_Throughput_Mbps", "ul_throughput"], "ul_throughput_mbps"),
+        (["HARQ_NACK_DL", "harq_nack_dl"], "dl_harq_nack"),
+        (["HARQ_NACK_UL", "harq_nack_ul"], "ul_harq_nack"),
     ]
     for candidates, canonical in mappings:
         col = _find_col(df, candidates)
@@ -246,7 +246,7 @@ def _normalize_nist(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
 
 
 def _normalize_generic(df: pd.DataFrame) -> Tuple[pd.DataFrame, str, str]:
-    ts_col   = _find_col(df, ["timestamp", "time", "Time", "date"])
+    ts_col = _find_col(df, ["timestamp", "time", "Time", "date"])
     cell_col = _find_col(df, ["cell_id", "cell", "pci", "enb_id", "gnb_id"])
     # Best-effort: return as-is; detection will skip unknown columns
     return df, ts_col, cell_col
@@ -318,12 +318,12 @@ def _summary(df: pd.DataFrame, cols: List[str]) -> Dict[str, Any]:
         if s.empty:
             continue
         out[col] = {
-            "min":  round(float(s.min()),  3),
-            "max":  round(float(s.max()),  3),
+            "min": round(float(s.min()), 3),
+            "max": round(float(s.max()), 3),
             "mean": round(float(s.mean()), 3),
-            "std":  round(float(s.std()),  3),
-            "p10":  round(float(s.quantile(0.10)), 3),
-            "p90":  round(float(s.quantile(0.90)), 3),
+            "std": round(float(s.std()), 3),
+            "p10": round(float(s.quantile(0.10)), 3),
+            "p90": round(float(s.quantile(0.90)), 3),
         }
     return out
 
@@ -335,7 +335,7 @@ def parse_stats_file(filepath: str) -> Dict[str, Any]:
     Parse a DU/CU stats file (CSV or Parquet) and return normalised output.
     Auto-detects srsRAN / OAI / NIST / generic format.
     """
-    path   = Path(filepath)
+    path = Path(filepath)
     suffix = path.suffix.lower()
 
     if suffix == ".parquet":
@@ -379,16 +379,16 @@ def parse_stats_file(filepath: str) -> Dict[str, Any]:
     cells = sorted(df[cell_col].dropna().unique().tolist()) if cell_col else []
 
     return {
-        "source":         path.name,
-        "format":         fmt,
-        "rows":           len(df),
-        "cells":          [str(c) for c in cells],
-        "time_range":     time_range,
-        "l1l2_columns":   l1l2_cols,
-        "timestamp_col":  ts_col,
-        "cell_col":       cell_col,
-        "df_records":     df.to_dict(orient="records"),
-        "summary":        _summary(df, l1l2_cols),
+        "source": path.name,
+        "format": fmt,
+        "rows": len(df),
+        "cells": [str(c) for c in cells],
+        "time_range": time_range,
+        "l1l2_columns": l1l2_cols,
+        "timestamp_col": ts_col,
+        "cell_col": cell_col,
+        "df_records": df.to_dict(orient="records"),
+        "summary": _summary(df, l1l2_cols),
         "parser_version": "stats_v2",
     }
 

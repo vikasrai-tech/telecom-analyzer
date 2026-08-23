@@ -118,7 +118,7 @@ def _call_ollama(prompt: str, model: str) -> Optional[Dict]:
         else:
             # Find the first { ... } block
             start = raw.find("{")
-            end   = raw.rfind("}") + 1
+            end = raw.rfind("}") + 1
             if start >= 0 and end > start:
                 raw = raw[start:end]
 
@@ -139,27 +139,27 @@ def _rule_based_explanation(
     Used when Ollama is unavailable or returns bad JSON.
     Still far better than the old stub — uses real 3GPP content.
     """
-    proc      = anomaly.get("procedure", "this procedure")
-    layer     = anomaly.get("layer", "")
-    severity  = anomaly.get("severity", "Medium")
-    evidence  = anomaly.get("evidence", "")
-    causes    = anomaly.get("failure_causes", {})
+    proc = anomaly.get("procedure", "this procedure")
+    layer = anomaly.get("layer", "")
+    severity = anomaly.get("severity", "Medium")
+    evidence = anomaly.get("evidence", "")
+    causes = anomaly.get("failure_causes", {})
 
     # Pick most relevant chunk as the primary spec reference
-    primary   = chunks[0] if chunks else {}
+    primary = chunks[0] if chunks else {}
 
     # Build hypothesis from evidence + top cause
     top_cause = max(causes, key=causes.get) if causes else ""
     cause_ctx = {
-        "congestion":                     "AMF or network overload (5GMM cause #22). Back-off T3502 applies.",
-        "timeout":                        "No response received within timer window — likely N2/F1/E1 link latency or NF unavailability.",
-        "auth-failure":                   "Authentication failed — check AUSF/UDM reachability and UE SIM/SUPI profile.",
+        "congestion": "AMF or network overload (5GMM cause #22). Back-off T3502 applies.",
+        "timeout": "No response received within timer window — likely N2/F1/E1 link latency or NF unavailability.",
+        "auth-failure": "Authentication failed — check AUSF/UDM reachability and UE SIM/SUPI profile.",
         "semantically-incorrect-message": "Message encoding error — check 3GPP spec version compatibility between NFs.",
-        "radio-connection-with-ue-lost":  "Radio Link Failure (RLF) — check coverage, DRX, and handover thresholds.",
-        "radio-resources-not-available":  "Cell capacity exhausted — check PRB utilisation and scheduler configuration.",
-        "procedure-cancelled":            "Resource unavailable at target NF — check gNB-DU/CU-UP capacity and health.",
-        "user-inactivity":                "UE moved to idle — normal behaviour, verify inactivity timer config if excessive.",
-        "ue-context-release":             "Context released prematurely — check bearer lifecycle and UPF session anchor.",
+        "radio-connection-with-ue-lost": "Radio Link Failure (RLF) — check coverage, DRX, and handover thresholds.",
+        "radio-resources-not-available": "Cell capacity exhausted — check PRB utilisation and scheduler configuration.",
+        "procedure-cancelled": "Resource unavailable at target NF — check gNB-DU/CU-UP capacity and health.",
+        "user-inactivity": "UE moved to idle — normal behaviour, verify inactivity timer config if excessive.",
+        "ue-context-release": "Context released prematurely — check bearer lifecycle and UPF session anchor.",
     }.get(top_cause, f"Investigate the {top_cause or 'reported'} failure cause at the {layer} layer.")
 
     hypothesis = (
@@ -167,15 +167,15 @@ def _rule_based_explanation(
         f"The dominant failure pattern is: {cause_ctx} "
         f"Based on {primary.get('spec', 'the 3GPP spec')}, "
         f"{primary.get('text', '')[:200].rstrip('.')}. "
-        f"This warrants {'immediate' if severity in ('High','Critical') else 'scheduled'} investigation."
+        f"This warrants {'immediate' if severity in ('High', 'Critical') else 'scheduled'} investigation."
     )
 
     # Build citations from retrieved chunks
     citations = [
         {
-            "spec":    c.get("spec", ""),
+            "spec": c.get("spec", ""),
             "section": c.get("section", ""),
-            "quote":   c.get("text", "")[:150].rstrip(".") + ".",
+            "quote": c.get("text", "")[:150].rstrip(".") + ".",
         }
         for c in chunks[:3]
         if c.get("spec")
@@ -183,15 +183,15 @@ def _rule_based_explanation(
 
     # Build investigation hints from top cause + layer
     layer_hints = {
-        "NAS":  ["Check AMF process health and CPU/memory utilisation.",
-                 "Inspect NAS trace on the affected UE SUPI.",
-                 "Verify AUSF/UDM reachability from AMF."],
+        "NAS": ["Check AMF process health and CPU/memory utilisation.",
+                "Inspect NAS trace on the affected UE SUPI.",
+                "Verify AUSF/UDM reachability from AMF."],
         "NGAP": ["Check N2 SCTP association status between gNB and AMF.",
                  "Review AMF capacity — active UE context count vs limit.",
                  "Compare with baseline success rate from last 7 days."],
-        "RRC":  ["Check DL RSRP and SINR for affected cells.",
-                 "Review gNB RRC log for reject causes and waiting times.",
-                 "Verify cell load — PRB utilisation at time of failures."],
+        "RRC": ["Check DL RSRP and SINR for affected cells.",
+                "Review gNB RRC log for reject causes and waiting times.",
+                "Verify cell load — PRB utilisation at time of failures."],
         "F1AP": ["Verify F1 SCTP link between gNB-DU and gNB-CU-CP.",
                  "Check gNB-DU hardware alarms and resource counters.",
                  "Review DU software version for known F1AP bugs."],
@@ -207,7 +207,7 @@ def _rule_based_explanation(
 
     cause_hints = {
         "congestion": "Check AMF/SMF/UPF CPU and memory — scale out if > 80% sustained.",
-        "timeout":    "Capture N2/F1/E1 SCTP traffic — look for retransmissions or connection resets.",
+        "timeout": "Capture N2/F1/E1 SCTP traffic — look for retransmissions or connection resets.",
         "auth-failure": "Verify HSS/AUSF responds within 2s — check AUSF latency KPI.",
         "radio-resources-not-available": "Review PRB utilisation trend — add capacity or activate load-balancing.",
         "procedure-cancelled": "Check gNB-DU/CU-UP process restart logs for crash indicators.",
@@ -216,11 +216,11 @@ def _rule_based_explanation(
     hints = layer_hints[:2] + [cause_hints, "Compare anomalous cell/procedure with healthy peer group."]
 
     return {
-        "hypothesis":          hypothesis,
-        "severity":            severity,
-        "citations":           citations,
+        "hypothesis": hypothesis,
+        "severity": severity,
+        "citations": citations,
         "investigation_hints": hints,
-        "source":              "rule-based (Ollama not available)",
+        "source": "rule-based (Ollama not available)",
     }
 
 
@@ -233,7 +233,7 @@ def explain_anomaly(anomaly: Dict[str, Any], top_k: int = 5) -> Dict[str, Any]:
     """
     from src.rag.retriever import retrieve
 
-    query  = _build_query(anomaly)
+    query = _build_query(anomaly)
     chunks = retrieve(query, top_k=top_k)
     logger.info(f"Retrieved {len(chunks)} spec chunks for query: {query[:80]}")
 
@@ -279,10 +279,10 @@ def ollama_status() -> Dict[str, Any]:
             names = [m.model for m in models]
             return {"available": False, "mode": "rule-based",
                     "message": f"Ollama running but no preferred model. Pull one of: "
-                               f"{', '.join(_PREFERRED_MODELS[:3])}",
+                    f"{', '.join(_PREFERRED_MODELS[:3])}",
                     "available_models": names}
         return {"available": False, "mode": "rule-based",
-                "message": f"Ollama running but no models pulled. Run: ollama pull phi3:mini"}
+                "message": "Ollama running but no models pulled. Run: ollama pull phi3:mini"}
     except Exception:
         return {"available": False, "mode": "rule-based",
                 "message": "Ollama not running. Install from ollama.com or run: ollama serve"}

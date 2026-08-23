@@ -17,6 +17,7 @@ Run:
   uvicorn src.api.main:app --reload --port 8000
 """
 
+import numpy as np
 import asyncio
 import logging
 import os
@@ -54,6 +55,7 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+
 @app.get("/", tags=["UI"], include_in_schema=False)
 async def serve_vue_ui():
     """Serve the modern Vue 3 Web UI dashboard."""
@@ -64,9 +66,6 @@ async def serve_vue_ui():
 
 # In-memory job store (production: replace with Redis / DB)
 _results: Dict[str, Any] = {}
-
-
-import numpy as np
 
 
 def _make_json_serializable(obj: Any) -> Any:
@@ -343,9 +342,9 @@ async def analyze_root_cause_endpoint(
     # thread so it doesn't stall the event loop for other concurrent requests.
     root_causes = await asyncio.to_thread(analyze_root_cause, router, min_sources=min_sources)
     return _make_json_serializable({
-        "root_causes":       root_causes,
+        "root_causes": root_causes,
         "correlated_events": router.get_correlated(min_sources=min_sources),
-        "summary":           router.summary(),
+        "summary": router.summary(),
     })
 
 
@@ -395,8 +394,8 @@ async def get_kpi_filters(job_id: str):
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
     parsed = _results[job_id].get("parsed", {})
     return {
-        "gnbs":    parsed.get("gnbs", []),
-        "cells":   parsed.get("cells", []),
+        "gnbs": parsed.get("gnbs", []),
+        "cells": parsed.get("cells", []),
         "metrics": _numeric_kpi_columns(parsed),
     }
 
@@ -419,9 +418,9 @@ async def get_kpi_series(
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
     parsed = _results[job_id].get("parsed", {})
     records = parsed.get("df_records")
-    ts_col   = parsed.get("timestamp_col")
+    ts_col = parsed.get("timestamp_col")
     cell_col = parsed.get("cell_col")
-    gnb_col  = parsed.get("gnb_col")
+    gnb_col = parsed.get("gnb_col")
     if not records or not ts_col:
         raise HTTPException(status_code=400, detail="This job has no time-series data to chart.")
 
@@ -429,7 +428,7 @@ async def get_kpi_series(
     if not metric_list:
         raise HTTPException(status_code=400, detail="At least one metric is required.")
     cell_filter = set(cells.split(",")) if cells else None
-    gnb_filter  = set(gnbs.split(",")) if gnbs else None
+    gnb_filter = set(gnbs.split(",")) if gnbs else None
 
     result: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
     for metric in metric_list:
@@ -482,12 +481,12 @@ def _build_report_sections(job_result: Dict[str, Any]) -> "tuple[List[Dict[str, 
     sections: List[Dict[str, Any]] = []
     if anomalies:
         anom_df = pd.DataFrame([{
-            "Severity":       a.get("severity", ""),
-            "Type":           a.get("type") or a.get("label") or a.get("category", ""),
-            "Cell":           a.get("cell_id", "—"),
-            "Layer":          a.get("layer", ""),
-            "Detector":       a.get("detector", ""),
-            "Evidence":       a.get("evidence", ""),
+            "Severity": a.get("severity", ""),
+            "Type": a.get("type") or a.get("label") or a.get("category", ""),
+            "Cell": a.get("cell_id", "—"),
+            "Layer": a.get("layer", ""),
+            "Detector": a.get("detector", ""),
+            "Evidence": a.get("evidence", ""),
             "Recommendation": a.get("recommendation", ""),
         } for a in anomalies])
         sections.append({
@@ -497,12 +496,12 @@ def _build_report_sections(job_result: Dict[str, Any]) -> "tuple[List[Dict[str, 
 
     if predicted:
         pred_df = pd.DataFrame([{
-            "Lead Time (h)":  a.get("lead_time_h", ""),
-            "Metric":         a.get("label") or a.get("category", ""),
-            "Cell":           a.get("cell_id", "—"),
-            "Severity":       a.get("severity", ""),
-            "Detector":       a.get("detector", ""),
-            "Evidence":       a.get("evidence", ""),
+            "Lead Time (h)": a.get("lead_time_h", ""),
+            "Metric": a.get("label") or a.get("category", ""),
+            "Cell": a.get("cell_id", "—"),
+            "Severity": a.get("severity", ""),
+            "Detector": a.get("detector", ""),
+            "Evidence": a.get("evidence", ""),
             "Recommendation": a.get("recommendation", ""),
         } for a in predicted])
         sections.append({
@@ -516,23 +515,23 @@ def _build_report_sections(job_result: Dict[str, Any]) -> "tuple[List[Dict[str, 
         sev_counts[sev] = sev_counts.get(sev, 0) + 1
 
     meta = {
-        "Source File":       job_result.get("source_filename", "—"),
-        "Pipeline":           str(job_result.get("pipeline", "—")).upper(),
-        "Total Anomalies":    len(anomalies),
-        "Critical":           sev_counts.get("Critical", 0),
-        "High":               sev_counts.get("High", 0),
-        "Medium":             sev_counts.get("Medium", 0),
-        "Low":                sev_counts.get("Low", 0),
+        "Source File": job_result.get("source_filename", "—"),
+        "Pipeline": str(job_result.get("pipeline", "—")).upper(),
+        "Total Anomalies": len(anomalies),
+        "Critical": sev_counts.get("Critical", 0),
+        "High": sev_counts.get("High", 0),
+        "Medium": sev_counts.get("Medium", 0),
+        "Low": sev_counts.get("Low", 0),
         "Predicted Anomalies (4h)": len(predicted),
     }
     return sections, meta
 
 
 _REPORT_FORMATS = {
-    "csv":  ("text/csv", "csv"),
+    "csv": ("text/csv", "csv"),
     "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
     "docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
-    "pdf":  ("application/pdf", "pdf"),
+    "pdf": ("application/pdf", "pdf"),
     "html": ("text/html", "html"),
 }
 
@@ -595,4 +594,3 @@ async def submit_feedback(
         comment=comment,
     )
     return {"status": "saved", "record": record}
-

@@ -26,7 +26,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,24 +35,24 @@ CONFIG_PATH = Path("data/models/retrain_config.json")
 # ── Base (default) params ─────────────────────────────────────────────
 BASE_PARAMS: Dict[str, Any] = {
     # PCAP detectors
-    "Isolation Forest":   {"contamination": 0.15},
-    "One-Class SVM":      {"nu": 0.15},
-    "LOF":                {"contamination": 0.15},
-    "Elliptic Envelope":  {"contamination": 0.15},
-    "Statistical":        {"sensitivity": 1.0},
-    "LSTM Autoencoder":   {"threshold_multiplier": 1.0},
+    "Isolation Forest": {"contamination": 0.15},
+    "One-Class SVM": {"nu": 0.15},
+    "LOF": {"contamination": 0.15},
+    "Elliptic Envelope": {"contamination": 0.15},
+    "Statistical": {"sensitivity": 1.0},
+    "LSTM Autoencoder": {"threshold_multiplier": 1.0},
     # KPI detectors
-    "Threshold":          {"sensitivity": 1.0},
-    "Peer Comparison":    {"z_threshold": 2.0},
-    "Trend":              {"slope_threshold": 0.5},
-    "IQR":                {"k": 3.0},
-    "CUSUM":              {"threshold": 4.0},
-    "Bollinger Bands":    {"k": 2.5},
+    "Threshold": {"sensitivity": 1.0},
+    "Peer Comparison": {"z_threshold": 2.0},
+    "Trend": {"slope_threshold": 0.5},
+    "IQR": {"k": 3.0},
+    "CUSUM": {"threshold": 4.0},
+    "Bollinger Bands": {"k": 2.5},
 }
 
 TARGET_FP_RATE = 0.10   # desired FP rate (10%)
-ALPHA          = 0.30   # learning rate for param adjustment
-MIN_FEEDBACK   = 5      # minimum feedback records before adjusting
+ALPHA = 0.30   # learning rate for param adjustment
+MIN_FEEDBACK = 5      # minimum feedback records before adjusting
 
 
 def _clamp(v: float, lo: float, hi: float) -> float:
@@ -78,37 +78,36 @@ def _adjust_threshold(base: float, fp_rate: float) -> float:
 
 
 def run_retraining(
-    store_path:  Optional[Path] = None,
+    store_path: Optional[Path] = None,
     config_path: Path = CONFIG_PATH,
-    dry_run:     bool = False,
+    dry_run: bool = False,
 ) -> Dict[str, Any]:
     """
     Main entry point.
     Reads feedback, adjusts params, saves config.
     Returns a retraining report.
     """
-    from src.feedback.store import feedback_stats, load_feedback
+    from src.feedback.store import feedback_stats
 
     if store_path is None:
         from src.feedback.store import DEFAULT_STORE
         store_path = DEFAULT_STORE
 
-    stats   = feedback_stats(store_path=store_path)
-    records = load_feedback(store_path=store_path)
+    stats = feedback_stats(store_path=store_path)
 
     report: Dict[str, Any] = {
-        "timestamp":        datetime.now(timezone.utc).isoformat(),
-        "total_feedback":   stats["total"],
-        "overall_precision":stats["precision"],
-        "dry_run":          dry_run,
-        "adjustments":      {},
-        "skipped":          [],
-        "status":           "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_feedback": stats["total"],
+        "overall_precision": stats["precision"],
+        "dry_run": dry_run,
+        "adjustments": {},
+        "skipped": [],
+        "status": "ok",
     }
 
     if stats["total"] < MIN_FEEDBACK:
-        report["status"]  = "skipped"
-        report["reason"]  = f"Need ≥ {MIN_FEEDBACK} feedback records (have {stats['total']})"
+        report["status"] = "skipped"
+        report["reason"] = f"Need ≥ {MIN_FEEDBACK} feedback records (have {stats['total']})"
         logger.info(f"[retrainer] {report['reason']}")
         return report
 
@@ -130,8 +129,8 @@ def run_retraining(
             continue
 
         fp_rate = det_counts.get("false_positive", 0) / total_rated
-        old     = dict(params.get(det, BASE_PARAMS.get(det, {})))
-        new     = dict(old)
+        old = dict(params.get(det, BASE_PARAMS.get(det, {})))
+        new = dict(old)
 
         if det in ("Isolation Forest", "LOF", "Elliptic Envelope"):
             new["contamination"] = _adjust_contamination(
@@ -167,20 +166,20 @@ def run_retraining(
 
         params[det] = new
         report["adjustments"][det] = {
-            "fp_rate":  round(fp_rate, 3),
-            "before":   old,
-            "after":    new,
-            "changed":  old != new,
+            "fp_rate": round(fp_rate, 3),
+            "before": old,
+            "after": new,
+            "changed": old != new,
         }
         logger.info(f"[retrainer] {det}: fp_rate={fp_rate:.2f}  {old} → {new}")
 
     # Save config
     if not dry_run:
         new_config = {
-            "updated_at":    report["timestamp"],
-            "total_feedback":stats["total"],
-            "precision":     stats["precision"],
-            "params":        params,
+            "updated_at": report["timestamp"],
+            "total_feedback": stats["total"],
+            "precision": stats["precision"],
+            "params": params,
         }
         with open(config_path, "w") as f:
             json.dump(new_config, f, indent=2)

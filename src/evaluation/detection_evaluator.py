@@ -89,7 +89,7 @@ def run_method_full_ensemble(
     from src.detection.kpi_detector import detect_kpi_anomalies_by_detector
     from src.detection.stats_detector import detect_stats_anomalies_by_detector
 
-    kpi_by_det   = detect_kpi_anomalies_by_detector(kpi_parsed)
+    kpi_by_det = detect_kpi_anomalies_by_detector(kpi_parsed)
     stats_by_det = detect_stats_anomalies_by_detector(stats_parsed)
 
     cells: Set[str] = set()
@@ -126,11 +126,11 @@ def run_method_ensemble_with_router(
     from src.detection.stats_detector import detect_stats_anomalies
     from src.orchestrator.event_router import EventRouter
 
-    kpi_anoms   = detect_kpi_anomalies(kpi_parsed)
+    kpi_anoms = detect_kpi_anomalies(kpi_parsed)
     stats_anoms = detect_stats_anomalies(stats_parsed)
 
     router = EventRouter()
-    router.ingest(kpi_anoms,   source="kpi")
+    router.ingest(kpi_anoms, source="kpi")
     router.ingest(stats_anoms, source="stats")
 
     correlated = router.get_correlated(min_sources=2)

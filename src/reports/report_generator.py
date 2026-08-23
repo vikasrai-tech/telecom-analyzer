@@ -83,7 +83,6 @@ def _safe_sheet_name(title: str, existing: list) -> str:
 
 def generate_pdf(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_LEFT
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm
@@ -137,7 +136,7 @@ def generate_pdf(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
 
     # ── Sections ──────────────────────────────────────────────────────────────
     HEADER_BG = colors.HexColor("#1f4e79")
-    ROW_ALT   = colors.HexColor("#eef2f7")
+    ROW_ALT = colors.HexColor("#eef2f7")
 
     for sec in sections:
         story.append(Paragraph(sec["title"], h2))
@@ -157,30 +156,30 @@ def generate_pdf(sections: List[ReportSection], meta: Dict[str, Any]) -> bytes:
         display_df = df.copy().astype(str).map(lambda x: str(x)[:120] if len(str(x)) > 120 else str(x))
 
         col_headers = list(display_df.columns)
-        data_rows   = display_df.values.tolist()
-        table_data  = [col_headers] + data_rows
+        data_rows = display_df.values.tolist()
+        table_data = [col_headers] + data_rows
 
         tbl = Table(table_data, repeatRows=1, hAlign="LEFT")
         tbl.setStyle(
             TableStyle(
                 [
                     # Header row
-                    ("BACKGROUND",    (0, 0), (-1, 0),  HEADER_BG),
-                    ("TEXTCOLOR",     (0, 0), (-1, 0),  colors.white),
-                    ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-                    ("FONTSIZE",      (0, 0), (-1, 0),  8),
+                    ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 8),
                     # Data rows
-                    ("FONTSIZE",      (0, 1), (-1, -1), 7),
-                    ("ROWBACKGROUNDS",(0, 1), (-1, -1), [colors.white, ROW_ALT]),
+                    ("FONTSIZE", (0, 1), (-1, -1), 7),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, ROW_ALT]),
                     # Grid
-                    ("GRID",          (0, 0), (-1, -1), 0.25, colors.HexColor("#c0c0c0")),
-                    ("LINEBELOW",     (0, 0), (-1, 0),  0.5,  colors.HexColor("#1f4e79")),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#c0c0c0")),
+                    ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#1f4e79")),
                     # Padding
-                    ("TOPPADDING",    (0, 0), (-1, -1), 3),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                    ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-                    ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-                    ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ]
             )
         )
@@ -293,12 +292,12 @@ body{font-family:'Segoe UI',-apple-system,Arial,sans-serif;background:#f0f4f8;co
 .chip{background:rgba(255,255,255,.18);border-radius:6px;padding:.35rem .7rem;font-size:.8rem}
 .wrap{max-width:1400px;margin:0 auto;padding:1.5rem}
 .mrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin:1.5rem 0}
-.mc{background:#fff;border-radius:10px;padding:1.1rem;box-shadow:0 2px 8px rgba(0,0,0,.07);text-align:center;border-top:3px solid #1f4e79}
+.mc{background:#fff;border-radius:10px;padding:1.1rem;box-shadow:0 2px 8px rgba(0,0,0,.07);text-align:center;border-top:3px solid #1f4e79}  # noqa: E501
 .mc .lbl{font-size:.7rem;color:#6c757d;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
 .mc .val{font-size:1.5rem;font-weight:700;color:#1f4e79;margin-top:.25rem}
 .sec{background:#fff;border-radius:10px;padding:1.4rem;margin:1.1rem 0;box-shadow:0 2px 8px rgba(0,0,0,.07)}
-.sec-title{font-size:1.05rem;font-weight:700;color:#1f4e79;padding-bottom:.55rem;margin-bottom:1rem;border-bottom:2px solid #1f4e79}
-.notes{background:#e8f4fd;border-left:4px solid #1f4e79;padding:.45rem .75rem;border-radius:0 6px 6px 0;font-size:.83rem;color:#495057;margin-bottom:.9rem}
+.sec-title{font-size:1.05rem;font-weight:700;color:#1f4e79;padding-bottom:.55rem;margin-bottom:1rem;border-bottom:2px solid #1f4e79}  # noqa: E501
+.notes{background:#e8f4fd;border-left:4px solid #1f4e79;padding:.45rem .75rem;border-radius:0 6px 6px 0;font-size:.83rem;color:#495057;margin-bottom:.9rem}  # noqa: E501
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.81rem}
 thead tr{background:#1f4e79;color:#fff}
@@ -340,9 +339,9 @@ tbody tr:hover{background:#dde9f5}
 
     SEV_BADGE = {
         "Critical": '<span class="b bc">🔴 Critical</span>',
-        "High":     '<span class="b bh">🟠 High</span>',
-        "Medium":   '<span class="b bm">🟡 Medium</span>',
-        "Low":      '<span class="b bl">🟢 Low</span>',
+        "High": '<span class="b bh">🟠 High</span>',
+        "Medium": '<span class="b bm">🟡 Medium</span>',
+        "Low": '<span class="b bl">🟢 Low</span>',
     }
 
     p: List[str] = []
@@ -415,15 +414,15 @@ tbody tr:hover{background:#dde9f5}
         for card in anomaly_cards:
             sev_lower = card["severity"].lower()
             badge = SEV_BADGE.get(card["severity"], card["severity"])
-            ev  = str(card.get("evidence", "—")).replace("<", "&lt;").replace(">", "&gt;")
+            ev = str(card.get("evidence", "—")).replace("<", "&lt;").replace(">", "&gt;")
             rec = str(card.get("recommendation", "—")).replace("<", "&lt;").replace(">", "&gt;")
             p.append(f"""<div class="acard">
   <div class="acard-hdr {sev_lower}">{badge} &nbsp; {card["title"]}</div>
   <div class="acard-body">
     <div class="ev"><div class="albl">Evidence</div>{ev}
-      <br><small><b>Value:</b> {card.get("value","—")} {card.get("unit","")}
-      &nbsp;|&nbsp; Warn: {card.get("warning","—")}
-      &nbsp;|&nbsp; Crit: {card.get("critical","—")}</small></div>
+      <br><small><b>Value:</b> {card.get("value", "—")} {card.get("unit", "")}
+      &nbsp;|&nbsp; Warn: {card.get("warning", "—")}
+      &nbsp;|&nbsp; Crit: {card.get("critical", "—")}</small></div>
     <div class="rc"><div class="albl">Recommendation</div>{rec}</div>
   </div>
 </div>""")

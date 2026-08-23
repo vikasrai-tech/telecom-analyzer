@@ -25,7 +25,7 @@ from typing import Dict, Any, List
 
 import pandas as pd
 
-from .kpi_defs import resolve_column, get_meta, KPI_CATALOG
+from .kpi_defs import resolve_column, get_meta
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +109,9 @@ def parse_kpi_file(filepath: str) -> Dict[str, Any]:
     df = _normalise_columns(df_raw)
 
     # Identify structural columns
-    ts_col   = _find_timestamp_col(df)
+    ts_col = _find_timestamp_col(df)
     cell_col = _find_cell_col(df)
-    gnb_col  = _find_gnb_col(df)
+    gnb_col = _find_gnb_col(df)
 
     # Parse timestamp if found
     if ts_col and ts_col in df.columns:
@@ -136,24 +136,24 @@ def parse_kpi_file(filepath: str) -> Dict[str, Any]:
             continue
         meta = get_meta(col)
         summary[col] = {
-            "label":     meta.get("label", col),
-            "category":  meta.get("category", "Other"),
-            "unit":      meta.get("unit", ""),
+            "label": meta.get("label", col),
+            "category": meta.get("category", "Other"),
+            "unit": meta.get("unit", ""),
             "direction": meta.get("direction", "higher_better"),
-            "target":    meta.get("target"),
-            "warning":   meta.get("warning"),
-            "critical":  meta.get("critical"),
-            "min":   round(float(s.min()),  4),
-            "max":   round(float(s.max()),  4),
-            "mean":  round(float(s.mean()), 4),
-            "std":   round(float(s.std()),  4),
-            "p10":   round(float(s.quantile(0.10)), 4),
-            "p90":   round(float(s.quantile(0.90)), 4),
+            "target": meta.get("target"),
+            "warning": meta.get("warning"),
+            "critical": meta.get("critical"),
+            "min": round(float(s.min()), 4),
+            "max": round(float(s.max()), 4),
+            "mean": round(float(s.mean()), 4),
+            "std": round(float(s.std()), 4),
+            "p10": round(float(s.quantile(0.10)), 4),
+            "p90": round(float(s.quantile(0.90)), 4),
         }
 
     # Cell and gNB lists
     cells = sorted(df[cell_col].dropna().unique().tolist()) if cell_col else []
-    gnbs  = sorted(df[gnb_col].dropna().unique().tolist())  if gnb_col  else []
+    gnbs = sorted(df[gnb_col].dropna().unique().tolist()) if gnb_col else []
 
     # Time range
     if ts_col and ts_col in df.columns:
@@ -172,16 +172,16 @@ def parse_kpi_file(filepath: str) -> Dict[str, Any]:
         df_out[ts_col] = df_out[ts_col].astype(str)
 
     return {
-        "source":         Path(filepath).name,
-        "rows":           len(df),
-        "cells":          cells,
-        "gnbs":           gnbs,
-        "time_range":     time_range,
-        "kpi_columns":    kpi_cols,
-        "timestamp_col":  ts_col,
-        "cell_col":       cell_col,
-        "gnb_col":        gnb_col,
-        "df_records":     df_out.to_dict(orient="records"),
-        "summary":        summary,
+        "source": Path(filepath).name,
+        "rows": len(df),
+        "cells": cells,
+        "gnbs": gnbs,
+        "time_range": time_range,
+        "kpi_columns": kpi_cols,
+        "timestamp_col": ts_col,
+        "cell_col": cell_col,
+        "gnb_col": gnb_col,
+        "df_records": df_out.to_dict(orient="records"),
+        "summary": summary,
         "parser_version": "kpi_v1",
     }

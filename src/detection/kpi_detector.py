@@ -28,19 +28,19 @@ logger = logging.getLogger(__name__)
 SEV_RANK = {"Critical": 3, "High": 2, "Medium": 1, "Low": 0}
 
 RECOMMENDATIONS: Dict[str, str] = {
-    "RRC_Success_Rate_%":           "Check gNB RRC configuration; review RRC Setup Timeout counters and F1AP trace.",
-    "Registration_Success_Rate_%":  "Verify AMF reachability and NGAP N2 link; check NAS Registration Reject causes.",
-    "Handover_Success_Rate_%":      "Review Xn/NG HO preparation and execution counters; check A3 offset and TTT.",
-    "PDU_Session_Success_Rate_%":   "Verify SMF/UPF connectivity; check PDU Session Establishment Reject causes.",
-    "Cell_Availability_%":          "Investigate cell outage alarms; check gNB hardware faults and O&M logs.",
-    "PRB_Utilization_DL_%":         "DL capacity congestion — consider load balancing, carrier aggregation, or adding sectors.",
-    "PRB_Utilization_UL_%":         "UL capacity congestion — review UL scheduler and UE transmit power settings.",
-    "CQI":                          "Poor DL channel quality — check antenna tilt/azimuth, MIMO config, inter-cell interference.",
-    "SINR_dB":                      "Low SINR — check UL interference (IOT), UE power control, and PRACH configuration.",
-    "DL_Throughput_Mbps":           "Low DL throughput — check PRB utilization, CQI, MCS distribution and scheduler.",
-    "UL_Throughput_Mbps":           "Low UL throughput — check UL PRB utilization, SINR, and UE transmit power.",
-    "Packet_Loss_%":                "High packet loss — check transport/backhaul link quality, GTP OOS counters, and UPF.",
-    "Latency_ms":                   "High latency — check backhaul RTT, scheduler queue depth, and buffer bloat.",
+    "RRC_Success_Rate_%": "Check gNB RRC configuration; review RRC Setup Timeout counters and F1AP trace.",
+    "Registration_Success_Rate_%": "Verify AMF reachability and NGAP N2 link; check NAS Registration Reject causes.",
+    "Handover_Success_Rate_%": "Review Xn/NG HO preparation and execution counters; check A3 offset and TTT.",
+    "PDU_Session_Success_Rate_%": "Verify SMF/UPF connectivity; check PDU Session Establishment Reject causes.",
+    "Cell_Availability_%": "Investigate cell outage alarms; check gNB hardware faults and O&M logs.",
+    "PRB_Utilization_DL_%": "DL capacity congestion — consider load balancing, carrier aggregation, or adding sectors.",
+    "PRB_Utilization_UL_%": "UL capacity congestion — review UL scheduler and UE transmit power settings.",
+    "CQI": "Poor DL channel quality — check antenna tilt/azimuth, MIMO config, inter-cell interference.",
+    "SINR_dB": "Low SINR — check UL interference (IOT), UE power control, and PRACH configuration.",
+    "DL_Throughput_Mbps": "Low DL throughput — check PRB utilization, CQI, MCS distribution and scheduler.",
+    "UL_Throughput_Mbps": "Low UL throughput — check UL PRB utilization, SINR, and UE transmit power.",
+    "Packet_Loss_%": "High packet loss — check transport/backhaul link quality, GTP OOS counters, and UPF.",
+    "Latency_ms": "High latency — check backhaul RTT, scheduler queue depth, and buffer bloat.",
 }
 
 DEFAULT_REC = "Enable detailed KPI tracing on the affected cell and review gNB logs."
@@ -52,11 +52,15 @@ def _severity(value: float, meta: Dict, direction: str) -> str:
     if crit is None or warn is None:
         return ""
     if direction == "higher_better":
-        if value <= crit:  return "Critical"
-        if value <= warn:  return "High"
+        if value <= crit:
+            return "Critical"
+        if value <= warn:
+            return "High"
     else:
-        if value >= crit:  return "Critical"
-        if value >= warn:  return "High"
+        if value >= crit:
+            return "Critical"
+        if value >= warn:
+            return "High"
     return ""
 
 
@@ -65,21 +69,21 @@ def _anomaly(kpi: str, cell: str, gnb: str, ts: str,
              evidence: str) -> Dict[str, Any]:
     meta = get_meta(kpi)
     return {
-        "type":           f"{meta.get('label', kpi)} anomaly on {cell}",
-        "severity":       severity,
-        "score":          round(value, 3),
-        "detector":       detector,
-        "evidence":       evidence,
-        "kpi":            kpi,
-        "label":          meta.get("label", kpi),
-        "category":       meta.get("category", "Other"),
-        "unit":           meta.get("unit", ""),
-        "cell_id":        cell,
-        "gnb_id":         gnb,
-        "timestamp":      ts,
-        "value":          round(value, 3),
-        "warning":        meta.get("warning"),
-        "critical":       meta.get("critical"),
+        "type": f"{meta.get('label', kpi)} anomaly on {cell}",
+        "severity": severity,
+        "score": round(value, 3),
+        "detector": detector,
+        "evidence": evidence,
+        "kpi": kpi,
+        "label": meta.get("label", kpi),
+        "category": meta.get("category", "Other"),
+        "unit": meta.get("unit", ""),
+        "cell_id": cell,
+        "gnb_id": gnb,
+        "timestamp": ts,
+        "value": round(value, 3),
+        "warning": meta.get("warning"),
+        "critical": meta.get("critical"),
         "recommendation": RECOMMENDATIONS.get(kpi, DEFAULT_REC),
     }
 
@@ -109,23 +113,23 @@ def _maybe_emit_prb_run(
     out: List[Dict[str, Any]],
 ) -> None:
     """Emit one anomaly for a sustained PRB_DL run that meets minimum duration."""
-    n         = len(run)
-    has_crit  = any(h["sev"] == "Critical" for h in run)
-    meta      = get_meta(_PRB_DL_KPI)
-    unit      = meta.get("unit", "%")
+    n = len(run)
+    has_crit = any(h["sev"] == "Critical" for h in run)
+    meta = get_meta(_PRB_DL_KPI)
+    unit = meta.get("unit", "%")
 
     if has_crit and n >= _PRB_DL_SUSTAINED_CRIT_MIN:
-        sev     = "Critical"
+        sev = "Critical"
         min_req = _PRB_DL_SUSTAINED_CRIT_MIN
         thr_val = meta.get("critical", 90)
     elif n >= _PRB_DL_SUSTAINED_WARN_MIN:
-        sev     = "High"
+        sev = "High"
         min_req = _PRB_DL_SUSTAINED_WARN_MIN
         thr_val = meta.get("warning", 80)
     else:
         return  # too short — normal diurnal spike, suppressed
 
-    trigger  = run[min_req - 1]   # the row that completes the minimum window
+    trigger = run[min_req - 1]   # the row that completes the minimum window
     peak_val = max(h["val"] for h in run)
     ev = (
         f"{meta.get('label', _PRB_DL_KPI)}={peak_val:.1f}{unit} sustained "
@@ -138,7 +142,7 @@ def _maybe_emit_prb_run(
         trigger["val"], sev, "Threshold", ev,
     )
     a["sustained_minutes"] = n
-    a["peak_prb_dl"]       = round(peak_val, 2)
+    a["peak_prb_dl"] = round(peak_val, 2)
     out.append(a)
 
 
@@ -170,8 +174,8 @@ def _prb_dl_sustained_anomalies(
         for i in range(1, len(hits)):
             try:
                 prev_ts = pd.to_datetime(hits[i - 1]["ts"], errors="coerce")
-                curr_ts = pd.to_datetime(hits[i]["ts"],     errors="coerce")
-                gap_s   = (curr_ts - prev_ts).total_seconds()
+                curr_ts = pd.to_datetime(hits[i]["ts"], errors="coerce")
+                gap_s = (curr_ts - prev_ts).total_seconds()
             except Exception:
                 gap_s = 999
 
@@ -209,12 +213,12 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
         load_aware_ul_severity,
     )
 
-    records      = parsed_kpi.get("df_records", [])
-    kpi_cols     = parsed_kpi.get("kpi_columns", [])
-    ts_col       = parsed_kpi.get("timestamp_col", "Timestamp")
-    cell_col     = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col      = parsed_kpi.get("gnb_col",  "gNB_ID")
-    anomalies    = []
+    records = parsed_kpi.get("df_records", [])
+    kpi_cols = parsed_kpi.get("kpi_columns", [])
+    ts_col = parsed_kpi.get("timestamp_col", "Timestamp")
+    cell_col = parsed_kpi.get("cell_col", "Cell_ID")
+    gnb_col = parsed_kpi.get("gnb_col", "gNB_ID")
+    anomalies = []
     prb_dl_raw: List[Dict[str, Any]] = []  # collected for sustained-duration post-processing
 
     # Build capacity map once from all records (O(n) single pass)
@@ -222,8 +226,8 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
 
     for row in records:
         cell = str(row.get(cell_col, "?"))
-        gnb  = str(row.get(gnb_col,  "?"))
-        ts   = str(row.get(ts_col,   "?"))
+        gnb = str(row.get(gnb_col, "?"))
+        ts = str(row.get(ts_col, "?"))
 
         for kpi in kpi_cols:
             val = row.get(kpi)
@@ -234,7 +238,7 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
             if is_throughput_kpi(kpi):
                 norm = normalize_throughput(kpi, float(val), cell, capacity_map)
                 if norm is not None:
-                    cap  = norm["capacity_mbps"]
+                    cap = norm["capacity_mbps"]
                     npct = norm["normalized_pct"]
 
                     if norm["direction"] == "ul":
@@ -242,7 +246,7 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
                         # PRB_Utilization_UL_% is the load signal — same row,
                         # cell-specific, timestamp-aligned, no new signals needed.
                         prb_raw = row.get("PRB_Utilization_UL_%")
-                        prb_ul  = (
+                        prb_ul = (
                             float(prb_raw)
                             if isinstance(prb_raw, (int, float)) else None
                         )
@@ -255,11 +259,11 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
                             f"{load_note}"
                         )
                         a = _anomaly(kpi, cell, gnb, ts, val, sev, "Threshold", ev)
-                        a["normalized_pct"]  = npct
-                        a["capacity_mbps"]   = cap
+                        a["normalized_pct"] = npct
+                        a["capacity_mbps"] = cap
                         a["normalized_unit"] = norm["normalized_unit"]
-                        a["prb_ul_pct"]      = prb_ul
-                        a["load_aware"]      = True
+                        a["prb_ul_pct"] = prb_ul
+                        a["load_aware"] = True
                         anomalies.append(a)
                         continue
 
@@ -267,7 +271,7 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
                     sev = normalized_severity(npct, norm["direction"])
                     if not sev:
                         continue
-                    t      = norm["thresholds"]
+                    t = norm["thresholds"]
                     thresh = t["critical"] if sev == "Critical" else t["warning"]
                     ev = (
                         f"{get_meta(kpi).get('label', kpi)}="
@@ -276,8 +280,8 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
                         f"threshold {thresh:.2f}% of capacity"
                     )
                     a = _anomaly(kpi, cell, gnb, ts, val, sev, "Threshold", ev)
-                    a["normalized_pct"]  = npct
-                    a["capacity_mbps"]   = cap
+                    a["normalized_pct"] = npct
+                    a["capacity_mbps"] = cap
                     a["normalized_unit"] = norm["normalized_unit"]
                     anomalies.append(a)
                     continue
@@ -285,9 +289,9 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
 
             # ── Original raw-value path (all non-throughput KPIs, or
             #    throughput KPIs where capacity is unavailable) ─────────
-            meta      = get_meta(kpi)
+            meta = get_meta(kpi)
             direction = meta.get("direction", "higher_better")
-            sev       = _severity(val, meta, direction)
+            sev = _severity(val, meta, direction)
             if not sev:
                 continue
 
@@ -306,13 +310,13 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
             crit = meta.get("critical")
             unit = meta.get("unit", "")
             if direction == "higher_better":
-                ev = (f"{meta.get('label',kpi)}={val:.2f}{unit} "
-                      f"< {'critical' if sev=='Critical' else 'warning'} "
-                      f"threshold {crit if sev=='Critical' else warn}{unit}")
+                ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} "
+                      f"< {'critical' if sev == 'Critical' else 'warning'} "
+                      f"threshold {crit if sev == 'Critical' else warn}{unit}")
             else:
-                ev = (f"{meta.get('label',kpi)}={val:.2f}{unit} "
-                      f"> {'critical' if sev=='Critical' else 'warning'} "
-                      f"threshold {crit if sev=='Critical' else warn}{unit}")
+                ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} "
+                      f"> {'critical' if sev == 'Critical' else 'warning'} "
+                      f"threshold {crit if sev == 'Critical' else warn}{unit}")
 
             anomalies.append(_anomaly(kpi, cell, gnb, ts, val, sev,
                                       "Threshold", ev))
@@ -333,10 +337,10 @@ def detect_threshold_violations(parsed_kpi: Dict[str, Any]) -> List[Dict[str, An
 
 def detect_peer_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Flag cells whose KPI mean is > 2 std below/above the fleet mean."""
-    records  = parsed_kpi.get("df_records", [])
+    records = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
     cell_col = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col  = parsed_kpi.get("gnb_col",  "gNB_ID")
+    gnb_col = parsed_kpi.get("gnb_col", "gNB_ID")
     anomalies = []
 
     if not records:
@@ -347,14 +351,14 @@ def detect_peer_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
     for kpi in kpi_cols:
         if kpi not in df.columns:
             continue
-        meta      = get_meta(kpi)
+        meta = get_meta(kpi)
         direction = meta.get("direction", "higher_better")
-        unit      = meta.get("unit", "")
+        unit = meta.get("unit", "")
 
         # Per-cell mean
         cell_means = df.groupby(cell_col)[kpi].mean()
         fleet_mean = cell_means.mean()
-        fleet_std  = cell_means.std()
+        fleet_std = cell_means.std()
         if fleet_std == 0 or np.isnan(fleet_std):
             continue
 
@@ -363,23 +367,23 @@ def detect_peer_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
         for cell, z in z_scores.items():
             # Outlier depends on direction
             if direction == "higher_better" and z < -2.0:
-                val  = cell_means[cell]
-                sev  = "High" if z < -3.0 else "Medium"
-                gnb  = df[df[cell_col] == cell][gnb_col].iloc[0] if gnb_col in df else "?"
-                ev   = (f"{meta.get('label',kpi)} cell_mean={val:.2f}{unit} "
-                        f"vs fleet_mean={fleet_mean:.2f}{unit} "
-                        f"(z={z:.2f}, {abs(z):.1f}σ below fleet)")
+                val = cell_means[cell]
+                sev = "High" if z < -3.0 else "Medium"
+                gnb = df[df[cell_col] == cell][gnb_col].iloc[0] if gnb_col in df else "?"
+                ev = (f"{meta.get('label', kpi)} cell_mean={val:.2f}{unit} "
+                      f"vs fleet_mean={fleet_mean:.2f}{unit} "
+                      f"(z={z:.2f}, {abs(z):.1f}σ below fleet)")
                 anomalies.append(_anomaly(kpi, str(cell), str(gnb), "fleet-avg",
-                                         val, sev, "Peer Comparison", ev))
+                                          val, sev, "Peer Comparison", ev))
             elif direction == "lower_better" and z > 2.0:
-                val  = cell_means[cell]
-                sev  = "High" if z > 3.0 else "Medium"
-                gnb  = df[df[cell_col] == cell][gnb_col].iloc[0] if gnb_col in df else "?"
-                ev   = (f"{meta.get('label',kpi)} cell_mean={val:.2f}{unit} "
-                        f"vs fleet_mean={fleet_mean:.2f}{unit} "
-                        f"(z={z:.2f}, {abs(z):.1f}σ above fleet)")
+                val = cell_means[cell]
+                sev = "High" if z > 3.0 else "Medium"
+                gnb = df[df[cell_col] == cell][gnb_col].iloc[0] if gnb_col in df else "?"
+                ev = (f"{meta.get('label', kpi)} cell_mean={val:.2f}{unit} "
+                      f"vs fleet_mean={fleet_mean:.2f}{unit} "
+                      f"(z={z:.2f}, {abs(z):.1f}σ above fleet)")
                 anomalies.append(_anomaly(kpi, str(cell), str(gnb), "fleet-avg",
-                                         val, sev, "Peer Comparison", ev))
+                                          val, sev, "Peer Comparison", ev))
 
     logger.info(f"Peer outliers: {len(anomalies)}")
     return anomalies
@@ -394,9 +398,9 @@ def detect_trends(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
     Flag KPIs with a statistically significant degrading trend across
     the full dataset (slope threshold: |slope| > 0.5 per hour).
     """
-    records  = parsed_kpi.get("df_records", [])
+    records = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
-    ts_col   = parsed_kpi.get("timestamp_col", "Timestamp")
+    ts_col = parsed_kpi.get("timestamp_col", "Timestamp")
     anomalies = []
 
     if not records or not ts_col:
@@ -412,7 +416,7 @@ def detect_trends(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
         return []
 
     # Convert timestamp to hours since start (numeric x-axis)
-    t0         = df[ts_col].min()
+    t0 = df[ts_col].min()
     df["_hrs"] = (df[ts_col] - t0).dt.total_seconds() / 3600.0
 
     for kpi in kpi_cols:
@@ -426,44 +430,44 @@ def detect_trends(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
         y = series[kpi].values
         slope, intercept = np.polyfit(x, y, 1)
 
-        meta      = get_meta(kpi)
+        meta = get_meta(kpi)
         direction = meta.get("direction", "higher_better")
-        unit      = meta.get("unit", "")
+        unit = meta.get("unit", "")
 
         # A degrading slope for higher_better = negative slope
         # A degrading slope for lower_better  = positive slope
         degrading = (
             (direction == "higher_better" and slope < -0.5) or
-            (direction == "lower_better"  and slope >  0.5)
+            (direction == "lower_better" and slope > 0.5)
         )
         if not degrading:
             continue
 
         start_val = float(np.polyval([slope, intercept], x.min()))
-        end_val   = float(np.polyval([slope, intercept], x.max()))
-        delta     = abs(end_val - start_val)
-        sev       = "High" if abs(slope) > 2.0 else "Medium"
+        end_val = float(np.polyval([slope, intercept], x.max()))
+        delta = abs(end_val - start_val)
+        sev = "High" if abs(slope) > 2.0 else "Medium"
 
-        ev = (f"{meta.get('label',kpi)}: slope={slope:+.3f}{unit}/hr "
+        ev = (f"{meta.get('label', kpi)}: slope={slope:+.3f}{unit}/hr "
               f"over {x.max():.1f}hrs "
               f"(est. {start_val:.2f}→{end_val:.2f}{unit}, Δ={delta:.2f})")
 
         anomalies.append({
-            "type":           f"{meta.get('label',kpi)} degrading trend",
-            "severity":       sev,
-            "score":          round(abs(slope), 3),
-            "detector":       "Trend (linear regression)",
-            "evidence":       ev,
-            "kpi":            kpi,
-            "label":          meta.get("label", kpi),
-            "category":       meta.get("category", "Other"),
-            "unit":           unit,
-            "cell_id":        "Fleet-wide",
-            "gnb_id":         "All",
-            "timestamp":      "trend",
-            "value":          round(slope, 4),
-            "warning":        meta.get("warning"),
-            "critical":       meta.get("critical"),
+            "type": f"{meta.get('label', kpi)} degrading trend",
+            "severity": sev,
+            "score": round(abs(slope), 3),
+            "detector": "Trend (linear regression)",
+            "evidence": ev,
+            "kpi": kpi,
+            "label": meta.get("label", kpi),
+            "category": meta.get("category", "Other"),
+            "unit": unit,
+            "cell_id": "Fleet-wide",
+            "gnb_id": "All",
+            "timestamp": "trend",
+            "value": round(slope, 4),
+            "warning": meta.get("warning"),
+            "critical": meta.get("critical"),
             "recommendation": RECOMMENDATIONS.get(kpi, DEFAULT_REC),
         })
 
@@ -487,11 +491,11 @@ def detect_iqr_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     Deduplication: one alert per (kpi, cell) — most severe violation only.
     """
-    records  = parsed_kpi.get("df_records", [])
+    records = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
-    ts_col   = parsed_kpi.get("timestamp_col", "Timestamp")
+    ts_col = parsed_kpi.get("timestamp_col", "Timestamp")
     cell_col = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col  = parsed_kpi.get("gnb_col", "gNB_ID")
+    gnb_col = parsed_kpi.get("gnb_col", "gNB_ID")
     anomalies: List[Dict[str, Any]] = []
 
     if not records:
@@ -507,12 +511,12 @@ def detect_iqr_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
         if len(vals) < 4:
             continue
 
-        meta      = get_meta(kpi)
+        meta = get_meta(kpi)
         direction = meta.get("direction", "higher_better")
-        unit      = meta.get("unit", "")
+        unit = meta.get("unit", "")
 
-        q1  = vals.quantile(0.25)
-        q3  = vals.quantile(0.75)
+        q1 = vals.quantile(0.25)
+        q3 = vals.quantile(0.75)
         iqr = q3 - q1
         if iqr == 0:
             continue
@@ -528,22 +532,22 @@ def detect_iqr_outliers(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
                 continue
 
             cell = str(row.get(cell_col, "?"))
-            gnb  = str(row.get(gnb_col,  "?"))
-            ts   = str(row.get(ts_col,   "?"))
+            gnb = str(row.get(gnb_col, "?"))
+            ts = str(row.get(ts_col, "?"))
 
             flagged = False
             if direction == "higher_better" and val < lower_fence:
                 flagged = True
                 sev = "High" if val < (lower_fence - iqr) else "Medium"
                 dev = lower_fence - val
-                ev  = (f"{meta.get('label',kpi)}={val:.2f}{unit} below lower fence "
-                       f"{lower_fence:.2f}{unit} (Q1={q1:.2f}, IQR={iqr:.2f}, dev={dev:.2f})")
+                ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} below lower fence "
+                      f"{lower_fence:.2f}{unit} (Q1={q1:.2f}, IQR={iqr:.2f}, dev={dev:.2f})")
             elif direction == "lower_better" and val > upper_fence:
                 flagged = True
                 sev = "High" if val > (upper_fence + iqr) else "Medium"
                 dev = val - upper_fence
-                ev  = (f"{meta.get('label',kpi)}={val:.2f}{unit} above upper fence "
-                       f"{upper_fence:.2f}{unit} (Q3={q3:.2f}, IQR={iqr:.2f}, dev={dev:.2f})")
+                ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} above upper fence "
+                      f"{upper_fence:.2f}{unit} (Q3={q3:.2f}, IQR={iqr:.2f}, dev={dev:.2f})")
             else:
                 flagged = False
 
@@ -605,11 +609,11 @@ def detect_cusum(
         Example — 25 % burn-in on a 360-row series:
             detect_cusum(parsed, reference_window=90)
     """
-    records  = parsed_kpi.get("df_records", [])
+    records = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
-    ts_col   = parsed_kpi.get("timestamp_col", "Timestamp")
+    ts_col = parsed_kpi.get("timestamp_col", "Timestamp")
     cell_col = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col  = parsed_kpi.get("gnb_col", "gNB_ID")
+    gnb_col = parsed_kpi.get("gnb_col", "gNB_ID")
     anomalies: List[Dict[str, Any]] = []
 
     if not records or not ts_col:
@@ -626,23 +630,23 @@ def detect_cusum(
         if kpi not in df.columns:
             continue
 
-        meta      = get_meta(kpi)
+        meta = get_meta(kpi)
         direction = meta.get("direction", "higher_better")
-        unit      = meta.get("unit", "")
+        unit = meta.get("unit", "")
 
         for cell, grp in df.groupby(cell_col):
             series = grp[[ts_col, kpi] + ([gnb_col] if gnb_col in grp else [])].dropna(subset=[kpi])
             if len(series) < 5:
                 continue
 
-            vals  = series[kpi].values
+            vals = series[kpi].values
             # Baseline estimation: use reference_window leading rows when set,
             # otherwise full series. Full-series default is fast but risks
             # baseline contamination when a fault spans the evaluation window.
             ref = vals[:reference_window] if (
                 reference_window is not None and reference_window < len(vals)
             ) else vals
-            mu    = ref.mean()
+            mu = ref.mean()
             sigma = ref.std()
             if sigma == 0:
                 continue
@@ -667,11 +671,11 @@ def detect_cusum(
                     drift = "extreme downward drift"
 
                 if drift:
-                    ts  = str(series[ts_col].iloc[i])
+                    ts = str(series[ts_col].iloc[i])
                     sev = "High" if max(cusum_pos, cusum_neg) > H * 2 else "Medium"
-                    ev  = (f"{meta.get('label',kpi)}: CUSUM {drift}; "
-                           f"S+={cusum_pos:.2f}, S-={cusum_neg:.2f} > h={H}σ; "
-                           f"val={val:.2f}{unit}, μ={mu:.2f}{unit}, σ={sigma:.2f}")
+                    ev = (f"{meta.get('label', kpi)}: CUSUM {drift}; "
+                          f"S+={cusum_pos:.2f}, S-={cusum_neg:.2f} > h={H}σ; "
+                          f"val={val:.2f}{unit}, μ={mu:.2f}{unit}, σ={sigma:.2f}")
                     anomalies.append(
                         _anomaly(kpi, str(cell), gnb, ts, val, sev, "CUSUM", ev)
                     )
@@ -698,11 +702,11 @@ def detect_bollinger_bands(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     Window = 5 intervals. One alert per (kpi, cell) — worst violation only.
     """
-    records  = parsed_kpi.get("df_records", [])
+    records = parsed_kpi.get("df_records", [])
     kpi_cols = parsed_kpi.get("kpi_columns", [])
-    ts_col   = parsed_kpi.get("timestamp_col", "Timestamp")
+    ts_col = parsed_kpi.get("timestamp_col", "Timestamp")
     cell_col = parsed_kpi.get("cell_col", "Cell_ID")
-    gnb_col  = parsed_kpi.get("gnb_col", "gNB_ID")
+    gnb_col = parsed_kpi.get("gnb_col", "gNB_ID")
     anomalies: List[Dict[str, Any]] = []
     WINDOW = 5
 
@@ -717,9 +721,9 @@ def detect_bollinger_bands(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
         if kpi not in df.columns:
             continue
 
-        meta      = get_meta(kpi)
+        meta = get_meta(kpi)
         direction = meta.get("direction", "higher_better")
-        unit      = meta.get("unit", "")
+        unit = meta.get("unit", "")
 
         for cell, grp in df.groupby(cell_col):
             sub = grp.dropna(subset=[kpi]).copy()
@@ -728,21 +732,21 @@ def detect_bollinger_bands(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
 
             # Lag by 1 so the current value never inflates its own band
             lagged = sub[kpi].shift(1)
-            sub["_rm"]   = lagged.rolling(WINDOW, min_periods=3).mean()
+            sub["_rm"] = lagged.rolling(WINDOW, min_periods=3).mean()
             sub["_rstd"] = lagged.rolling(WINDOW, min_periods=3).std().clip(lower=0.5)
-            sub["_ub"]   = sub["_rm"] + 2 * sub["_rstd"]
-            sub["_lb"]   = sub["_rm"] - 2 * sub["_rstd"]
+            sub["_ub"] = sub["_rm"] + 2 * sub["_rstd"]
+            sub["_lb"] = sub["_rm"] - 2 * sub["_rstd"]
 
-            worst_dev  = 0.0
+            worst_dev = 0.0
             worst_row: Dict = {}
             gnb = str(grp[gnb_col].iloc[0]) if gnb_col in grp else "?"
 
             for _, row in sub.iterrows():
                 val = row[kpi]
-                ub  = row["_ub"]
-                lb  = row["_lb"]
-                rm  = row["_rm"]
-                rs  = row["_rstd"]
+                ub = row["_ub"]
+                lb = row["_lb"]
+                rm = row["_rm"]
+                rs = row["_rstd"]
                 if pd.isna(ub) or pd.isna(lb) or rs == 0:
                     continue
 
@@ -750,13 +754,13 @@ def detect_bollinger_bands(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
                 if direction == "higher_better" and val < lb:
                     dev = lb - val
                     sev = "High" if dev > rs else "Medium"
-                    ev  = (f"{meta.get('label',kpi)}={val:.2f}{unit} below lower band "
-                           f"{lb:.2f}{unit} (rolling μ={rm:.2f}±{rs:.2f}, window={WINDOW})")
+                    ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} below lower band "
+                          f"{lb:.2f}{unit} (rolling μ={rm:.2f}±{rs:.2f}, window={WINDOW})")
                 elif direction == "lower_better" and val > ub:
                     dev = val - ub
                     sev = "High" if dev > rs else "Medium"
-                    ev  = (f"{meta.get('label',kpi)}={val:.2f}{unit} above upper band "
-                           f"{ub:.2f}{unit} (rolling μ={rm:.2f}±{rs:.2f}, window={WINDOW})")
+                    ev = (f"{meta.get('label', kpi)}={val:.2f}{unit} above upper band "
+                          f"{ub:.2f}{unit} (rolling μ={rm:.2f}±{rs:.2f}, window={WINDOW})")
                 else:
                     continue
 
@@ -782,12 +786,12 @@ def detect_bollinger_bands(parsed_kpi: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 # Ordered registry — name → function
 KPI_DETECTORS = [
-    ("Threshold",      detect_threshold_violations),
-    ("Peer Comparison",detect_peer_outliers),
-    ("Trend",          detect_trends),
-    ("IQR",            detect_iqr_outliers),
-    ("CUSUM",          detect_cusum),
-    ("Bollinger Bands",detect_bollinger_bands),
+    ("Threshold", detect_threshold_violations),
+    ("Peer Comparison", detect_peer_outliers),
+    ("Trend", detect_trends),
+    ("IQR", detect_iqr_outliers),
+    ("CUSUM", detect_cusum),
+    ("Bollinger Bands", detect_bollinger_bands),
 ]
 
 
@@ -835,10 +839,10 @@ def kpi_summary_table(parsed_kpi: Dict[str, Any]) -> List[Dict]:
     summary = parsed_kpi.get("summary", {})
     rows = []
     for kpi, s in summary.items():
-        mean      = s["mean"]
+        mean = s["mean"]
         direction = s.get("direction", "higher_better")
-        warn      = s.get("warning")
-        crit      = s.get("critical")
+        warn = s.get("warning")
+        crit = s.get("critical")
 
         if warn is None:
             status = "ℹ️"
@@ -848,16 +852,16 @@ def kpi_summary_table(parsed_kpi: Dict[str, Any]) -> List[Dict]:
             status = "🔴" if mean >= crit else ("🟡" if mean >= warn else "🟢")
 
         rows.append({
-            "Status":   status,
-            "KPI":      s.get("label", kpi),
+            "Status": status,
+            "KPI": s.get("label", kpi),
             "Category": s.get("category", "Other"),
-            "Unit":     s.get("unit", ""),
-            "Min":      s["min"],
-            "Max":      s["max"],
-            "Mean":     round(s["mean"], 2),
-            "P10":      s["p10"],
-            "P90":      s["p90"],
-            "Warning":  warn,
+            "Unit": s.get("unit", ""),
+            "Min": s["min"],
+            "Max": s["max"],
+            "Mean": round(s["mean"], 2),
+            "P10": s["p10"],
+            "P90": s["p90"],
+            "Warning": warn,
             "Critical": crit,
         })
 
