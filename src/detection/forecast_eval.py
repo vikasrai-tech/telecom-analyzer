@@ -31,7 +31,7 @@ from src.detection.predictor import (
     _holt_winters_point_forecast,
     _LSTMForecaster,
     _get_timesfm,
-    _chronos_point_forecast,
+    _moirai_point_forecast,
     _get_thresholds,
     _sev_from_forecast,
     _infer_freq_seconds,
@@ -39,7 +39,7 @@ from src.detection.predictor import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm", "chronos")
+DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm", "moirai")
 
 
 # ── Result schemas ──────────────────────────────────────────────────────
@@ -137,8 +137,8 @@ def _point_forecast(method: str, sub: pd.DataFrame, ts_col: str, col: str,
             logger.debug(f"[timesfm] point_forecast failed: {e}")
             return None
 
-    if method == "chronos":
-        return _chronos_point_forecast(series, horizon_periods)
+    if method == "moirai":
+        return _moirai_point_forecast(series, horizon_periods)
 
     raise ValueError(f"Unknown method: {method}")
 

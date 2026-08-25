@@ -699,15 +699,16 @@ def render_prediction_panel(parsed: Dict, source: str, router: "EventRouter") ->
 | **Holt-Winters** | Exponential smoothing | Hand-configured (damped trend, optional seasonality) baseline — cheap, interpretable, good sanity check against Prophet. |  # noqa: E501
 | **LSTM** | Deep learning / sequence | Captures nonlinear dependencies between metrics. Better than Prophet when there's no clear seasonality — L1/L2 counters like HARQ NACK rate or BLER show abrupt non-seasonal shifts. |  # noqa: E501
 | **TimesFM** | Foundation model (Google, 200M params) | Zero-shot forecaster pretrained on 100B+ real-world time-series. No fine-tuning needed — works directly on raw CSV exports. Reviewer-recommended for production-grade telecom forecasting. |  # noqa: E501
-| **Chronos** | Foundation model (Amazon, 46M params) | T5-based probabilistic zero-shot forecaster (chronos-t5-small) pretrained on 100B+ real-world points. Direct benchmark competitor to TimesFM. Outputs full forecast distributions; median used as point forecast. |  # noqa: E501
+| **Moirai** | Foundation model (Salesforce, ~75M params) | Universal Time Series Forecasting Transformer pretrained on LOTSA data (27B observations). Handles variable-length context natively. Mean of 20 probabilistic samples used as point forecast. |  # noqa: E501
+| **N-HiTS** | Trained neural model (Nixtla) | Trains on your uploaded CSV data, then predicts. Hierarchical interpolation captures diurnal + short-term patterns. Falls back to Moirai for unseen cells. Best accuracy once trained on domain data. |  # noqa: E501
 
-**Complementary:** Prophet/Holt-Winters catch slow degradation early; LSTM catches sudden pattern breaks; TimesFM and Chronos generalise across all patterns zero-shot (foundation model comparison).  # noqa: E501
+**Complementary:** Prophet/Holt-Winters catch slow degradation; LSTM catches pattern breaks; TimesFM/Moirai generalise zero-shot; N-HiTS learns your specific KPI patterns.  # noqa: E501
 **Lead time:** Default 4h — gives NOC engineers time to act before threshold breach.
         """)
 
     horizon_h = st.slider("Forecast horizon (hours)", 1, 12, 4, key=f"horizon_{source}")
 
-    with st.spinner(f"Running forecast ({horizon_h}h ahead) — Prophet · Holt-Winters · LSTM · TimesFM · Chronos ..."):
+    with st.spinner(f"Running forecast ({horizon_h}h ahead) — Prophet · Holt-Winters · LSTM · TimesFM · Moirai · N-HiTS ..."):
         try:
             pred_by_method = run_prediction(parsed, horizon_h=horizon_h)
         except Exception as e:
@@ -724,13 +725,14 @@ def render_prediction_panel(parsed: Dict, source: str, router: "EventRouter") ->
         st.success(f"✅ No predicted anomalies in the next {horizon_h}h.")
         return
 
-    p1, p2, p3, p4, p5, p6 = st.columns(6)
+    p1, p2, p3, p4, p5, p6, p7 = st.columns(7)
     p1.metric("Predicted anomalies", len(all_predicted))
     p2.metric("🔮 Prophet", len(pred_by_method.get("prophet", [])))
     p3.metric("📈 Holt-Winters", len(pred_by_method.get("holt_winters", [])))
     p4.metric("🧠 LSTM", len(pred_by_method.get("lstm", [])))
     p5.metric("⚡ TimesFM", len(pred_by_method.get("timesfm", [])))
-    p6.metric("🌀 Chronos", len(pred_by_method.get("chronos", [])))
+    p6.metric("🌀 Moirai", len(pred_by_method.get("moirai", [])))
+    p7.metric("📊 N-HiTS", len(pred_by_method.get("nhits", [])))
 
     SEV_ICON = {"Critical": "🚨", "High": "🔴", "Medium": "🟡", "Low": "🟢"}
     for method, anoms in pred_by_method.items():

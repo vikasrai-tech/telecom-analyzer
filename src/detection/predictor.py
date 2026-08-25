@@ -1,7 +1,7 @@
 """
 Prediction Layer — Phase II
 
-Five forecasting methods:
+Six forecasting methods:
   1. Prophet       — off-the-shelf library baseline (seasonal/trend
                      decomposition), kept as a control for the benchmark
                      comparison rather than a built contribution.
@@ -16,13 +16,17 @@ Five forecasting methods:
                      model (200M params, timesfm-2.5-200m-pytorch).
                      No fine-tuning needed; works directly on CSV series.
                      Loaded once and cached as a module singleton.
-  5. Chronos       — Amazon's pre-trained zero-shot time-series foundation
-                     model (amazon/chronos-t5-small, 46M params).
-                     T5-based probabilistic forecaster trained on 100B+
-                     real-world time-series points. Direct competitor to
-                     TimesFM; loaded once and cached as a module singleton.
+  5. Moirai        — Salesforce's Universal Time Series Forecasting
+                     Transformer (moirai-1.1-R-small, ~75M params).
+                     Trained on LOTSA data (27B observations). Handles
+                     variable-length context natively. Loaded once and
+                     cached as a module singleton.
+  6. N-HiTS        — Nixtla neuralforecast; trains on parsed data then
+                     predicts horizon_h ahead. Falls back to Moirai for
+                     any unseen series. Best accuracy once trained on
+                     domain-specific data.
 
-All five return predicted anomalies in the same schema as the detection
+All six return predicted anomalies in the same schema as the detection
 layer, tagged state="predicted" with lead_time_h set. See
 src/detection/forecast_eval.py for the backtesting/lead-time evaluation
 harness that quantitatively compares them.
@@ -665,75 +669,105 @@ def forecast_timesfm(
     return predicted
 
 
-# ── Chronos forecaster ────────────────────────────────────────────────
+# ── Moirai forecaster ────────────────────────────────────────────────
 
-# Module-level singleton — model is ~46MB, load once per process.
-_chronos_model = None
+# Module-level singleton — weights are ~75MB, load once per process.
+_moirai_module = None
 
 
-def _get_chronos():
-    """Load amazon/chronos-t5-small (CPU) from HuggingFace, cached after first call."""
-    global _chronos_model
-    if _chronos_model is not None:
-        return _chronos_model
+def _get_moirai():
+    """Load Salesforce/moirai-1.1-R-small from HuggingFace, cached after first call."""
+    global _moirai_module
+    if _moirai_module is not None:
+        return _moirai_module
     try:
-        import torch
-        from chronos import ChronosPipeline
-        logger.info("[chronos] Loading amazon/chronos-t5-small from HuggingFace...")
-        model = ChronosPipeline.from_pretrained(
-            "amazon/chronos-t5-small",
-            device_map="cpu",
-            torch_dtype=torch.float32,
-        )
-        _chronos_model = model
-        logger.info("[chronos] Model loaded.")
-        return _chronos_model
+        from uni2ts.model.moirai import MoiraiModule
+        logger.info("[moirai] Loading Salesforce/moirai-1.1-R-small from HuggingFace...")
+        module = MoiraiModule.from_pretrained("Salesforce/moirai-1.1-R-small")
+        module.eval()
+        _moirai_module = module
+        logger.info("[moirai] Model loaded.")
+        return _moirai_module
     except Exception as e:
-        logger.warning(f"[chronos] Failed to load model: {e}")
+        logger.warning(f"[moirai] Failed to load model: {e}")
         return None
 
 
-def _chronos_point_forecast(
+_MOIRAI_PATCH_SIZE = 32   # fixed patch size — "auto" has tensor-shape bugs for short contexts
+
+
+def _moirai_point_forecast(
     series: np.ndarray, horizon_periods: int,
 ) -> Optional[np.ndarray]:
-    """Run Chronos on a raw series and return a horizon-length mean forecast array,
-    or None on failure. Shared by forecast_chronos() and the backtest harness."""
-    pipeline = _get_chronos()
-    if pipeline is None:
+    """Run Moirai on a raw series and return a horizon-length mean forecast array,
+    or None on failure. Shared by forecast_moirai() and the backtest harness."""
+    module = _get_moirai()
+    if module is None:
         return None
     try:
         import torch
-        context = torch.tensor(series, dtype=torch.float32)
-        _, mean = pipeline.predict_quantiles(
-            inputs=context,
+        from uni2ts.model.moirai import MoiraiForecast
+
+        # context_length must be a multiple of patch_size; pad with edge value if needed
+        raw_len = min(512, len(series))
+        ctx_len = max(_MOIRAI_PATCH_SIZE,
+                      ((raw_len + _MOIRAI_PATCH_SIZE - 1) // _MOIRAI_PATCH_SIZE) * _MOIRAI_PATCH_SIZE)
+        ctx_len = min(ctx_len, 512)
+        raw = series[-raw_len:].astype(float)
+        if raw_len < ctx_len:
+            ctx = np.pad(raw, (ctx_len - raw_len, 0), mode="edge")
+            obs_mask = np.zeros(ctx_len, dtype=bool)
+            obs_mask[ctx_len - raw_len:] = True
+        else:
+            ctx = raw[-ctx_len:]
+            obs_mask = np.ones(ctx_len, dtype=bool)
+
+        forecast_model = MoiraiForecast(
+            module=module,
             prediction_length=horizon_periods,
-            quantile_levels=[0.5],
+            context_length=ctx_len,
+            patch_size=_MOIRAI_PATCH_SIZE,
+            num_samples=20,
+            target_dim=1,
+            feat_dynamic_real_dim=0,
+            past_feat_dynamic_real_dim=0,
         )
-        # mean shape: (1, horizon_periods)
-        return mean[0].numpy()
+
+        past_target = torch.tensor(ctx, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+        past_observed = torch.tensor(obs_mask, dtype=torch.bool).unsqueeze(0).unsqueeze(-1)
+        past_is_pad = torch.zeros(1, ctx_len, dtype=torch.bool)
+
+        with torch.no_grad():
+            samples = forecast_model(
+                past_target=past_target,
+                past_observed_target=past_observed,
+                past_is_pad=past_is_pad,
+            )
+        # samples shape: (1, num_samples, horizon_periods)
+        return samples[0].mean(dim=0).numpy()
     except Exception as e:
-        logger.debug(f"[chronos] point_forecast failed: {e}")
+        logger.debug(f"[moirai] point_forecast failed: {e}")
         return None
 
 
-def forecast_chronos(
+def forecast_moirai(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
     min_rows: int = DEFAULT_MIN_ROWS,
 ) -> List[Dict[str, Any]]:
     """
-    Zero-shot forecast using Amazon Chronos (chronos-t5-small, 46M params).
+    Zero-shot forecast using Salesforce Moirai (moirai-1.1-R-small, ~75M params).
 
-    Chronos is a T5-based probabilistic foundation model pre-trained on
-    100B+ real-world time-series points. Like TimesFM it requires no
-    fine-tuning — feed raw numeric series and get a probabilistic forecast.
-    We use the median (0.5-quantile) as the point forecast.
+    Moirai is a Universal Time Series Forecasting Transformer pre-trained on
+    LOTSA data (27B observations across diverse domains). Like TimesFM it
+    requires no fine-tuning — feed raw numeric series and get a probabilistic
+    multi-step forecast. We use the mean across 20 samples as the point forecast.
 
     Returns predicted anomalies in the same schema as other forecasters,
     tagged state='predicted' with lead_time_h set.
     """
-    if _get_chronos() is None:
-        logger.warning("[chronos] Model unavailable — skipping Chronos forecast")
+    if _get_moirai() is None:
+        logger.warning("[moirai] Model unavailable — skipping Moirai forecast")
         return []
 
     ts_col = parsed.get("timestamp_col", "")
@@ -761,9 +795,9 @@ def forecast_chronos(
             if len(series) < min_rows:
                 continue
 
-            forecast = _chronos_point_forecast(series, horizon_periods)
+            forecast = _moirai_point_forecast(series, horizon_periods)
             if forecast is None:
-                logger.debug(f"[chronos] {col}@{cell}: forecast failed")
+                logger.debug(f"[moirai] {col}@{cell}: forecast failed")
                 continue
 
             forecast_val = float(np.mean(forecast))
@@ -779,12 +813,159 @@ def forecast_chronos(
 
             predicted.append(_make_predicted(
                 col, cell, forecast_val, horizon_h, sev,
-                evidence=(f"Chronos forecast: {col} predicted "
+                evidence=(f"Moirai forecast: {col} predicted "
                           f"{forecast_val:.2f} (peak={forecast_max:.2f}) "
                           f"in {horizon_h}h. Last 5 values mean={series[-5:].mean():.2f}"),
-                method="Chronos",
+                method="Moirai",
             ))
-            logger.info(f"[chronos] {col}@{cell} forecast={forecast_val:.2f} sev={sev}")
+            logger.info(f"[moirai] {col}@{cell} forecast={forecast_val:.2f} sev={sev}")
+
+    return predicted
+
+
+# ── N-HiTS forecaster ────────────────────────────────────────────────
+
+def _nhits_freq_str(freq_s: float) -> str:
+    """Convert median sampling interval in seconds to a pandas freq string."""
+    secs = int(round(freq_s))
+    if secs % 3600 == 0:
+        return f"{secs // 3600}h"
+    if secs % 60 == 0:
+        return f"{secs // 60}min"
+    return f"{secs}s"
+
+
+def forecast_nhits(
+    parsed: Dict[str, Any],
+    horizon_h: int = DEFAULT_HORIZON_H,
+    min_rows: int = DEFAULT_MIN_ROWS,
+) -> List[Dict[str, Any]]:
+    """
+    Forecast using N-HiTS (Nixtla neuralforecast) with Moirai fallback.
+
+    N-HiTS (Neural Hierarchical Interpolation for Time Series) trains a
+    multi-rate MLP on all series in parsed in a single fit() call, then
+    predicts horizon_h ahead. It explicitly captures both short-term and
+    long-term patterns via hierarchical interpolation — outperforms zero-shot
+    foundation models on domain-specific data once trained.
+
+    Fallback logic:
+      - Known series (cell+col present in training data): N-HiTS prediction.
+      - New/unseen series or training failure: Moirai zero-shot prediction.
+
+    Returns predicted anomalies in the same schema as other forecasters,
+    tagged state='predicted' with lead_time_h set.
+    """
+    try:
+        from neuralforecast import NeuralForecast
+        from neuralforecast.models import NHITS
+    except ImportError:
+        logger.warning("[nhits] neuralforecast not installed — skipping N-HiTS")
+        return []
+
+    ts_col = parsed.get("timestamp_col", "")
+    cell_col = parsed.get("cell_col", "")
+    cols = parsed.get("l1l2_columns") or parsed.get("kpi_columns") or []
+
+    if not ts_col or not cols:
+        return []
+
+    df = pd.DataFrame(parsed["df_records"])
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+    df = df.dropna(subset=[ts_col])
+
+    freq_s = _infer_freq_seconds(df, ts_col, cell_col)
+    if not freq_s:
+        return []
+
+    horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
+    freq_str = _nhits_freq_str(freq_s)
+
+    # Build neuralforecast DataFrame (unique_id, ds, y) across all series
+    groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
+    nf_parts: List[pd.DataFrame] = []
+    series_index: List[tuple] = []   # (cell, col, uid, series_array)
+
+    for cell, grp in groups:
+        grp_sorted = grp.sort_values(ts_col)
+        for col in cols:
+            sub = grp_sorted[[ts_col, col]].dropna(subset=[col]).reset_index(drop=True)
+            # Need enough rows for N-HiTS: input_size + horizon
+            if len(sub) < min_rows + horizon_periods:
+                continue
+            uid = f"{cell}__{col}"
+            part = sub.rename(columns={ts_col: "ds", col: "y"}).copy()
+            part["unique_id"] = uid
+            nf_parts.append(part[["unique_id", "ds", "y"]])
+            series_index.append((cell, col, uid, sub[col].values.astype(float)))
+
+    if not nf_parts:
+        logger.warning("[nhits] no series with enough rows — falling back to Moirai")
+        return forecast_moirai(parsed, horizon_h=horizon_h, min_rows=min_rows)
+
+    nf_df = pd.concat(nf_parts, ignore_index=True)
+    input_size = min(5 * horizon_periods, 512)
+    trained_ids: set = set()
+    pred_lookup: dict = {}
+
+    try:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            nf = NeuralForecast(
+                models=[NHITS(
+                    h=horizon_periods,
+                    input_size=input_size,
+                    max_steps=200,
+                    enable_progress_bar=False,
+                    enable_model_summary=False,
+                )],
+                freq=freq_str,
+            )
+            nf.fit(nf_df)
+            pred_df = nf.predict().reset_index()
+
+        trained_ids = set(nf_df["unique_id"].unique())
+        if "NHITS" in pred_df.columns:
+            for uid, grp in pred_df.groupby("unique_id"):
+                pred_lookup[uid] = grp["NHITS"].values
+        logger.info(f"[nhits] trained on {len(trained_ids)} series, predictions for {len(pred_lookup)}")
+    except Exception as e:
+        logger.warning(f"[nhits] training/prediction failed: {e} — falling back to Moirai for all")
+        return forecast_moirai(parsed, horizon_h=horizon_h, min_rows=min_rows)
+
+    predicted = []
+    for cell, col, uid, series in series_index:
+        if uid in pred_lookup and len(pred_lookup[uid]) > 0:
+            fc = pred_lookup[uid]
+            method_label = "N-HiTS"
+        else:
+            # Unseen cell or prediction gap — Moirai fallback
+            fc = _moirai_point_forecast(series, horizon_periods)
+            if fc is None:
+                continue
+            method_label = "N-HiTS(Moirai fallback)"
+            logger.debug(f"[nhits] {col}@{cell}: Moirai fallback used")
+
+        forecast_val = float(np.mean(fc))
+        forecast_max = float(np.max(fc))
+
+        w, c, direction = _get_thresholds(col, parsed)
+        sev = _sev_from_forecast(forecast_val, w, c, col, direction)
+        if sev == "Low":
+            sev_max = _sev_from_forecast(forecast_max, w, c, col, direction)
+            if sev_max == "Low":
+                continue
+            sev = "Medium"
+
+        predicted.append(_make_predicted(
+            col, cell, forecast_val, horizon_h, sev,
+            evidence=(f"{method_label} forecast: {col} predicted "
+                      f"{forecast_val:.2f} (peak={forecast_max:.2f}) "
+                      f"in {horizon_h}h. Last 5 values mean={series[-5:].mean():.2f}"),
+            method=method_label,
+        ))
+        logger.info(f"[nhits] {col}@{cell} forecast={forecast_val:.2f} sev={sev} ({method_label})")
 
     return predicted
 
@@ -799,10 +980,10 @@ def run_prediction(
     """
     Run prediction layer. Returns {method: [predicted_anomaly, ...]}.
 
-    methods: None = run all; or a subset list e.g. ["chronos", "holt_winters"].
+    methods: None = run all; or a subset list e.g. ["moirai", "holt_winters"].
     """
     if methods is None:
-        methods = ["prophet", "holt_winters", "lstm", "timesfm", "chronos"]
+        methods = ["prophet", "holt_winters", "lstm", "timesfm", "moirai", "nhits"]
 
     results: Dict[str, List] = {}
 
@@ -822,9 +1003,13 @@ def run_prediction(
         logger.info("[predictor] Running TimesFM zero-shot forecast...")
         results["timesfm"] = forecast_timesfm(parsed, horizon_h=horizon_h)
 
-    if "chronos" in methods:
-        logger.info("[predictor] Running Chronos zero-shot forecast...")
-        results["chronos"] = forecast_chronos(parsed, horizon_h=horizon_h)
+    if "moirai" in methods:
+        logger.info("[predictor] Running Moirai zero-shot forecast...")
+        results["moirai"] = forecast_moirai(parsed, horizon_h=horizon_h)
+
+    if "nhits" in methods:
+        logger.info("[predictor] Running N-HiTS forecast (with Moirai fallback)...")
+        results["nhits"] = forecast_nhits(parsed, horizon_h=horizon_h)
 
     total = sum(len(v) for v in results.values())
     logger.info(f"[predictor] Done — {total} predicted anomalies across {len(results)} methods")
