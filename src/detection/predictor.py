@@ -888,9 +888,9 @@ def forecast_nhits(
 
     horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
     freq_str_val = _nhits_freq_str(freq_s)
-    # N-HiTS requires at least input_size + horizon rows per series
-    input_size = min(5 * horizon_periods, 512)
-    nhits_min_len = input_size + horizon_periods
+    # Keep input_size modest so it fits within typical series lengths;
+    # start_padding_enabled=True handles series shorter than input_size gracefully.
+    input_size = min(2 * horizon_periods, 256)
 
     # Build neuralforecast DataFrame (unique_id, ds, y) across all series
     groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
@@ -901,7 +901,7 @@ def forecast_nhits(
         grp_sorted = grp.sort_values(ts_col)
         for col in cols:
             sub = grp_sorted[[ts_col, col]].dropna(subset=[col]).reset_index(drop=True)
-            if len(sub) < max(min_rows, nhits_min_len):
+            if len(sub) < min_rows + horizon_periods:
                 continue
             uid = f"{cell}__{col}"
             part = sub.rename(columns={ts_col: "ds", col: "y"}).copy()
@@ -932,6 +932,7 @@ def forecast_nhits(
                         max_steps=200,
                         enable_progress_bar=False,
                         enable_model_summary=False,
+                        start_padding_enabled=True,
                     )],
                     freq=freq_str_val,
                 )
