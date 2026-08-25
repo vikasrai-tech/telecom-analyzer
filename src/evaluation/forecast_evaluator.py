@@ -167,8 +167,29 @@ def run_forecast_evaluation(
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Full JSON
+        # Full JSON — merge with existing file so rows written by standalone
+        # benchmark scripts (run_moirai_benchmark.py, run_nhits_benchmark.py)
+        # are preserved rather than overwritten.
         json_path = out_dir / "forecast_benchmark.json"
+        if json_path.exists():
+            try:
+                existing = json.loads(json_path.read_text())
+                run_methods = set(result["config"].get("methods", []))
+                merged_accuracy = [r for r in existing.get("forecast_accuracy", [])
+                                   if r.get("method") not in run_methods]
+                merged_accuracy += result["forecast_accuracy"]
+                merged_lt = [r for r in existing.get("lead_time", [])
+                             if r.get("method") not in run_methods]
+                merged_lt += result["lead_time"]
+                merged_summary = [r for r in existing.get("summary_table", [])
+                                  if r.get("method") not in run_methods]
+                merged_summary += result["summary_table"]
+                result = {**existing, **result,
+                          "forecast_accuracy": merged_accuracy,
+                          "lead_time": merged_lt,
+                          "summary_table": merged_summary}
+            except Exception:
+                pass  # corrupt existing file — overwrite cleanly
         json_path.write_text(json.dumps(result, indent=2))
         logger.info(f"Saved: {json_path}")
 

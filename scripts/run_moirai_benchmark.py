@@ -36,6 +36,7 @@ OUT_DIR = ROOT / "results" / "forecast"
 HORIZON_H = 4
 N_ORIGINS = 8
 MIN_TRAIN_ROWS = 24
+NUM_SAMPLES = 20     # must match num_samples in _moirai_point_forecast
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
@@ -63,13 +64,8 @@ def rolling_origin_backtest(parsed, module):  # noqa: ARG001 — module kept for
     df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
     df = df.dropna(subset=[ts_col])
 
-    freq_s = None
-    if ts_col in df.columns:
-        diffs = df[ts_col].sort_values().diff().dropna()
-        if len(diffs):
-            freq_s = diffs.median().total_seconds()
-    if not freq_s or freq_s <= 0:
-        freq_s = 300.0
+    from src.detection.predictor import _infer_freq_seconds
+    freq_s = _infer_freq_seconds(df, ts_col, cell_col) or 300.0
     horizon_periods = max(1, round(HORIZON_H * 3600 / freq_s))
 
     # Build all (cell, col) series

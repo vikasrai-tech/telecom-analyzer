@@ -102,7 +102,7 @@ def main():
             sub = grp_sorted[[ts_col, col]].dropna(subset=[col]).reset_index(drop=True)
             if len(sub) < MIN_TRAIN_ROWS + horizon_periods:
                 continue
-            uid = f"{cell}__{col}"
+            uid = f"{cell}\x00{col}"   # \x00 never appears in CSV headers/cell names
             series_map[uid] = (cell, col, sub)
 
     n_series = len(series_map)
@@ -193,7 +193,7 @@ def main():
             rmse = float(np.sqrt(np.mean(err ** 2)))
             nonzero = act != 0
             mape = float(np.mean(np.abs(err[nonzero] / act[nonzero])) * 100) if nonzero.any() else None
-            parts = uid.split("__", 1)
+            parts = uid.split("\x00", 1)
             raw_results.append({
                 "method": "nhits",
                 "cell_id": parts[0] if len(parts) == 2 else uid,

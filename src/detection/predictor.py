@@ -841,8 +841,13 @@ _nhits_cache: Dict[tuple, Dict] = {}   # fingerprint → pred_lookup dict
 
 
 def _nhits_fingerprint(nf_df: "pd.DataFrame") -> tuple:
-    """Cheap data identity check — unique_ids + total rows."""
-    return (frozenset(nf_df["unique_id"].unique()), len(nf_df))
+    """Data identity check — unique_ids + row count + time bounds."""
+    return (
+        frozenset(nf_df["unique_id"].unique()),
+        len(nf_df),
+        str(nf_df["ds"].min()),
+        str(nf_df["ds"].max()),
+    )
 
 
 def forecast_nhits(
@@ -903,7 +908,7 @@ def forecast_nhits(
             sub = grp_sorted[[ts_col, col]].dropna(subset=[col]).reset_index(drop=True)
             if len(sub) < min_rows + horizon_periods:
                 continue
-            uid = f"{cell}__{col}"
+            uid = f"{cell}\x00{col}"   # \x00 never appears in CSV headers/cell names
             part = sub.rename(columns={ts_col: "ds", col: "y"}).copy()
             part["unique_id"] = uid
             nf_parts.append(part[["unique_id", "ds", "y"]])
