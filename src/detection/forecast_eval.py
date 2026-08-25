@@ -39,6 +39,9 @@ from src.detection.predictor import (
 
 logger = logging.getLogger(__name__)
 
+# "nhits" is intentionally excluded — it requires full-dataset training and
+# cannot be dispatched per-series through _point_forecast. Use
+# scripts/run_nhits_benchmark.py to produce nhits benchmark numbers.
 DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm", "moirai")
 
 
@@ -139,6 +142,13 @@ def _point_forecast(method: str, sub: pd.DataFrame, ts_col: str, col: str,
 
     if method == "moirai":
         return _moirai_point_forecast(series, horizon_periods)
+
+    if method == "nhits":
+        raise ValueError(
+            "nhits requires full-dataset training and cannot be evaluated "
+            "per-series in the rolling-origin harness. "
+            "Use scripts/run_nhits_benchmark.py instead."
+        )
 
     raise ValueError(f"Unknown method: {method}")
 

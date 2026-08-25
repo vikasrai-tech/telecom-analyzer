@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# "nhits" excluded — requires full-dataset training, not per-series rolling-origin.
+# Use scripts/run_nhits_benchmark.py for nhits benchmark numbers.
 DEFAULT_METHODS = ("prophet", "holt_winters", "lstm", "timesfm", "moirai")
 DEFAULT_HORIZON_H = 4
 DEFAULT_N_ORIGINS = 8

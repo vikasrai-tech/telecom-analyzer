@@ -744,7 +744,7 @@ def _moirai_point_forecast(
                 past_is_pad=past_is_pad,
             )
         # samples shape: (1, num_samples, horizon_periods)
-        return samples[0].mean(dim=0).numpy()
+        return samples[0].mean(dim=0).detach().cpu().numpy()
     except Exception as e:
         logger.debug(f"[moirai] point_forecast failed: {e}")
         return None
@@ -835,6 +835,16 @@ def _nhits_freq_str(freq_s: float) -> str:
     return f"{secs}s"
 
 
+# Singleton cache: one trained model kept in memory, keyed by data fingerprint
+# so re-uploading the same file reuses the model without retraining.
+_nhits_cache: Dict[tuple, Dict] = {}   # fingerprint → pred_lookup dict
+
+
+def _nhits_fingerprint(nf_df: "pd.DataFrame") -> tuple:
+    """Cheap data identity check — unique_ids + total rows."""
+    return (frozenset(nf_df["unique_id"].unique()), len(nf_df))
+
+
 def forecast_nhits(
     parsed: Dict[str, Any],
     horizon_h: int = DEFAULT_HORIZON_H,
@@ -843,11 +853,9 @@ def forecast_nhits(
     """
     Forecast using N-HiTS (Nixtla neuralforecast) with Moirai fallback.
 
-    N-HiTS (Neural Hierarchical Interpolation for Time Series) trains a
-    multi-rate MLP on all series in parsed in a single fit() call, then
-    predicts horizon_h ahead. It explicitly captures both short-term and
-    long-term patterns via hierarchical interpolation — outperforms zero-shot
-    foundation models on domain-specific data once trained.
+    N-HiTS trains on all series in parsed in a single fit() call, then
+    predicts horizon_h ahead. The trained model is cached for the lifetime
+    of the process — re-uploading the same dataset skips retraining.
 
     Fallback logic:
       - Known series (cell+col present in training data): N-HiTS prediction.
@@ -879,7 +887,10 @@ def forecast_nhits(
         return []
 
     horizon_periods = max(1, int(horizon_h * 3600 / freq_s))
-    freq_str = _nhits_freq_str(freq_s)
+    freq_str_val = _nhits_freq_str(freq_s)
+    # N-HiTS requires at least input_size + horizon rows per series
+    input_size = min(5 * horizon_periods, 512)
+    nhits_min_len = input_size + horizon_periods
 
     # Build neuralforecast DataFrame (unique_id, ds, y) across all series
     groups = df.groupby(cell_col) if cell_col else [("ALL", df)]
@@ -890,8 +901,7 @@ def forecast_nhits(
         grp_sorted = grp.sort_values(ts_col)
         for col in cols:
             sub = grp_sorted[[ts_col, col]].dropna(subset=[col]).reset_index(drop=True)
-            # Need enough rows for N-HiTS: input_size + horizon
-            if len(sub) < min_rows + horizon_periods:
+            if len(sub) < max(min_rows, nhits_min_len):
                 continue
             uid = f"{cell}__{col}"
             part = sub.rename(columns={ts_col: "ds", col: "y"}).copy()
@@ -904,35 +914,41 @@ def forecast_nhits(
         return forecast_moirai(parsed, horizon_h=horizon_h, min_rows=min_rows)
 
     nf_df = pd.concat(nf_parts, ignore_index=True)
-    input_size = min(5 * horizon_periods, 512)
-    trained_ids: set = set()
+    fingerprint = _nhits_fingerprint(nf_df)
     pred_lookup: dict = {}
 
-    try:
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            nf = NeuralForecast(
-                models=[NHITS(
-                    h=horizon_periods,
-                    input_size=input_size,
-                    max_steps=200,
-                    enable_progress_bar=False,
-                    enable_model_summary=False,
-                )],
-                freq=freq_str,
-            )
-            nf.fit(nf_df)
-            pred_df = nf.predict().reset_index()
+    if fingerprint in _nhits_cache:
+        pred_lookup = _nhits_cache[fingerprint]
+        logger.info(f"[nhits] reusing cached model ({len(pred_lookup)} series)")
+    else:
+        try:
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                nf = NeuralForecast(
+                    models=[NHITS(
+                        h=horizon_periods,
+                        input_size=input_size,
+                        max_steps=200,
+                        enable_progress_bar=False,
+                        enable_model_summary=False,
+                    )],
+                    freq=freq_str_val,
+                )
+                nf.fit(nf_df)
+                pred_df = nf.predict().reset_index()
 
-        trained_ids = set(nf_df["unique_id"].unique())
-        if "NHITS" in pred_df.columns:
-            for uid, grp in pred_df.groupby("unique_id"):
-                pred_lookup[uid] = grp["NHITS"].values
-        logger.info(f"[nhits] trained on {len(trained_ids)} series, predictions for {len(pred_lookup)}")
-    except Exception as e:
-        logger.warning(f"[nhits] training/prediction failed: {e} — falling back to Moirai for all")
-        return forecast_moirai(parsed, horizon_h=horizon_h, min_rows=min_rows)
+            # column is "NHITS" in v1.7.x; guard against alternate names
+            nhits_col = next((c for c in pred_df.columns if c.upper().startswith("NHITS")), None)
+            if nhits_col:
+                for uid, grp in pred_df.groupby("unique_id"):
+                    pred_lookup[uid] = grp[nhits_col].values
+            logger.info(f"[nhits] trained, predictions for {len(pred_lookup)} series")
+            _nhits_cache.clear()          # evict stale model before storing new one
+            _nhits_cache[fingerprint] = pred_lookup
+        except Exception as e:
+            logger.warning(f"[nhits] training/prediction failed: {e} — falling back to Moirai for all")
+            return forecast_moirai(parsed, horizon_h=horizon_h, min_rows=min_rows)
 
     predicted = []
     for cell, col, uid, series in series_index:

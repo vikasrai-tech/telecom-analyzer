@@ -23,6 +23,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from src.detection.predictor import _moirai_point_forecast  # noqa: E402
+
 logging.basicConfig(
     level=logging.WARNING,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -34,77 +36,25 @@ OUT_DIR = ROOT / "results" / "forecast"
 HORIZON_H = 4
 N_ORIGINS = 8
 MIN_TRAIN_ROWS = 24
-NUM_SAMPLES = 20     # Moirai samples for mean estimate
-MAX_CONTEXT = 512    # Moirai context cap
-PATCH_SIZE = 32      # fixed patch size — "auto" has tensor-shape bugs for short contexts
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
 
-# ── load moirai model ────────────────────────────────────────────────────
+# ── load moirai model (via shared singleton in predictor) ─────────────────
 
 def load_moirai():
-    from uni2ts.model.moirai import MoiraiModule
+    from src.detection.predictor import _get_moirai
     print("[1/5] Loading Salesforce/moirai-1.1-R-small ...")
-    module = MoiraiModule.from_pretrained("Salesforce/moirai-1.1-R-small")
-    module.eval()
+    module = _get_moirai()
+    if module is None:
+        raise RuntimeError("Failed to load Moirai — check uni2ts installation")
     print("      Model loaded.")
     return module
 
 
-# ── per-series point forecast ────────────────────────────────────────────
-
-def moirai_predict(module, series: np.ndarray, horizon_periods: int) -> np.ndarray | None:
-    """Run Moirai on one 1-D numpy series. Returns (horizon_periods,) or None."""
-    try:
-        import torch
-        from uni2ts.model.moirai import MoiraiForecast
-
-        # context_length must be a multiple of PATCH_SIZE; pad with edge value if needed
-        raw_len = min(MAX_CONTEXT, len(series))
-        ctx_len = max(PATCH_SIZE,
-                      ((raw_len + PATCH_SIZE - 1) // PATCH_SIZE) * PATCH_SIZE)
-        ctx_len = min(ctx_len, MAX_CONTEXT)
-        raw = series[-raw_len:].astype(float)
-        if raw_len < ctx_len:
-            ctx = np.pad(raw, (ctx_len - raw_len, 0), mode="edge")
-            obs_mask = np.zeros(ctx_len, dtype=bool)
-            obs_mask[ctx_len - raw_len:] = True
-        else:
-            ctx = raw[-ctx_len:]
-            obs_mask = np.ones(ctx_len, dtype=bool)
-
-        forecast_model = MoiraiForecast(
-            module=module,
-            prediction_length=horizon_periods,
-            context_length=ctx_len,
-            patch_size=PATCH_SIZE,
-            num_samples=NUM_SAMPLES,
-            target_dim=1,
-            feat_dynamic_real_dim=0,
-            past_feat_dynamic_real_dim=0,
-        )
-
-        past_target = torch.tensor(ctx, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
-        past_observed = torch.tensor(obs_mask, dtype=torch.bool).unsqueeze(0).unsqueeze(-1)
-        past_is_pad = torch.zeros(1, ctx_len, dtype=torch.bool)
-
-        with torch.no_grad():
-            samples = forecast_model(
-                past_target=past_target,
-                past_observed_target=past_observed,
-                past_is_pad=past_is_pad,
-            )
-        # samples: (1, num_samples, horizon_periods)
-        return samples[0].mean(dim=0).numpy()
-    except Exception as e:
-        logger.warning(f"[moirai] predict failed: {e}")
-        return None
-
-
 # ── rolling-origin backtest ──────────────────────────────────────────────
 
-def rolling_origin_backtest(parsed, module):
+def rolling_origin_backtest(parsed, module):  # noqa: ARG001 — module kept for API compat; prediction uses shared singleton
     ts_col = parsed.get("timestamp_col", "")
     cell_col = parsed.get("cell_col", "")
     cols = parsed.get("kpi_columns", [])
@@ -161,7 +111,7 @@ def rolling_origin_backtest(parsed, module):
             if np.any(np.isnan(train_vals)) or len(actual_vals) < 1:
                 continue
 
-            fc = moirai_predict(module, train_vals, horizon_periods)
+            fc = _moirai_point_forecast(train_vals, horizon_periods)
             if fc is None:
                 continue
 

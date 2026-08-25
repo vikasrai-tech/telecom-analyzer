@@ -37,7 +37,7 @@ DATA_KPI = ROOT / "data" / "raw" / "kpi_10hr_sample.csv"
 OUT_DIR  = ROOT / "results" / "forecast"
 PLOT_DIR = OUT_DIR / "plots"
 
-METHODS    = ("prophet", "holt_winters", "lstm", "timesfm")
+METHODS    = ("prophet", "holt_winters", "lstm", "timesfm", "moirai")
 HORIZON_H  = 4
 N_ORIGINS  = 8
 
