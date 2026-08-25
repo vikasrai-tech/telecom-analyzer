@@ -69,6 +69,7 @@ mlruns/
 # Logs
 *.log
 logs/
+lightning_logs/
 docs/*.pptx
 docs/*.docx
 docs/~$*
